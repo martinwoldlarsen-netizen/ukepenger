@@ -28,6 +28,14 @@ export function clearAdminIdentityCache() {
   identityCache = null;
 }
 
+// Rett etter innlogging (OAuth-callback eller passord) har vi allerede en fersk,
+// nettopp utstedt sesjon med brukerobjektet i haanden. Uten dette ville neste
+// getAdminSetupStatus()/getCurrentAdminContext() brukt et helt nytt
+// auth.getUser()-nettverkskall + profiles-sporring for aa finne ut det samme.
+export function primeAdminIdentity(user: User, familyId: string | null) {
+  identityCache = { user, familyId, expiresAt: Date.now() + IDENTITY_CACHE_TTL_MS };
+}
+
 type EnsureFamilyResult = {
   familyId: string | null;
   error: string | null;

@@ -1,13 +1,10 @@
-﻿"use client";
+"use client";
 
+import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ensureFamilyForUser, getAdminSetupStatus } from "@/lib/family-client";
+import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -15,42 +12,61 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     let mounted = true;
+    let settled = false;
 
-    const run = async () => {
-      for (let i = 0; i < 8; i += 1) {
-        const sessionRes = await supabase.auth.getSession();
-        const session = sessionRes.data.session;
+    const finish = async (user: User) => {
+      if (settled || !mounted) return;
+      settled = true;
 
-        if (session?.user) {
-          const ensure = await ensureFamilyForUser({
-            id: session.user.id,
-            email: session.user.email,
-          });
-
-          if (ensure.error) {
-            if (mounted) setStatus(`Feil: ${ensure.error}`);
-            return;
-          }
-
-          const setup = await getAdminSetupStatus();
-          if (!mounted) return;
-
-          router.replace(setup.needsOnboarding ? "/onboarding" : "/admin/inbox");
-          return;
-        }
-
-        await wait(300);
+      const ensure = await ensureFamilyForUser({ id: user.id, email: user.email });
+      if (ensure.error) {
+        if (mounted) setStatus(`Feil: ${ensure.error}`);
+        return;
       }
 
-      if (mounted) {
+      // Sesjonen er akkurat utstedt av Supabase, saa det er ingen grunn til at
+      // getAdminSetupStatus() skal verifisere brukeren med et nytt nettverkskall.
+      primeAdminIdentity(user, ensure.familyId);
+
+      const setup = await getAdminSetupStatus();
+      if (!mounted) return;
+
+      router.replace(setup.needsOnboarding ? "/onboarding" : "/admin/inbox");
+    };
+
+    // getSession() venter internt paa initializePromise, som er der klienten
+    // leser tokens ut av URL-en (detectSessionInUrl). URL-en leses bare EN gang,
+    // saa hvis dette kallet ikke gir en sesjon, vil ikke gjentatte forsok heller
+    // gjore det - da er det riktig aa feile med en gang i stedet for aa vente.
+    const run = async () => {
+      const sessionRes = await supabase.auth.getSession();
+      const user = sessionRes.data.session?.user;
+
+      if (user) {
+        await finish(user);
+        return;
+      }
+
+      if (mounted && !settled) {
         setStatus("Feil: Fant ikke aktiv sesjon etter OAuth. Prov igjen fra login.");
       }
     };
+
+    // Sikkerhetsnett hvis SIGNED_IN kommer et hakk etter getSession(). Arbeidet
+    // maa ut av callbacken med setTimeout: supabase holder auth-laasen mens den
+    // kjorer, og et supabase-kall inni her kan laase seg selv ute.
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user && !settled) {
+        const user = session.user;
+        setTimeout(() => void finish(user), 0);
+      }
+    });
 
     void run();
 
     return () => {
       mounted = false;
+      authListener.subscription.unsubscribe();
     };
   }, [router]);
 
