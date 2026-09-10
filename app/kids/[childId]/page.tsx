@@ -51,7 +51,7 @@ export default function KidTaskPage() {
   const [nowTs, setNowTs] = useState<number>(() => Date.now());
   const [pendingOre, setPendingOre] = useState(0);
   const [approvedOre, setApprovedOre] = useState(0);
-  const [totalOre, setTotalOre] = useState(0);
+  const [paidOre, setPaidOre] = useState(0);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
   useEffect(() => {
@@ -74,6 +74,7 @@ export default function KidTaskPage() {
         cooldowns?: Record<string, number>;
         pending_ore?: number;
         approved_ore?: number;
+        paid_ore?: number;
         total_ore?: number;
       };
 
@@ -88,7 +89,7 @@ export default function KidTaskPage() {
       setCooldowns(tasksPayload.cooldowns ?? {});
       setPendingOre(tasksPayload.pending_ore ?? 0);
       setApprovedOre(tasksPayload.approved_ore ?? 0);
-      setTotalOre(tasksPayload.total_ore ?? 0);
+      setPaidOre(tasksPayload.paid_ore ?? 0);
 
       const wishlistPayload = (await wishlistRes.json().catch(() => ({}))) as {
         error?: string;
@@ -143,7 +144,6 @@ export default function KidTaskPage() {
     const currentTs = nowTs;
     setCooldowns((prev) => ({ ...prev, [taskId]: currentTs + 10_000 }));
     setPendingOre((prev) => prev + task.amount_ore);
-    setTotalOre((prev) => prev + task.amount_ore);
 
     const res = await fetch("/api/kids/claim", {
       method: "POST",
@@ -155,7 +155,6 @@ export default function KidTaskPage() {
     const payload = (await res.json()) as { error?: string; ok?: boolean; status?: string };
     if (!res.ok || payload.error) {
       setPendingOre((prev) => prev - task.amount_ore);
-      setTotalOre((prev) => prev - task.amount_ore);
       setStatus(`Feil: ${payload.error ?? "Kunne ikke sende krav."}`);
       return;
     }
@@ -192,12 +191,18 @@ export default function KidTaskPage() {
             </Link>
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm text-slate-300">
-            <div>
-              Saldo totalt: <span className="font-semibold text-slate-100">{formatKr(totalOre)}</span>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-emerald-800/60 bg-emerald-950/30 p-3 text-center">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300/80">Tjent</div>
+              <div className="mt-1 text-lg font-black text-emerald-200">{formatKr(approvedOre)}</div>
             </div>
-            <div className="mt-1 text-xs text-slate-400">
-              Venter: {formatKr(pendingOre)} &bull; Til gode: {formatKr(approvedOre)}
+            <div className="rounded-xl border border-amber-800/60 bg-amber-950/30 p-3 text-center">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300/80">Venter</div>
+              <div className="mt-1 text-lg font-black text-amber-200">{formatKr(pendingOre)}</div>
+            </div>
+            <div className="rounded-xl border border-sky-800/60 bg-sky-950/30 p-3 text-center">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-300/80">Utbetalt</div>
+              <div className="mt-1 text-lg font-black text-sky-200">{formatKr(paidOre)}</div>
             </div>
           </div>
 
