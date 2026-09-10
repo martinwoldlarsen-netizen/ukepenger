@@ -52,6 +52,7 @@ export default function KidTaskPage() {
   const [pendingOre, setPendingOre] = useState(0);
   const [approvedOre, setApprovedOre] = useState(0);
   const [paidOre, setPaidOre] = useState(0);
+  const [earnedOre, setEarnedOre] = useState(0);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
   useEffect(() => {
@@ -75,7 +76,7 @@ export default function KidTaskPage() {
         pending_ore?: number;
         approved_ore?: number;
         paid_ore?: number;
-        total_ore?: number;
+        earned_ore?: number;
       };
 
       if (!tasksRes.ok || tasksPayload.error || !tasksPayload.child) {
@@ -90,6 +91,7 @@ export default function KidTaskPage() {
       setPendingOre(tasksPayload.pending_ore ?? 0);
       setApprovedOre(tasksPayload.approved_ore ?? 0);
       setPaidOre(tasksPayload.paid_ore ?? 0);
+      setEarnedOre(tasksPayload.earned_ore ?? 0);
 
       const wishlistPayload = (await wishlistRes.json().catch(() => ({}))) as {
         error?: string;
@@ -163,6 +165,7 @@ export default function KidTaskPage() {
     if (payload.status === "APPROVED") {
       setPendingOre((prev) => Math.max(0, prev - task.amount_ore));
       setApprovedOre((prev) => prev + task.amount_ore);
+      setEarnedOre((prev) => prev + task.amount_ore);
       setStatus("Sendt! Kravet ble auto-godkjent.");
       return;
     }
@@ -191,11 +194,13 @@ export default function KidTaskPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl border border-emerald-800/60 bg-emerald-950/30 p-3 text-center">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300/80">Tjent</div>
-              <div className="mt-1 text-lg font-black text-emerald-200">{formatKr(approvedOre)}</div>
-            </div>
+          <div className="rounded-2xl border border-emerald-700/60 bg-emerald-950/40 p-4 text-center">
+            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-300/80">Til gode</div>
+            <div className="mt-1 text-4xl font-black text-emerald-200">{formatKr(approvedOre)}</div>
+            <div className="mt-1 text-xs text-emerald-300/70">Godkjent, venter pa utbetaling</div>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-2">
             <div className="rounded-xl border border-amber-800/60 bg-amber-950/30 p-3 text-center">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300/80">Venter</div>
               <div className="mt-1 text-lg font-black text-amber-200">{formatKr(pendingOre)}</div>
@@ -205,6 +210,10 @@ export default function KidTaskPage() {
               <div className="mt-1 text-lg font-black text-sky-200">{formatKr(paidOre)}</div>
             </div>
           </div>
+
+          <p className="mt-2 text-center text-xs text-slate-400">
+            Tjent totalt: <span className="font-semibold text-slate-200">{formatKr(earnedOre)}</span>
+          </p>
 
           <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950 p-3">
             <h2 className="text-sm font-semibold text-slate-100">Onskeliste</h2>

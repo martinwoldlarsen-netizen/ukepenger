@@ -167,17 +167,12 @@ export default function OnboardingPage() {
     setClaimUrl(payload.claimUrl);
   };
 
-  const goToBarnemodus = () => {
-    setStep(5);
-    if (!claimUrl && !qrBusy) {
-      void openQr(false);
-    }
-  };
-
-  const finish = async () => {
+  // Barn og oppgaver maa ligge i databasen foer QR-koden vises: forelderen skanner
+  // den med en gang, og en iPad som lander paa /kids uten profiler er en blindvei.
+  const persistSetup = async (): Promise<boolean> => {
     if (!familyId) {
       setStatus("Feil: Mangler familyId.");
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -188,7 +183,7 @@ export default function OnboardingPage() {
       if (familyUpdate.error) {
         setSaving(false);
         setStatus(`Feil: ${familyUpdate.error.message}`);
-        return;
+        return false;
       }
     }
 
@@ -203,7 +198,7 @@ export default function OnboardingPage() {
       if (childInsert.error) {
         setSaving(false);
         setStatus(`Feil: ${childInsert.error.message}`);
-        return;
+        return false;
       }
     }
 
@@ -222,7 +217,7 @@ export default function OnboardingPage() {
         if (taskInsert.error) {
           setSaving(false);
           setStatus(`Feil: ${taskInsert.error.message}`);
-          return;
+          return false;
         }
       }
     }
@@ -231,11 +226,27 @@ export default function OnboardingPage() {
     if (settingsUpdate.error) {
       setSaving(false);
       setStatus(`Feil: ${settingsUpdate.error.message}`);
-      return;
+      return false;
     }
 
+    // Gjoer et nytt kall til persistSetup til en no-op for barn/oppgaver, slik at
+    // "Tilbake" fra barnemodus og "Neste" igjen ikke oppretter duplikater.
+    if (childrenDrafts.length > 0) setHasChildrenAlready(true);
+    setChildrenDrafts([]);
+    setHasTasksAlready(true);
+
     setSaving(false);
-    router.replace("/admin/inbox");
+    return true;
+  };
+
+  const goToBarnemodus = async () => {
+    const saved = await persistSetup();
+    if (!saved) return;
+
+    setStep(5);
+    if (!claimUrl && !qrBusy) {
+      void openQr(false);
+    }
   };
 
   if (loading) {
@@ -436,10 +447,11 @@ export default function OnboardingPage() {
               </button>
               <button
                 type="button"
-                onClick={goToBarnemodus}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900"
+                onClick={() => void goToBarnemodus()}
+                disabled={saving}
+                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
               >
-                Neste
+                {saving ? "Lagrer..." : "Neste"}
               </button>
             </div>
           </div>
@@ -448,7 +460,10 @@ export default function OnboardingPage() {
         {step === 5 && (
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
             <h2 className="text-lg font-semibold">Steg 5: Aktiver barnemodus</h2>
-            <p className="mt-2 text-sm text-slate-300">
+            <p className="mt-2 rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+              Barn og oppgaver er lagret. Na gjenstar bare enheten barna skal bruke.
+            </p>
+            <p className="mt-3 text-sm text-slate-300">
               Barnesiden kjorer pa en delt iPad i kiosk-modus. Apne QR-koden under pa iPaden (eller skann den) for a koble
               nettbrettet til familien. Barnet velger sin egen profil hver gang - ingenting lagres permanent pa enheten.
             </p>
@@ -515,11 +530,10 @@ export default function OnboardingPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void finish()}
-                disabled={saving}
-                className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+                onClick={() => router.replace("/admin/inbox")}
+                className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950"
               >
-                {saving ? "Lagrer..." : "Fullfor setup"}
+                Begynn a bruke appen
               </button>
             </div>
           </div>

@@ -117,7 +117,9 @@ export async function GET(request: Request) {
     if (claim.status === "APPROVED") approved_ore += claim.amount_ore;
     if (claim.status === "PAID") paid_ore += claim.amount_ore;
   }
-  const total_ore = pending_ore + approved_ore;
+  // "Tjent totalt" er alt barnet har opparbeidet seg: det som staar til gode pluss
+  // det som allerede er utbetalt. Dette tallet skal aldri ga ned etter en utbetaling.
+  const earned_ore = approved_ore + paid_ore;
 
   return NextResponse.json({
     child: { id: child.id, name: child.name, avatar_key: child.avatar_key },
@@ -126,6 +128,6 @@ export async function GET(request: Request) {
     pending_ore,
     approved_ore,
     paid_ore,
-    total_ore,
+    earned_ore,
   });
 }

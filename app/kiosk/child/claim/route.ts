@@ -172,15 +172,17 @@ export async function GET(request: Request) {
       domain: "ukepenger.no",
       maxAge: 31536000,
     });
+    // Bevisst ingen per-barn-cookie: barnet velger profil paa nytt hver gang.
+    // Rydder bort en eventuell gammel uk_kid fra enheter som fikk den tidligere.
     response.cookies.set({
       name: "uk_kid",
-      value: child.id,
+      value: "",
       httpOnly: true,
       secure: true,
       sameSite: "lax",
       path: "/",
       domain: "ukepenger.no",
-      maxAge: 31536000,
+      maxAge: 0,
     });
     return response;
   } catch {
