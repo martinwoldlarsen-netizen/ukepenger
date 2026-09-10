@@ -1,9 +1,32 @@
-﻿"use client";
+"use client";
 
+import type { User } from "@supabase/supabase-js";
 import { getDeviceSessionFromDocument } from "@/lib/device-session.shared";
 import { supabase } from "@/lib/supabaseClient";
 
 export type ApprovalMode = "REQUIRE_APPROVAL" | "AUTO_APPROVE";
+
+// Login -> AdminLayout -> hver enkelt admin/*-side kaller alle
+// getCurrentAdminContext()/getAdminSetupStatus() i sitt eget mount-effect.
+// auth.getUser() er IKKE et lokalt oppslag - det er et ekte nettverkskall mot
+// Supabase sin auth-server - saa uten cache betyr en enkelt navigasjon til
+// /admin/inbox rett etter innlogging 3-4 runder med getUser() + profiles-sporring
+// foer noe vises. Cachen holder bare identitet (bruker + familyId), aldri
+// faktiske data-sporringer, saa RLS paa de virkelige kallene er upaavirket.
+type CachedIdentity = {
+  user: User;
+  familyId: string | null;
+  expiresAt: number;
+};
+
+const IDENTITY_CACHE_TTL_MS = 15_000;
+let identityCache: CachedIdentity | null = null;
+
+// Kalles fra utlogging saa en ny bruker som logger inn i samme fane ikke kan
+// arve forrige brukers cachede familyId innenfor TTL-vinduet.
+export function clearAdminIdentityCache() {
+  identityCache = null;
+}
 
 type EnsureFamilyResult = {
   familyId: string | null;
@@ -71,47 +94,61 @@ export async function ensureFamilyForUser(user: { id: string; email?: string | n
   return { familyId, error: null };
 }
 
-export async function getAdminSetupStatus(): Promise<SetupStatus> {
+// Delt av getAdminSetupStatus() og getCurrentAdminContext() slik at de to
+// kallene (som naesten alltid skjer rett etter hverandre paa samme side) bare
+// gjoer ett nettverksoppslag av "hvem er innlogget / hvilken familie" til
+// sammen, i stedet for ett hver.
+async function resolveIdentity(): Promise<{ user: User | null; familyId: string | null; error: string | null }> {
+  if (identityCache && identityCache.expiresAt > Date.now()) {
+    return { user: identityCache.user, familyId: identityCache.familyId, error: null };
+  }
+
   const { user, error: userError } = await getCurrentSessionUser();
   if (userError || !user) {
+    return { user: null, familyId: null, error: userError ?? "Ikke innlogget." };
+  }
+
+  const profile = await getFamilyIdForUser(user.id);
+  if (profile.error) {
+    return { user, familyId: null, error: profile.error };
+  }
+
+  // Kun vellykkede oppslag caches - en forbigaaende feil skal fortsatt proves
+  // paa nytt ved neste kall, ikke gjentas fra cache i 15 sekunder.
+  identityCache = { user, familyId: profile.familyId, expiresAt: Date.now() + IDENTITY_CACHE_TTL_MS };
+  return { user, familyId: profile.familyId, error: null };
+}
+
+export async function getAdminSetupStatus(): Promise<SetupStatus> {
+  const { user, familyId, error: identityError } = await resolveIdentity();
+  if (!user) {
     return {
       familyId: null,
       hasChildren: false,
       hasTasks: false,
       needsOnboarding: false,
-      error: userError ?? "Ikke innlogget.",
+      error: identityError ?? "Ikke innlogget.",
     };
   }
 
-  const profile = await getFamilyIdForUser(user.id);
-  if (profile.error) {
+  if (identityError || !familyId) {
     return {
       familyId: null,
       hasChildren: false,
       hasTasks: false,
       needsOnboarding: true,
-      error: profile.error,
-    };
-  }
-
-  if (!profile.familyId) {
-    return {
-      familyId: null,
-      hasChildren: false,
-      hasTasks: false,
-      needsOnboarding: true,
-      error: null,
+      error: identityError,
     };
   }
 
   const [childrenRes, tasksRes] = await Promise.all([
-    supabase.from("children").select("id", { head: true, count: "exact" }).eq("family_id", profile.familyId),
-    supabase.from("tasks").select("id", { head: true, count: "exact" }).eq("family_id", profile.familyId),
+    supabase.from("children").select("id", { head: true, count: "exact" }).eq("family_id", familyId),
+    supabase.from("tasks").select("id", { head: true, count: "exact" }).eq("family_id", familyId),
   ]);
 
   if (childrenRes.error || tasksRes.error) {
     return {
-      familyId: profile.familyId,
+      familyId,
       hasChildren: false,
       hasTasks: false,
       needsOnboarding: true,
@@ -123,7 +160,7 @@ export async function getAdminSetupStatus(): Promise<SetupStatus> {
   const hasTasks = (tasksRes.count ?? 0) > 0;
 
   return {
-    familyId: profile.familyId,
+    familyId,
     hasChildren,
     hasTasks,
     needsOnboarding: !hasChildren || !hasTasks,
@@ -132,17 +169,16 @@ export async function getAdminSetupStatus(): Promise<SetupStatus> {
 }
 
 export async function getCurrentAdminContext() {
-  const { user, error: userError } = await getCurrentSessionUser();
-  if (userError || !user) {
-    return { user: null, familyId: null, error: userError ?? "Ikke innlogget." };
+  const { user, familyId, error: identityError } = await resolveIdentity();
+  if (!user) {
+    return { user: null, familyId: null, error: identityError ?? "Ikke innlogget." };
   }
 
-  const profile = await getFamilyIdForUser(user.id);
-  if (profile.error || !profile.familyId) {
-    return { user, familyId: null, error: profile.error ?? "Fant ingen familie for bruker." };
+  if (identityError || !familyId) {
+    return { user, familyId: null, error: identityError ?? "Fant ingen familie for bruker." };
   }
 
-  return { user, familyId: profile.familyId, error: null };
+  return { user, familyId, error: null };
 }
 
 export async function getCurrentFamilyContext() {

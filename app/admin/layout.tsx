@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { getAdminSetupStatus, getCurrentAdminContext } from "@/lib/family-client";
+import { clearAdminIdentityCache, getAdminSetupStatus, getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
 const navItems = [
@@ -84,6 +84,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             onClick={async () => {
               setSigningOut(true);
               await supabase.auth.signOut();
+              clearAdminIdentityCache();
               router.replace("/login");
             }}
             className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
