@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="nb">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ingen nettforbindelse | Ukepenger</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: #fbf8f1;
+        color: #10231a;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        text-align: center;
+      }
+      .kort { max-width: 22rem; }
+      img { width: 64px; height: 64px; border-radius: 1rem; }
+      h1 { margin: 1.5rem 0 0; font-size: 1.5rem; letter-spacing: -0.03em; }
+      p { margin: 0.75rem 0 0; line-height: 1.6; color: #4a5d53; }
+      button {
+        margin-top: 1.75rem;
+        min-height: 2.75rem;
+        padding: 0 1.25rem;
+        border: 0;
+        border-radius: 0.75rem;
+        background: #005f2e;
+        color: #fbf8f1;
+        font-size: 0.9375rem;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="kort">
+      <img src="/icon-192.png" alt="" />
+      <h1>Ingen nettforbindelse</h1>
+      <p>Ukepenger trenger nett for å hente oppgaver og saldo. Sjekk wifi eller mobildata, så prøver vi igjen.</p>
+      <button type="button" onclick="location.reload()">Prøv på nytt</button>
+    </div>
+  </body>
+</html>
