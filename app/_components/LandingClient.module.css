@@ -23,6 +23,9 @@
 
   background: var(--background);
   color: var(--foreground);
+  /* Uten denne arver forsiden Geist fra body-regelen i globals.css,
+     og DM Sans lastes ned uten a bli brukt. */
+  font-family: var(--font-sans);
   min-height: 100vh;
   overflow: hidden;
 }
@@ -36,6 +39,8 @@
   display: inline-flex; min-height: 2.75rem; align-items: center; gap: 0.5rem;
   border-radius: 0.75rem; padding: 0 1.25rem; font-size: 0.875rem; font-weight: 700;
   transition: transform 0.15s;
+  /* Uten disse krymper knappene i en trang flex-rad og teksten brekker midt i. */
+  white-space: nowrap; flex-shrink: 0;
 }
 .buttonPrimary:hover, .buttonSecondary:hover, .buttonLight:hover { transform: translateY(-2px); }
 .buttonPrimary { background: var(--primary); color: var(--primary-foreground); box-shadow: 0 8px 20px -10px var(--primary); }
@@ -54,7 +59,8 @@
 .deviceHome { position: absolute; bottom: 0.25rem; left: 50%; height: 0.25rem; width: 4rem; transform: translateX(-50%); border-radius: 9999px; background: color-mix(in oklch, var(--background) 50%, transparent); }
 
 .heroNote { position: absolute; z-index: 20; display: flex; align-items: center; gap: 0.5rem; border-radius: 9999px; background: var(--card); padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 700; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); border: 1px solid var(--border); animation: landingFloat 4s ease-in-out infinite; }
-.heroNoteTop { right: 0; top: 2.5rem; color: var(--primary); }
+/* Ligger lavere enn klokka i mockupen, ellers dekker den den. */
+.heroNoteTop { right: 0; top: 7rem; color: var(--primary); }
 @media (min-width: 640px) { .heroNoteTop { right: 1rem; } }
 .heroNoteBottom { bottom: 3rem; left: 0; color: var(--accent-foreground); animation-delay: -1.5s; }
 @media (min-width: 640px) { .heroNoteBottom { left: 0.5rem; } }
@@ -67,40 +73,37 @@
 .avatarBlue { background: oklch(0.82 0.08 230); color: oklch(0.3 0.06 230); }
 .avatarYellow { background: var(--accent); color: var(--accent-foreground); }
 
-.flowCard { border-radius: 1.5rem; border: 1px solid var(--border); background: var(--background); padding: 1rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.flowStep { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.flowCard { width: 100%; border-radius: 1.5rem; border: 1px solid var(--border); background: var(--background); padding: 1rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.flowCaption { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); text-align: center; }
 .miniLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted-foreground); }
-.statusDot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--primary); }
+.statusDot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--primary); flex-shrink: 0; }
 
-.flowConnector { display: flex; align-items: center; gap: 0.5rem; color: var(--primary); }
-@media (min-width: 1024px) { .flowConnector { width: 4rem; flex-direction: column; } }
-.connectorLine { height: 2.25rem; width: 1px; background: color-mix(in oklch, var(--primary) 25%, transparent); }
-@media (min-width: 1024px) { .connectorLine { height: 1px; width: 100%; } }
-.connectorPill { display: flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; border-radius: 9999px; background: var(--accent); }
-
-.qrFlow { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; text-align: center; }
-.qrDevices { position: relative; display: flex; height: 8rem; width: 10rem; align-items: center; justify-content: center; }
-.qrScanIllustration { position: relative; z-index: 10; height: 7rem; width: 11rem; border-radius: 1rem; object-fit: cover; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); animation: landingQrIllustration 3.6s ease-in-out infinite; }
-.qrLoginCard { position: absolute; bottom: 0; right: 0; z-index: 20; display: flex; align-items: center; gap: 0.25rem; border-radius: 0.5rem; background: var(--card); padding: 0.25rem 0.5rem; font-family: var(--font-mono); font-size: 7px; font-weight: 700; text-transform: uppercase; color: var(--primary); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-.qrLoginLabel { display: none; }
-.qrScanBeam { position: absolute; z-index: 20; height: 2px; width: 2.5rem; border-radius: 9999px; background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: landingQrScan 3.6s ease-in-out infinite; }
-.qrFlowLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-foreground); }
-
-@keyframes landingQrScan {
-  0%, 25% { opacity: 0; transform: translate(-20px, -26px) rotate(-12deg); }
-  35% { opacity: 1; transform: translate(18px, -26px) rotate(-12deg); }
-  55% { opacity: 1; transform: translate(18px, 16px) rotate(-12deg); }
-  75%, 100% { opacity: 0; transform: translate(-20px, 16px) rotate(-12deg); }
+/* Stablet layout: loddrett pil. Fra lg: vannrett rad, altsa vannrett pil. */
+.flowConnector { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: var(--primary); }
+.connectorLine { width: 1px; height: 1.25rem; background: color-mix(in oklch, var(--primary) 25%, transparent); }
+@media (min-width: 1024px) {
+  .flowConnector { flex-direction: row; width: 4rem; }
+  .connectorLine { height: 1px; width: auto; flex: 1; }
 }
-@keyframes landingQrIllustration {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+.connectorPill { display: flex; height: 2rem; width: 2rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; background: var(--accent); color: var(--accent-foreground); }
+
+.qrBadge { display: inline-flex; align-items: center; gap: 0.625rem; border-radius: 9999px; border: 1px solid var(--border); background: var(--card); padding: 0.5rem 0.875rem 0.5rem 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.qrBadgeIcon { position: relative; display: flex; height: 1.875rem; width: 1.875rem; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border-radius: 0.625rem; background: var(--secondary); color: var(--primary); }
+.qrBadgeBeam { position: absolute; left: 0.25rem; right: 0.25rem; height: 2px; border-radius: 9999px; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: landingScanSweep 2.8s ease-in-out infinite; }
+.qrBadgeText { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); }
+
+@keyframes landingScanSweep {
+  0%, 100% { transform: translateY(-11px); opacity: 0; }
+  15% { opacity: 1; }
+  50% { transform: translateY(11px); opacity: 1; }
+  85% { opacity: 0; }
 }
 
 .profile { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; border-radius: 0.75rem; padding: 0.25rem; font-size: 9px; font-weight: 600; color: var(--muted-foreground); transition: background-color 0.15s, color 0.15s; }
 .profileActive { background: var(--secondary); color: var(--foreground); }
 
-.infoCard { position: relative; border-radius: 1.5rem; border: 1px solid var(--border); background: var(--card); padding: 1.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
-.stepNumber { position: absolute; right: 1.5rem; top: 1.5rem; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; color: color-mix(in oklch, var(--muted-foreground) 60%, transparent); }
+.infoCard { border-radius: 1.5rem; border: 1px solid var(--border); background: var(--card); padding: 1.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
 
 @keyframes landingFloat {
   0%, 100% { transform: translateY(0); }
@@ -108,5 +111,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .heroNote, .qrScanIllustration, .qrScanBeam { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .heroNote, .qrBadgeBeam { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .buttonPrimary:hover, .buttonSecondary:hover, .buttonLight:hover { transform: none; }
 }
