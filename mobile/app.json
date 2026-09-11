@@ -20,6 +20,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7ffbaaa4-ef59-492e-bcb1-870ee66f0219"
+      }
+    },
+    "owner": "mrmartinios-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7ffbaaa4-ef59-492e-bcb1-870ee66f0219"
     }
   }
 }
