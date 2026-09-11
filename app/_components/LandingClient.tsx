@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { DM_Sans, Space_Mono } from "next/font/google";
 import {
@@ -10,13 +10,11 @@ import {
   ChevronDown,
   Coins,
   ListChecks,
-  Menu,
   PiggyBank,
   QrCode,
   Sparkles,
   Star,
   Wallet,
-  X,
 } from "lucide-react";
 import styles from "./LandingClient.module.css";
 
@@ -25,6 +23,12 @@ import styles from "./LandingClient.module.css";
 // så lenge kallet ligger på modul-nivå, ikke inne i komponentfunksjonen.
 const landingSans = DM_Sans({ subsets: ["latin"], variable: "--font-landing-sans" });
 const landingMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-landing-mono" });
+
+const menyLenker = [
+  { href: "#slik-fungerer-det", label: "Slik fungerer det", nummer: "01" },
+  { href: "#for-familien", label: "For familien", nummer: "02" },
+  { href: "mailto:hei@ukepenger.no", label: "Kontakt oss", nummer: "03" },
+];
 
 const verdier = [
   {
@@ -263,19 +267,50 @@ function FamilyFlow() {
 
 export default function LandingClient() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
-  // Escape lukker menyen, og siden bak skal ikke kunne scrolles mens den er åpen.
   useEffect(() => {
     if (!menuOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("keydown", onKeyDown);
+
+    const knapp = toggleRef.current;
     const forrigeOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    // Menyflaten er visibility:hidden til overgangen starter, og et skjult
+    // element kan ikke fa fokus. Venter derfor en frame.
+    const fokusFrame = requestAnimationFrame(() => {
+      sheetRef.current?.querySelector("a")?.focus();
+    });
+
+    // Menyen er aria-modal, sa tabbing skal ga i ring mellom knappen og
+    // innholdet i stedet for a havne pa siden bak, som er dekket til.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || !knapp || !sheetRef.current) return;
+
+      const fokuserbare = [knapp, ...sheetRef.current.querySelectorAll<HTMLElement>("a, button")];
+      const forste = fokuserbare[0];
+      const siste = fokuserbare[fokuserbare.length - 1];
+
+      if (e.shiftKey && document.activeElement === forste) {
+        e.preventDefault();
+        siste.focus();
+      } else if (!e.shiftKey && document.activeElement === siste) {
+        e.preventDefault();
+        forste.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
     return () => {
+      cancelAnimationFrame(fokusFrame);
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = forrigeOverflow;
+      knapp?.focus();
     };
   }, [menuOpen]);
 
@@ -283,7 +318,9 @@ export default function LandingClient() {
 
   return (
     <main id="top" className={`${landingSans.variable} ${landingMono.variable} ${styles.landingPage} min-h-screen`}>
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">
+      {/* Ligger over menyflaten, sa logo og knapp blir staende i ro nar
+          menyen apnes i stedet for a bli dekket til. */}
+      <nav className="relative z-[60] mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">
         <Logo />
         <div className="hidden items-center gap-8 md:flex">
           <a href="#slik-fungerer-det" className={styles.navLink}>Slik fungerer det</a>
@@ -294,60 +331,54 @@ export default function LandingClient() {
           </Link>
         </div>
         <button
-          className="flex size-11 items-center justify-center rounded-xl border border-border md:hidden"
-          onClick={() => setMenuOpen(!menuOpen)}
+          ref={toggleRef}
+          type="button"
+          className={`${styles.menuToggle} ${menuOpen ? styles.menuToggleOpen : ""} md:hidden`}
+          onClick={() => setMenuOpen((apen) => !apen)}
           aria-label={menuOpen ? "Lukk meny" : "Åpne meny"}
           aria-expanded={menuOpen}
+          aria-controls="mobilmeny"
         >
-          {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          <span className={`${styles.menuBar} ${styles.menuBarTop}`} />
+          <span className={`${styles.menuBar} ${styles.menuBarBottom}`} />
         </button>
       </nav>
 
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          {/* Bakgrunnen lukker ved klikk, men holdes utenfor skjermleser og
-              tabrekkefolge - X-knappen og Escape dekker tastaturbruk. */}
-          <button
-            type="button"
-            className="absolute inset-0 bg-foreground/40"
-            aria-hidden="true"
-            tabIndex={-1}
-            onClick={() => setMenuOpen(false)}
-          />
-          <div className="absolute inset-x-4 top-4 flex flex-col gap-1 rounded-2xl border border-border bg-card p-3 shadow-xl">
-            <div className="flex items-center justify-between px-1 pb-2 pt-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>
-                Utforsk Ukepenger
-              </p>
-              <button
-                type="button"
-                className="flex size-8 items-center justify-center rounded-lg border border-border"
-                aria-label="Lukk meny"
-                onClick={() => setMenuOpen(false)}
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <a href="#slik-fungerer-det" className="rounded-xl px-4 py-3 text-sm font-semibold transition-colors hover:bg-secondary" onClick={() => setMenuOpen(false)}>
-              Slik fungerer det
+      <div
+        id="mobilmeny"
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Meny"
+        className={`${styles.menuSheet} ${menuOpen ? styles.menuSheetOpen : ""} md:hidden`}
+      >
+        <nav className="flex flex-col gap-1 px-4">
+          {menyLenker.map((lenke) => (
+            <a key={lenke.href} href={lenke.href} className={styles.menuItem} onClick={() => setMenuOpen(false)}>
+              <span className={styles.menuItemNumber}>{lenke.nummer}</span>
+              {lenke.label}
             </a>
-            <a href="#for-familien" className="rounded-xl px-4 py-3 text-sm font-semibold transition-colors hover:bg-secondary" onClick={() => setMenuOpen(false)}>
-              For familien
-            </a>
-            <div className="my-2 h-px bg-border" />
-            <a
-              href="mailto:hei@ukepenger.no"
-              className="rounded-xl px-4 py-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              onClick={() => setMenuOpen(false)}
-            >
-              Kontakt oss
-            </a>
-            <Link href="/login" className={`${styles.buttonPrimary} mt-2 justify-center`} onClick={() => setMenuOpen(false)}>
-              Kom i gang <ArrowRight className="size-4" />
-            </Link>
+          ))}
+        </nav>
+
+        <div className={`${styles.menuFooter} mt-auto flex items-center gap-3 px-5 pb-8 text-sm text-muted-foreground`}>
+          <div className="flex -space-x-2">
+            {barn.map((b) => (
+              <span key={b.id} className={`${styles.avatar} ${styles[b.avatarClass]} size-8 border-2 border-background text-xs`}>
+                {b.initial}
+              </span>
+            ))}
           </div>
+          <span>For familier som vil ha litt mindre mas i hverdagen</span>
         </div>
-      )}
+
+        <div className={`${styles.menuFooter} border-t border-border px-5 pb-10 pt-6`}>
+          <Link href="/login" className={`${styles.buttonPrimary} w-full justify-center`} onClick={() => setMenuOpen(false)}>
+            Kom i gang <ArrowRight className="size-4" />
+          </Link>
+          <p className="mt-3 text-center text-sm text-muted-foreground">Gratis å bruke. Ingen kredittkort nødvendig.</p>
+        </div>
+      </div>
 
       <section className="mx-auto max-w-6xl px-5 pb-20 pt-12 sm:px-8 sm:pb-28 sm:pt-20 lg:pt-28">
         <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
