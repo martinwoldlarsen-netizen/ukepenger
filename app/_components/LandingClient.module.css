@@ -145,8 +145,21 @@
 .menuSheetOpen .menuItem:nth-child(1) { transition-delay: 0.05s; }
 .menuSheetOpen .menuItem:nth-child(2) { transition-delay: 0.1s; }
 .menuSheetOpen .menuItem:nth-child(3) { transition-delay: 0.15s; }
+.menuSheetOpen .menuItem:nth-child(4) { transition-delay: 0.2s; }
 .menuItem:active { background: var(--secondary); }
 .menuItemNumber { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.16em; color: var(--primary); }
+.menuHelpLink { font-size: 0.9375rem; font-weight: 600; color: var(--muted-foreground); transition: color 0.15s; }
+.menuHelpLink:hover { color: var(--foreground); }
+
+.faqItem { border-radius: 1rem; border: 1px solid var(--border); background: var(--card); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.faqSummary {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  cursor: pointer; padding: 1.125rem 1.25rem; font-size: 1rem; font-weight: 700;
+  letter-spacing: -0.01em; list-style: none;
+}
+.faqSummary::-webkit-details-marker { display: none; }
+.faqChevron { color: var(--primary); transition: transform 0.2s ease; }
+.faqItem[open] .faqSummary .faqChevron { transform: rotate(180deg); }
 .menuFooter { opacity: 0; transition: opacity 0.3s ease 0.2s; }
 .menuSheetOpen .menuFooter { opacity: 1; }
 

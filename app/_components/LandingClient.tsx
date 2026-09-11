@@ -27,7 +27,41 @@ const landingMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], var
 const menyLenker = [
   { href: "#slik-fungerer-det", label: "Slik fungerer det", nummer: "01" },
   { href: "#for-familien", label: "For familien", nummer: "02" },
-  { href: "mailto:hei@ukepenger.no", label: "Kontakt oss", nummer: "03" },
+  { href: "#hva-koster-det", label: "Hva koster det", nummer: "03" },
+  { href: "#sporsmal", label: "Ofte stilte spørsmål", nummer: "04" },
+];
+
+const hjelpeLenker = [
+  { href: "/login", label: "Logg inn", intern: true },
+  { href: "mailto:hei@ukepenger.no", label: "Kontakt oss", intern: false },
+  { href: "/personvern", label: "Personvern", intern: true },
+];
+
+const sporsmal = [
+  {
+    sporsmal: "Hva koster det?",
+    svar: "Ingenting. Ukepenger er gratis å bruke, og vi har ingen planer om å ta betalt. Du trenger ikke kredittkort, og det finnes ingen prøveperiode som går ut.",
+  },
+  {
+    sporsmal: "Må barna ha egen konto, e-post eller passord?",
+    svar: "Nei. Barna logger ikke inn i det hele tatt. Du kobler til en enhet – for eksempel en iPad på kjøkkenet – ved å skanne en QR-kode én gang. Etter det velger barnet bare profilen sin.",
+  },
+  {
+    sporsmal: "Flyttes det ekte penger gjennom appen?",
+    svar: "Nei. Ukepenger er et regnskap, ikke en lommebok. Appen er ikke koblet til bank, kort eller betalingsløsning. Når du registrerer en utbetaling, noterer du bare hvordan dere gjorde opp i virkeligheten – Vipps, kontant eller bank.",
+  },
+  {
+    sporsmal: "Hva lagrer dere om barnet mitt?",
+    svar: "Bare fornavnet du selv skriver inn, og en avatar barnet velger. Vi spør aldri om fødselsdato, personnummer, e-post, telefon eller adresse. Vi bruker heller ingen sporing eller analyseverktøy. Alt lagres i EU.",
+  },
+  {
+    sporsmal: "Hvor mange barn kan vi ha?",
+    svar: "Så mange dere vil. Hvert barn får sin egen profil, sine egne oppgaver og sin egen saldo.",
+  },
+  {
+    sporsmal: "Trenger vi en iPad?",
+    svar: "Nei. Ukepenger kjører i nettleseren, så det virker på nettbrett, mobil eller PC. En gammel iPad eller telefon som ligger fremme hjemme fungerer fint som familiens felles enhet.",
+  },
 ];
 
 const verdier = [
@@ -322,10 +356,11 @@ export default function LandingClient() {
           menyen apnes i stedet for a bli dekket til. */}
       <nav className="relative z-[60] mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">
         <Logo />
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-7 md:flex">
           <a href="#slik-fungerer-det" className={styles.navLink}>Slik fungerer det</a>
-          <a href="#for-familien" className={styles.navLink}>For familien</a>
-          <a href="mailto:hei@ukepenger.no" className={styles.navLink}>Kontakt</a>
+          <a href="#hva-koster-det" className={styles.navLink}>Hva koster det</a>
+          <a href="#sporsmal" className={styles.navLink}>Spørsmål</a>
+          <Link href="/login" className={styles.navLink}>Logg inn</Link>
           <Link href="/login" className={styles.buttonPrimary}>
             Kom i gang <ArrowRight className="size-4" />
           </Link>
@@ -361,15 +396,20 @@ export default function LandingClient() {
           ))}
         </nav>
 
-        <div className={`${styles.menuFooter} mt-auto flex items-center gap-3 px-5 pb-8 text-sm text-muted-foreground`}>
-          <div className="flex -space-x-2">
-            {barn.map((b) => (
-              <span key={b.id} className={`${styles.avatar} ${styles[b.avatarClass]} size-8 border-2 border-background text-xs`}>
-                {b.initial}
-              </span>
-            ))}
-          </div>
-          <span>For familier som vil ha litt mindre mas i hverdagen</span>
+        {/* Andre niva: det folk leter etter nar de trenger det, ikke det vi
+            vil at de skal gjore. Derfor mindre og gratt, ikke store lenker. */}
+        <div className={`${styles.menuFooter} mt-auto flex flex-wrap gap-x-6 gap-y-2 px-5 pb-6`}>
+          {hjelpeLenker.map((lenke) =>
+            lenke.intern ? (
+              <Link key={lenke.href} href={lenke.href} className={styles.menuHelpLink} onClick={() => setMenuOpen(false)}>
+                {lenke.label}
+              </Link>
+            ) : (
+              <a key={lenke.href} href={lenke.href} className={styles.menuHelpLink} onClick={() => setMenuOpen(false)}>
+                {lenke.label}
+              </a>
+            )
+          )}
         </div>
 
         <div className={`${styles.menuFooter} border-t border-border px-5 pb-10 pt-6`}>
@@ -499,6 +539,57 @@ export default function LandingClient() {
         </div>
       </section>
 
+      <section id="hva-koster-det" className="border-y border-border bg-secondary/45 py-20 sm:py-28">
+        <div className="mx-auto max-w-3xl px-5 text-center sm:px-8">
+          <p className={`${styles.eyebrow} justify-center`}>Hva koster det</p>
+          <h2 className="mt-4 text-balance text-3xl font-bold tracking-[-0.07em] sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
+            Ingenting.
+          </h2>
+          <p className="mx-auto mt-5 max-w-xl text-pretty text-lg leading-8 text-muted-foreground">
+            Ukepenger er gratis, og vi har ingen planer om å ta betalt. Ingen prøveperiode som går ut, ingen
+            funksjoner som plutselig krever oppgradering.
+          </p>
+          <ul className="mx-auto mt-10 grid gap-3 text-left sm:grid-cols-3">
+            {["Ingen kredittkort", "Så mange barn du vil", "Ingen reklame eller sporing"].map((punkt) => (
+              <li key={punkt} className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 text-sm font-semibold shadow-sm ring-1 ring-border">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Check className="size-3.5" />
+                </span>
+                {punkt}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section id="sporsmal" className="mx-auto max-w-3xl px-5 py-20 sm:px-8 sm:py-28">
+        <div className="text-center">
+          <p className={`${styles.eyebrow} justify-center`}>Ofte stilte spørsmål</p>
+          <h2 className="mt-4 text-balance text-3xl font-bold tracking-[-0.07em] sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
+            Det foreldre lurer på.
+          </h2>
+        </div>
+        {/* <details> gir apning/lukking og skjermlesersto/tastatur uten JS. */}
+        <div className="mt-12 space-y-3">
+          {sporsmal.map((post) => (
+            <details key={post.sporsmal} className={styles.faqItem}>
+              <summary className={styles.faqSummary}>
+                {post.sporsmal}
+                <ChevronDown className={`${styles.faqChevron} size-5 shrink-0`} />
+              </summary>
+              <p className="px-5 pb-5 text-[0.9375rem] leading-7 text-muted-foreground">{post.svar}</p>
+            </details>
+          ))}
+        </div>
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Noe annet du lurer på?{" "}
+          <a href="mailto:hei@ukepenger.no" className="font-semibold text-foreground underline underline-offset-4">
+            Send oss en e-post
+          </a>
+          .
+        </p>
+      </section>
+
       <section className="mx-5 mb-8 overflow-hidden rounded-[2rem] bg-primary px-6 py-16 text-center text-primary-foreground sm:mx-8 sm:px-12 sm:py-20">
         <p className="text-sm font-bold uppercase tracking-[0.18em] opacity-80" style={{ fontFamily: "var(--font-mono)" }}>En enklere uke starter her</p>
         <h2 className="mx-auto mt-4 max-w-2xl text-balance text-3xl font-bold tracking-[-0.07em] sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
@@ -514,8 +605,12 @@ export default function LandingClient() {
 
       <footer className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <Logo />
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
-          <a href="mailto:hei@ukepenger.no" className={styles.navLink}>Kontakt oss</a>
+        <div className="flex flex-col gap-3 sm:items-end">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <Link href="/login" className={styles.navLink}>Logg inn</Link>
+            <a href="mailto:hei@ukepenger.no" className={styles.navLink}>Kontakt oss</a>
+            <Link href="/personvern" className={styles.navLink}>Personvern</Link>
+          </div>
           <span>© 2026 Ukepenger.no · Laget for familielivet</span>
         </div>
       </footer>
