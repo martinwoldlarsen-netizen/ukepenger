@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Ukepenger",
+    "slug": "ukepenger",
+    "version": "1.0.0",
+    "scheme": "ukepenger",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "supabaseUrl": "https://axvycqafiprmzmwwlgdd.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4dnljcWFmaXBybXptd3dsZ2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODA2MTksImV4cCI6MjA4NjQ1NjYxOX0.s8n5jD09nCdZfE3uKdeQfcmnO3jnDmaj0ImVepJ4XhQ"
+    }
+  }
+}
