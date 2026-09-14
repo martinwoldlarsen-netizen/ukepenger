@@ -29,7 +29,7 @@ type ClaimRow = {
 
 type BalanceClaimRow = {
   amount_ore: number;
-  status: "SENT" | "APPROVED";
+  status: "SENT" | "APPROVED" | "PAID";
 };
 
 export async function GET(request: Request) {
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
       .select("task_id, created_at")
       .eq("child_id", childId)
       .gte("created_at", new Date(Date.now() - 10_000).toISOString()),
-    supabase.from("claims").select("amount_ore, status").eq("child_id", childId).in("status", ["SENT", "APPROVED"]),
+    supabase.from("claims").select("amount_ore, status").eq("child_id", childId).in("status", ["SENT", "APPROVED", "PAID"]),
   ]);
 
   if (tasksRes.error || settingsRes.error || recentClaimsRes.error || balanceClaimsRes.error) {
@@ -111,11 +111,15 @@ export async function GET(request: Request) {
 
   let pending_ore = 0;
   let approved_ore = 0;
+  let paid_ore = 0;
   for (const claim of (balanceClaimsRes.data ?? []) as BalanceClaimRow[]) {
     if (claim.status === "SENT") pending_ore += claim.amount_ore;
     if (claim.status === "APPROVED") approved_ore += claim.amount_ore;
+    if (claim.status === "PAID") paid_ore += claim.amount_ore;
   }
-  const total_ore = pending_ore + approved_ore;
+  // "Tjent totalt" er alt barnet har opparbeidet seg: det som staar til gode pluss
+  // det som allerede er utbetalt. Dette tallet skal aldri ga ned etter en utbetaling.
+  const earned_ore = approved_ore + paid_ore;
 
   return NextResponse.json({
     child: { id: child.id, name: child.name, avatar_key: child.avatar_key },
@@ -123,6 +127,7 @@ export async function GET(request: Request) {
     cooldowns,
     pending_ore,
     approved_ore,
-    total_ore,
+    paid_ore,
+    earned_ore,
   });
 }

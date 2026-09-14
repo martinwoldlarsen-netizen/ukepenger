@@ -1,0 +1,177 @@
+/*
+ * Skjermede design-tokens for forsiden. Resten av appen (admin/kids/login)
+ * bruker det mørke slate/lime-temaet definert i app/globals.css sin :root.
+ * Disse verdiene overstyres KUN innenfor .landingPage-treet via vanlig CSS
+ * custom-property-cascading - :root og resten av appen er upåvirket.
+ */
+.landingPage {
+  --background: oklch(0.985 0.012 89);
+  --foreground: oklch(0.24 0.035 155);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.035 155);
+  --primary: oklch(0.42 0.12 155);
+  --primary-foreground: oklch(0.98 0.01 89);
+  --secondary: oklch(0.94 0.025 91);
+  --secondary-foreground: oklch(0.32 0.04 155);
+  --muted: oklch(0.94 0.02 90);
+  --muted-foreground: oklch(0.48 0.035 155);
+  --accent: oklch(0.89 0.095 77);
+  --accent-foreground: oklch(0.3 0.06 70);
+  --border: oklch(0.88 0.025 90);
+  --font-sans: var(--font-landing-sans), "DM Sans", ui-sans-serif, sans-serif;
+  --font-mono: var(--font-landing-mono), "Space Mono", ui-monospace, monospace;
+
+  background: var(--background);
+  color: var(--foreground);
+  /* Uten denne arver forsiden Geist fra body-regelen i globals.css,
+     og DM Sans lastes ned uten a bli brukt. */
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.eyebrow { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--primary); }
+.eyebrowDot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 25%, transparent); }
+.navLink { font-size: 0.875rem; font-weight: 600; color: var(--muted-foreground); transition: color 0.15s; }
+.navLink:hover { color: var(--foreground); }
+
+.buttonPrimary, .buttonSecondary, .buttonLight {
+  display: inline-flex; min-height: 2.75rem; align-items: center; gap: 0.5rem;
+  border-radius: 0.75rem; padding: 0 1.25rem; font-size: 0.875rem; font-weight: 700;
+  transition: transform 0.15s;
+  /* Uten disse krymper knappene i en trang flex-rad og teksten brekker midt i. */
+  white-space: nowrap; flex-shrink: 0;
+}
+.buttonPrimary:hover, .buttonSecondary:hover, .buttonLight:hover { transform: translateY(-2px); }
+.buttonPrimary { background: var(--primary); color: var(--primary-foreground); box-shadow: 0 8px 20px -10px var(--primary); }
+.buttonSecondary { border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+.buttonLight { background: var(--primary-foreground); color: var(--primary); }
+
+.heroVisual { display: flex; min-height: 440px; align-items: center; justify-content: center; }
+.heroBlob { position: absolute; width: 340px; height: 340px; border-radius: 38% 62% 56% 44%; background: var(--secondary); transform: rotate(-10deg); }
+@media (min-width: 640px) { .heroBlob { width: 430px; height: 430px; } }
+
+.deviceTablet { position: relative; z-index: 10; height: 390px; width: 285px; border-radius: 2.1rem; background: var(--foreground); padding: 0.5rem; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.35); transform: rotate(3deg); }
+@media (min-width: 640px) { .deviceTablet { height: 445px; width: 325px; } }
+.devicePhone { position: relative; z-index: 10; height: 330px; width: 220px; border-radius: 2rem; background: var(--foreground); padding: 0.5rem; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.35); }
+.deviceScreen { height: 100%; width: 100%; overflow: hidden; border-radius: 1.6rem; background: var(--card); }
+.deviceCamera { position: absolute; left: 50%; top: 0.25rem; z-index: 20; height: 0.375rem; width: 3.5rem; transform: translateX(-50%); border-radius: 9999px; background: color-mix(in oklch, var(--foreground) 70%, transparent); }
+.deviceHome { position: absolute; bottom: 0.25rem; left: 50%; height: 0.25rem; width: 4rem; transform: translateX(-50%); border-radius: 9999px; background: color-mix(in oklch, var(--background) 50%, transparent); }
+
+.heroNote { position: absolute; z-index: 20; display: flex; align-items: center; gap: 0.5rem; border-radius: 9999px; background: var(--card); padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 700; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); border: 1px solid var(--border); animation: landingFloat 4s ease-in-out infinite; }
+/* Ligger lavere enn klokka i mockupen, ellers dekker den den. */
+.heroNoteTop { right: 0; top: 7rem; color: var(--primary); }
+@media (min-width: 640px) { .heroNoteTop { right: 1rem; } }
+.heroNoteBottom { bottom: 3rem; left: 0; color: var(--accent-foreground); animation-delay: -1.5s; }
+@media (min-width: 640px) { .heroNoteBottom { left: 0.5rem; } }
+
+.taskRow { display: flex; align-items: center; gap: 0.75rem; border-radius: 1rem; border: 1px solid var(--border); background: var(--card); padding: 0.75rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.taskCheck { margin-left: auto; display: flex; height: 1.5rem; width: 1.5rem; align-items: center; justify-content: center; border-radius: 9999px; background: var(--primary); color: var(--primary-foreground); }
+
+.avatar { display: flex; height: 2.25rem; width: 2.25rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; font-family: var(--font-mono); font-size: 0.875rem; font-weight: 700; }
+.avatarCoral { background: oklch(0.8 0.1 35); color: oklch(0.35 0.07 35); }
+.avatarBlue { background: oklch(0.82 0.08 230); color: oklch(0.3 0.06 230); }
+.avatarYellow { background: var(--accent); color: var(--accent-foreground); }
+
+.flowStep { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.flowCard { width: 100%; border-radius: 1.5rem; border: 1px solid var(--border); background: var(--background); padding: 1rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.flowCaption { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); text-align: center; }
+.miniLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted-foreground); }
+.statusDot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--primary); flex-shrink: 0; }
+
+/* Stablet layout: loddrett pil. Fra lg: vannrett rad, altsa vannrett pil. */
+.flowConnector { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: var(--primary); }
+.connectorLine { width: 1px; height: 1.25rem; background: color-mix(in oklch, var(--primary) 25%, transparent); }
+@media (min-width: 1024px) {
+  .flowConnector { flex-direction: row; width: 4rem; }
+  .connectorLine { height: 1px; width: auto; flex: 1; }
+}
+.connectorPill { display: flex; height: 2rem; width: 2rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; background: var(--accent); color: var(--accent-foreground); }
+
+.qrBadge { display: inline-flex; align-items: center; gap: 0.625rem; border-radius: 9999px; border: 1px solid var(--border); background: var(--card); padding: 0.5rem 0.875rem 0.5rem 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.qrBadgeIcon { position: relative; display: flex; height: 1.875rem; width: 1.875rem; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border-radius: 0.625rem; background: var(--secondary); color: var(--primary); }
+.qrBadgeBeam { position: absolute; left: 0.25rem; right: 0.25rem; height: 2px; border-radius: 9999px; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: landingScanSweep 2.8s ease-in-out infinite; }
+.qrBadgeText { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); }
+
+@keyframes landingScanSweep {
+  0%, 100% { transform: translateY(-11px); opacity: 0; }
+  15% { opacity: 1; }
+  50% { transform: translateY(11px); opacity: 1; }
+  85% { opacity: 0; }
+}
+
+.profile { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; border-radius: 0.75rem; padding: 0.25rem; font-size: 9px; font-weight: 600; color: var(--muted-foreground); transition: background-color 0.15s, color 0.15s; }
+.profileActive { background: var(--secondary); color: var(--foreground); }
+
+.infoCard { border-radius: 1.5rem; border: 1px solid var(--border); background: var(--card); padding: 1.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+
+/* ---- Mobilmeny ---- */
+
+/* Knappen ligger over selve menyflaten, sa strekene morfer til et kryss
+   pa samme sted i stedet for at ikonet bare byttes ut. */
+.menuToggle {
+  position: relative; z-index: 60; display: flex; height: 2.75rem; width: 2.75rem;
+  flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  border-radius: 0.75rem; border: 1px solid var(--border); background: var(--card);
+  transition: background-color 0.15s;
+}
+.menuBar { display: block; height: 2px; width: 1.125rem; border-radius: 9999px; background: var(--foreground); transition: transform 0.25s ease; }
+.menuToggleOpen .menuBarTop { transform: translateY(3.5px) rotate(45deg); }
+.menuToggleOpen .menuBarBottom { transform: translateY(-3.5px) rotate(-45deg); }
+
+/* visibility byttes forst NAR uttoningen er ferdig (0s med 0.25s forsinkelse),
+   men slas PA umiddelbart ved apning - ellers kan ikke fokus flyttes inn i
+   menyen for lenge etter at den er apnet. */
+.menuSheet {
+  position: fixed; inset: 0; z-index: 55; display: flex; flex-direction: column;
+  background: var(--background); padding-top: 5.25rem;
+  opacity: 0; visibility: hidden; transform: translateY(-10px);
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0.25s;
+}
+@media (min-width: 640px) { .menuSheet { padding-top: 6.25rem; } }
+.menuSheetOpen {
+  opacity: 1; visibility: visible; transform: none;
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s;
+}
+
+.menuItem {
+  display: flex; align-items: baseline; gap: 0.875rem; border-radius: 1rem;
+  padding: 0.75rem 0.75rem; font-family: var(--font-mono); font-size: 1.5rem;
+  font-weight: 700; letter-spacing: -0.05em; color: var(--foreground);
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.15s;
+}
+.menuSheetOpen .menuItem { opacity: 1; transform: none; }
+.menuSheetOpen .menuItem:nth-child(1) { transition-delay: 0.05s; }
+.menuSheetOpen .menuItem:nth-child(2) { transition-delay: 0.1s; }
+.menuSheetOpen .menuItem:nth-child(3) { transition-delay: 0.15s; }
+.menuSheetOpen .menuItem:nth-child(4) { transition-delay: 0.2s; }
+.menuItem:active { background: var(--secondary); }
+.menuItemNumber { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.16em; color: var(--primary); }
+.menuHelpLink { font-size: 0.9375rem; font-weight: 600; color: var(--muted-foreground); transition: color 0.15s; }
+.menuHelpLink:hover { color: var(--foreground); }
+
+.faqItem { border-radius: 1rem; border: 1px solid var(--border); background: var(--card); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.faqSummary {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  cursor: pointer; padding: 1.125rem 1.25rem; font-size: 1rem; font-weight: 700;
+  letter-spacing: -0.01em; list-style: none;
+}
+.faqSummary::-webkit-details-marker { display: none; }
+.faqChevron { color: var(--primary); transition: transform 0.2s ease; }
+.faqItem[open] .faqSummary .faqChevron { transform: rotate(180deg); }
+.menuFooter { opacity: 0; transition: opacity 0.3s ease 0.2s; }
+.menuSheetOpen .menuFooter { opacity: 1; }
+
+@keyframes landingFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroNote, .qrBadgeBeam { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .buttonPrimary:hover, .buttonSecondary:hover, .buttonLight:hover { transform: none; }
+  .menuSheet, .menuItem, .menuBar, .menuFooter { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
+  .menuSheet { transform: none; }
+  .menuItem { transform: none; }
+}

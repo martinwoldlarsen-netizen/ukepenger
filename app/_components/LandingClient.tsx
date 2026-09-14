@@ -1,1161 +1,619 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { DM_Sans, Space_Mono } from "next/font/google";
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Coins,
+  ListChecks,
+  PiggyBank,
+  QrCode,
+  Sparkles,
+  Star,
+  Wallet,
+} from "lucide-react";
+import styles from "./LandingClient.module.css";
 
-function cn(...parts: Array<string | undefined | null | false>) {
-  return parts.filter(Boolean).join(" ");
+// Skjermet til forsiden: resten av appen (admin/kids/login) bruker Geist,
+// lastet i app/layout.tsx. next/font er trygt å kalle fra en "use client"-fil
+// så lenge kallet ligger på modul-nivå, ikke inne i komponentfunksjonen.
+const landingSans = DM_Sans({ subsets: ["latin"], variable: "--font-landing-sans" });
+const landingMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-landing-mono" });
+
+const menyLenker = [
+  { href: "#slik-fungerer-det", label: "Slik fungerer det", nummer: "01" },
+  { href: "#for-familien", label: "For familien", nummer: "02" },
+  { href: "#hva-koster-det", label: "Hva koster det", nummer: "03" },
+  { href: "#sporsmal", label: "Ofte stilte spørsmål", nummer: "04" },
+];
+
+const hjelpeLenker = [
+  { href: "/login", label: "Logg inn", intern: true },
+  { href: "mailto:hei@ukepenger.no", label: "Kontakt oss", intern: false },
+  { href: "/personvern", label: "Personvern", intern: true },
+];
+
+const sporsmal = [
+  {
+    sporsmal: "Hva koster det?",
+    svar: "Ingenting. Ukepenger er gratis å bruke, og vi har ingen planer om å ta betalt. Du trenger ikke kredittkort, og det finnes ingen prøveperiode som går ut.",
+  },
+  {
+    sporsmal: "Må barna ha egen konto, e-post eller passord?",
+    svar: "Nei. Barna logger ikke inn i det hele tatt. Du kobler til en enhet – for eksempel en iPad på kjøkkenet – ved å skanne en QR-kode én gang. Etter det velger barnet bare profilen sin.",
+  },
+  {
+    sporsmal: "Flyttes det ekte penger gjennom appen?",
+    svar: "Nei. Ukepenger er et regnskap, ikke en lommebok. Appen er ikke koblet til bank, kort eller betalingsløsning. Når du registrerer en utbetaling, noterer du bare hvordan dere gjorde opp i virkeligheten – Vipps, kontant eller bank.",
+  },
+  {
+    sporsmal: "Hva lagrer dere om barnet mitt?",
+    svar: "Bare fornavnet du selv skriver inn, og en avatar barnet velger. Vi spør aldri om fødselsdato, personnummer, e-post, telefon eller adresse. Vi bruker heller ingen sporing eller analyseverktøy. Alt lagres i EU.",
+  },
+  {
+    sporsmal: "Hvor mange barn kan vi ha?",
+    svar: "Så mange dere vil. Hvert barn får sin egen profil, sine egne oppgaver og sin egen saldo.",
+  },
+  {
+    sporsmal: "Trenger vi en iPad?",
+    svar: "Nei. Ukepenger kjører i nettleseren, så det virker på nettbrett, mobil eller PC. En gammel iPad eller telefon som ligger fremme hjemme fungerer fint som familiens felles enhet.",
+  },
+];
+
+const verdier = [
+  {
+    title: "Tydelig for barnet",
+    description: "Barnet ser hva som skal gjøres, hva hver oppgave er verdt, og hvor mye som er til gode akkurat nå.",
+    icon: ListChecks,
+  },
+  {
+    title: "Oversikt for deg",
+    description: "Krav, saldo og utbetalinger for alle barna på ett sted – i stedet for å holde regnskapet i hodet.",
+    icon: Wallet,
+  },
+  {
+    title: "Noe å spare til",
+    description: "Ønskeliste og sparemål gjør at pengene får et formål, ikke bare en sum som ligger og venter.",
+    icon: PiggyBank,
+  },
+];
+
+const barn = [
+  {
+    id: "emma",
+    navn: "Emma",
+    initial: "E",
+    avatarClass: "avatarCoral",
+    tilGode: "125 kr",
+    igjen: "2 igjen",
+    maal: "75 kr til neste mål",
+    oppgaver: [
+      { tittel: "Rydde rommet", belop: "+ 25 kr", ikon: Sparkles, fremhevet: true },
+      { tittel: "Henge opp klær", belop: "+ 10 kr", ikon: Star, fremhevet: false },
+    ],
+  },
+  {
+    id: "oliver",
+    navn: "Oliver",
+    initial: "O",
+    avatarClass: "avatarBlue",
+    tilGode: "80 kr",
+    igjen: "3 igjen",
+    maal: "120 kr til neste mål",
+    oppgaver: [
+      { tittel: "Tømme oppvaskmaskin", belop: "+ 20 kr", ikon: Sparkles, fremhevet: true },
+      { tittel: "Lufte hunden", belop: "+ 15 kr", ikon: Star, fremhevet: false },
+    ],
+  },
+  {
+    id: "liam",
+    navn: "Liam",
+    initial: "L",
+    avatarClass: "avatarYellow",
+    tilGode: "45 kr",
+    igjen: "1 igjen",
+    maal: "55 kr til neste mål",
+    oppgaver: [
+      { tittel: "Dekke bordet", belop: "+ 10 kr", ikon: Sparkles, fremhevet: true },
+      { tittel: "Sortere søppel", belop: "+ 15 kr", ikon: Star, fremhevet: false },
+    ],
+  },
+];
+
+function Logo() {
+  return (
+    <a href="#top" className="flex items-center gap-2.5" aria-label="Ukepenger hjem">
+      <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+        <Coins className="size-5" strokeWidth={2.5} />
+      </span>
+      <span className="text-[17px] font-bold tracking-[-0.06em] text-foreground" style={{ fontFamily: "var(--font-mono)" }}>
+        ukepenger.no
+      </span>
+    </a>
+  );
 }
 
-function Container(props: { className?: string; children: React.ReactNode }) {
+function Device({ type, children }: { type: "tablet" | "phone"; children: React.ReactNode }) {
   return (
-    <div className={cn("mx-auto w-full max-w-6xl px-6", props.className)}>
-      {props.children}
+    <div className={type === "tablet" ? styles.deviceTablet : styles.devicePhone}>
+      <div className={styles.deviceCamera} />
+      <div className={styles.deviceScreen}>{children}</div>
+      <div className={styles.deviceHome} />
     </div>
   );
 }
 
-function IconArrowRight(props: { className?: string }) {
+function FlowConnector() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={props.className}>
-      <path
-        d="M7.5 5l5 5-5 5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <div className={styles.flowConnector} aria-hidden="true">
+      <span className={styles.connectorLine} />
+      <span className={styles.connectorPill}>
+        <ArrowRight className="size-4" />
+      </span>
+      <span className={styles.connectorLine} />
+    </div>
   );
 }
 
-function IconMenu(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={props.className}>
-      <path
-        d="M3 6h14M3 10h14M3 14h14"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconClose(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={props.className}>
-      <path
-        d="M5 5l10 10M15 5l-10 10"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconCheck(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={props.className}>
-      <path
-        d="M16.25 5.75l-7.5 8.5-3.5-3.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function Nav() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const { body } = document;
-    const previousOverflow = body.style.overflow;
-
-    body.style.overflow = "hidden";
-
-    return () => {
-      body.style.overflow = previousOverflow;
-    };
-  }, [open]);
+function FamilyFlow() {
+  const [aktivId, setAktivId] = useState(barn[0].id);
+  const aktivt = barn.find((b) => b.id === aktivId) ?? barn[0];
 
   return (
-    <header
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl",
-        open && "z-[120] bg-background backdrop-blur-none"
-      )}
-    >
-      <Container className="flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold text-foreground">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary">
-            <span className="text-sm font-bold text-accent-foreground">U</span>
-          </span>
-          Ukepenger
-        </Link>
-
-        <nav className="hidden items-center gap-10 md:flex">
-          <Link href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
-            Funksjoner
-          </Link>
-        </nav>
-
-        <div className="hidden items-center gap-6 md:flex">
-          <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition">
-            Logg inn
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-accent-foreground transition-all duration-300 hover:bg-primary-dark hover:scale-105"
-          >
-            Kom i gang
-          </Link>
+    <section id="slik-fungerer-det" className="overflow-hidden border-y border-border bg-secondary/45 py-20 sm:py-28">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className={`${styles.eyebrow} justify-center`}>Slik fungerer det</p>
+          <h2 className="mt-4 text-balance text-3xl font-bold tracking-[-0.07em] text-foreground sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
+            Fra oppgave til mestring.
+          </h2>
+          <p className="mx-auto mt-5 max-w-lg text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
+            En enkel flyt som gjør det tydelig for alle hvem som skal gjøre hva – og hva det blir verdt.
+          </p>
         </div>
 
-        <button
-          type="button"
-          className="flex h-11 w-11 items-center justify-center rounded-xl text-foreground md:hidden"
-          onClick={() => setOpen(true)}
-          aria-label="Åpne meny"
-        >
-          <IconMenu className="h-6 w-6" />
-        </button>
-      </Container>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="fixed inset-0 z-[130] h-screen w-screen overflow-y-auto bg-background md:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div className="flex min-h-screen flex-col bg-background">
-              <div className="flex h-16 items-center justify-between border-b border-border px-6">
-                <span className="flex items-center gap-2 text-xl font-bold text-foreground">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary">
-                    <span className="text-sm font-bold text-accent-foreground">U</span>
+        <div className="mt-14 flex flex-col items-center justify-center gap-6 lg:flex-row lg:items-center lg:gap-4">
+          <div className={`${styles.flowStep} w-full max-w-[260px]`}>
+            <div className={styles.flowCard}>
+              <div className="flex items-center justify-between">
+                <span className={styles.miniLabel}>1 · DU LAGER OPPGAVEN</span>
+                <span className={styles.statusDot} />
+              </div>
+              <div className="mt-5 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border">
+                <p className="text-xs font-semibold text-muted-foreground">Ny oppgave</p>
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                    <Sparkles className="size-4" />
                   </span>
-                  Ukepenger
-                </span>
-                <button
-                  type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl text-foreground"
-                  onClick={() => setOpen(false)}
-                  aria-label="Lukk meny"
-                >
-                  <IconClose className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="flex flex-1 flex-col px-6 pb-8 pt-8">
-                <nav className="space-y-1">
-                  <Link
-                    href="#features"
-                    className="block rounded-2xl border border-border bg-card px-5 py-4 text-2xl font-semibold text-foreground"
-                    onClick={() => setOpen(false)}
-                  >
-                    Funksjoner
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="block rounded-2xl border border-border bg-card px-5 py-4 text-2xl font-semibold text-foreground"
-                    onClick={() => setOpen(false)}
-                  >
-                    Logg inn
-                  </Link>
-                </nav>
-
-                <div className="mt-auto pt-10">
-                  <Link
-                    href="/login"
-                    className="flex h-14 w-full items-center justify-center rounded-2xl bg-primary text-base font-semibold text-accent-foreground"
-                    onClick={() => setOpen(false)}
-                  >
-                    Kom i gang
-                  </Link>
+                  <div>
+                    <p className="text-sm font-bold">Rydde rommet</p>
+                    <p className="text-xs text-muted-foreground">+ 25 kr</p>
+                  </div>
                 </div>
+                <div className="mt-4 rounded-xl bg-primary px-3 py-2 text-center text-xs font-bold text-primary-foreground">Lagre oppgave</div>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </header>
-  );
-}
+            <span className={styles.flowCaption}>Forelderens mobil</span>
+          </div>
 
-// Smooth cinematic phone demo with scene transitions
-function PhoneDemo() {
-  const reduceMotion = useReducedMotion();
-  const [currentScene, setCurrentScene] = useState(0);
-  
-  const scenes = [
-    "tasks",      // Child sees task list
-    "complete",   // Child completes tasks
-    "send",       // Child sends request
-    "parent",     // Parent sees inbox
-    "approve",    // Parent approves
-    "balance",    // Child sees updated balance
-    "wishlist",   // Child sees wishlist
-  ];
+          <FlowConnector />
 
-  useEffect(() => {
-    if (reduceMotion) return;
-    
-    const interval = setInterval(() => {
-      setCurrentScene((prev) => (prev + 1) % scenes.length);
-    }, 3500);
-    
-    return () => clearInterval(interval);
-  }, [reduceMotion, scenes.length]);
-
-  return (
-    <div className="relative mx-auto w-[300px] sm:w-[340px]">
-      {/* Phone frame */}
-      <div className="relative rounded-[52px] bg-gradient-to-b from-zinc-700 to-zinc-900 p-[12px] shadow-2xl shadow-black/50">
-        {/* Side buttons */}
-        <div className="absolute -left-[2px] top-[100px] h-8 w-[3px] rounded-l-sm bg-zinc-700" />
-        <div className="absolute -left-[2px] top-[150px] h-14 w-[3px] rounded-l-sm bg-zinc-700" />
-        <div className="absolute -left-[2px] top-[200px] h-14 w-[3px] rounded-l-sm bg-zinc-700" />
-        <div className="absolute -right-[2px] top-[140px] h-20 w-[3px] rounded-r-sm bg-zinc-700" />
-        
-        {/* Inner bezel */}
-        <div className="rounded-[40px] bg-black p-[2px]">
-          {/* Dynamic Island */}
-          <div className="absolute left-1/2 top-[22px] z-20 h-[32px] w-[100px] -translate-x-1/2 rounded-full bg-black" />
-          
-          {/* Screen */}
-          <div className="relative h-[580px] overflow-hidden rounded-[38px] bg-background sm:h-[640px]">
-            <AnimatePresence mode="wait">
-              {currentScene === 0 && (
-                <SceneTaskList key="tasks" />
-              )}
-              {currentScene === 1 && (
-                <SceneTasksComplete key="complete" />
-              )}
-              {currentScene === 2 && (
-                <SceneSendRequest key="send" />
-              )}
-              {currentScene === 3 && (
-                <SceneParentInbox key="parent" />
-              )}
-              {currentScene === 4 && (
-                <SceneApproved key="approve" />
-              )}
-              {currentScene === 5 && (
-                <SceneBalance key="balance" />
-              )}
-              {currentScene === 6 && (
-                <SceneWishlist key="wishlist" />
-              )}
-            </AnimatePresence>
-
-            {/* Status bar */}
-            <div className="absolute inset-x-0 top-0 z-10 flex h-12 items-center justify-between px-8 pt-2">
-              <span className="text-xs font-semibold text-foreground">9:41</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-foreground">5G</span>
-                <div className="flex h-3 w-6 items-center rounded-sm border border-foreground/50 px-0.5">
-                  <div className="h-1.5 w-3 rounded-sm bg-foreground" />
+          <div className={`${styles.flowStep} flex flex-col items-center gap-4`}>
+            <Device type="tablet">
+              <div className="flex h-full flex-col bg-card px-4 py-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold" style={{ fontFamily: "var(--font-mono)" }}>ukepenger</span>
+                  <span className="text-[9px] text-muted-foreground">09:41</span>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Glow effect */}
-      <div className="absolute -inset-8 -z-10 rounded-[80px] bg-primary/15 blur-3xl" />
-      
-      {/* Scene indicator */}
-      <div className="mt-8 flex justify-center gap-2">
-        {scenes.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrentScene(i)}
-            className={cn(
-              "h-2 rounded-full transition-all duration-300",
-              i === currentScene ? "w-8 bg-primary" : "w-2 bg-muted-foreground/30"
-            )}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+                <div className="mt-5 flex justify-center gap-2" role="group" aria-label="Velg profil">
+                  {barn.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setAktivId(b.id)}
+                      aria-pressed={b.id === aktivId}
+                      className={`${styles.profile} ${b.id === aktivId ? styles.profileActive : ""}`}
+                    >
+                      <span className={`${styles.avatar} ${styles[b.avatarClass]} size-8 text-xs`}>{b.initial}</span>
+                      <span>{b.navn}</span>
+                    </button>
+                  ))}
+                </div>
 
-// Scene components with smooth cinematic animations
-const sceneTransition = {
-  initial: { opacity: 0, y: 30, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -20, scale: 0.98 },
-  transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }
-};
+                <div className="mt-5">
+                  <p className="text-[10px] font-semibold text-muted-foreground">Hei, {aktivt.navn}!</p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-base font-bold tracking-tight" style={{ fontFamily: "var(--font-mono)" }}>Dine oppgaver</p>
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold text-primary-foreground">{aktivt.igjen}</span>
+                  </div>
+                </div>
 
-function SceneTaskList() {
-  return (
-    <motion.div {...sceneTransition} className="h-full p-5 pt-16">
-      {/* Profile header */}
-      <div className="flex items-center gap-3 rounded-2xl bg-card p-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-2xl">
-          🐯
-        </div>
-        <div>
-          <p className="font-bold text-foreground">Sofie</p>
-          <p className="text-sm text-muted-foreground">Velg en oppgave og trykk send.</p>
-        </div>
-      </div>
-
-      {/* Balance card */}
-      <div className="mt-4 rounded-2xl bg-card p-4">
-        <p className="text-sm text-muted-foreground">Saldo totalt: <span className="font-bold text-foreground">25.00 kr</span></p>
-        <p className="text-xs text-muted-foreground">Venter: 0.00 kr • Til gode: 25.00 kr</p>
-      </div>
-
-      {/* Tasks */}
-      <div className="mt-4 space-y-3">
-        <TaskCard 
-          title="Lage mat" 
-          amount="2.00" 
-          gradient="from-blue-500 to-cyan-400"
-        />
-        <TaskCard 
-          title="OPPVASKMASKIN" 
-          amount="5.00" 
-          gradient="from-green-500 to-emerald-400"
-        />
-        <TaskCard 
-          title="Rydde av bordet" 
-          amount="2.00" 
-          gradient="from-orange-500 to-amber-400"
-        />
-      </div>
-    </motion.div>
-  );
-}
-
-function TaskCard(props: { title: string; amount: string; gradient: string; selected?: boolean }) {
-  return (
-    <motion.div 
-      className={cn(
-        "rounded-2xl bg-gradient-to-br p-5",
-        props.gradient,
-        props.selected && "ring-2 ring-white ring-offset-2 ring-offset-background"
-      )}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <p className="font-bold text-white">{props.title}</p>
-      <p className="text-2xl font-bold text-white">{props.amount} kr</p>
-      <p className="mt-1 text-sm text-white/80">Trykk for å sende krav</p>
-    </motion.div>
-  );
-}
-
-function SceneTasksComplete() {
-  return (
-    <motion.div {...sceneTransition} className="h-full p-5 pt-16">
-      <div className="flex items-center gap-3 rounded-2xl bg-card p-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-2xl">
-          🐯
-        </div>
-        <div>
-          <p className="font-bold text-foreground">Sofie</p>
-          <p className="text-sm text-muted-foreground">2 oppgaver valgt</p>
-        </div>
-      </div>
-
-      <div className="mt-4 space-y-3">
-        <motion.div 
-          className="rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 p-5 ring-2 ring-primary ring-offset-2 ring-offset-background"
-          initial={{ scale: 1 }}
-          animate={{ scale: [1, 1.02, 1] }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-bold text-white">Lage mat</p>
-              <p className="text-2xl font-bold text-white">2.00 kr</p>
-            </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white">
-              <IconCheck className="h-5 w-5 text-blue-500" />
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          className="rounded-2xl bg-gradient-to-br from-green-500 to-emerald-400 p-5 ring-2 ring-primary ring-offset-2 ring-offset-background"
-          initial={{ scale: 1 }}
-          animate={{ scale: [1, 1.02, 1] }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-bold text-white">OPPVASKMASKIN</p>
-              <p className="text-2xl font-bold text-white">5.00 kr</p>
-            </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white">
-              <IconCheck className="h-5 w-5 text-green-500" />
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="mt-6 rounded-2xl bg-card p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Totalt</span>
-          <span className="text-xl font-bold text-foreground">7.00 kr</span>
-        </div>
-      </div>
-
-      <motion.button 
-        className="mt-4 w-full rounded-2xl bg-primary py-4 text-base font-bold text-accent-foreground"
-        whileTap={{ scale: 0.98 }}
-      >
-        Send krav
-      </motion.button>
-    </motion.div>
-  );
-}
-
-function SceneSendRequest() {
-  return (
-    <motion.div {...sceneTransition} className="flex h-full flex-col items-center justify-center p-5 pt-16">
-      <motion.div 
-        className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/20"
-        initial={{ scale: 0.8 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <IconCheck className="h-12 w-12 text-primary" />
-        </motion.div>
-      </motion.div>
-      
-      <motion.p 
-        className="mt-6 text-xl font-bold text-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-      >
-        Krav sendt!
-      </motion.p>
-      <motion.p 
-        className="mt-2 text-center text-muted-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-      >
-        Venter på at mamma eller pappa godkjenner
-      </motion.p>
-
-      <motion.div 
-        className="mt-8 w-full max-w-[200px] rounded-2xl bg-card p-4"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Beløp</span>
-          <span className="font-bold text-primary">7.00 kr</span>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function SceneParentInbox() {
-  return (
-    <motion.div {...sceneTransition} className="h-full p-5 pt-16">
-      <div className="mb-6">
-        <p className="text-sm text-muted-foreground">Foreldervisning</p>
-        <h3 className="text-2xl font-bold text-foreground">Innboks</h3>
-      </div>
-
-      <motion.div 
-        className="rounded-2xl bg-card p-5"
-        initial={{ x: 50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/20 text-2xl">
-            🐯
-          </div>
-          <div className="flex-1">
-            <p className="text-lg font-bold text-foreground">Sofie</p>
-            <p className="text-sm text-muted-foreground">2 oppgaver fullført</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xl font-bold text-primary">7.00 kr</p>
-            <p className="text-xs text-muted-foreground">Nettopp</p>
-          </div>
-        </div>
-
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between rounded-xl bg-background/50 px-4 py-3">
-            <span className="text-sm text-foreground">Lage mat</span>
-            <span className="text-sm font-medium text-primary">+2.00 kr</span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl bg-background/50 px-4 py-3">
-            <span className="text-sm text-foreground">Oppvaskmaskin</span>
-            <span className="text-sm font-medium text-primary">+5.00 kr</span>
-          </div>
-        </div>
-
-        <div className="mt-5 flex gap-3">
-          <motion.button 
-            className="flex-1 rounded-xl bg-primary py-3.5 text-sm font-bold text-accent-foreground"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            Godkjenn
-          </motion.button>
-          <button className="flex-1 rounded-xl bg-muted py-3.5 text-sm font-semibold text-muted-foreground">
-            Avvis
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function SceneApproved() {
-  return (
-    <motion.div {...sceneTransition} className="flex h-full flex-col items-center justify-center p-5 pt-16">
-      <motion.div 
-        className="flex h-28 w-28 items-center justify-center rounded-full bg-primary"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 15 }}
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <IconCheck className="h-14 w-14 text-accent-foreground" />
-        </motion.div>
-      </motion.div>
-      
-      <motion.p 
-        className="mt-6 text-2xl font-bold text-foreground"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        Godkjent!
-      </motion.p>
-      <motion.p 
-        className="mt-2 text-center text-muted-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-      >
-        7.00 kr er lagt til Sofies saldo
-      </motion.p>
-
-      <motion.div
-        className="mt-8 flex items-center gap-3"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-      >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20 text-lg">
-          🐯
-        </div>
-        <div className="rounded-2xl bg-card px-4 py-2">
-          <p className="text-sm text-foreground">Ny saldo: <span className="font-bold text-primary">32.00 kr</span></p>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function SceneBalance() {
-  return (
-    <motion.div {...sceneTransition} className="h-full p-5 pt-16">
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-2xl">
-          🐯
-        </div>
-        <div>
-          <p className="font-bold text-foreground">Sofie</p>
-          <p className="text-sm text-muted-foreground">Din oversikt</p>
-        </div>
-      </div>
-
-      <motion.div 
-        className="mt-6 rounded-3xl bg-gradient-to-br from-primary via-primary to-emerald-500 p-6"
-        initial={{ scale: 0.95 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <p className="text-sm text-accent-foreground/80">Tilgjengelig saldo</p>
-        <motion.p 
-          className="mt-1 text-4xl font-bold text-accent-foreground"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          32.00 kr
-        </motion.p>
-      </motion.div>
-
-      <div className="mt-6">
-        <p className="mb-3 text-sm font-medium text-muted-foreground">Siste aktivitet</p>
-        <div className="space-y-2">
-          <motion.div 
-            className="flex items-center justify-between rounded-xl bg-card px-4 py-3"
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div>
-              <p className="text-sm font-medium text-foreground">Oppgaver godkjent</p>
-              <p className="text-xs text-muted-foreground">Nettopp</p>
-            </div>
-            <span className="font-bold text-primary">+7.00 kr</span>
-          </motion.div>
-          <motion.div 
-            className="flex items-center justify-between rounded-xl bg-card px-4 py-3"
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div>
-              <p className="text-sm font-medium text-foreground">Ukepenger</p>
-              <p className="text-xs text-muted-foreground">Forrige uke</p>
-            </div>
-            <span className="font-bold text-primary">+25.00 kr</span>
-          </motion.div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function SceneWishlist() {
-  return (
-    <motion.div {...sceneTransition} className="h-full p-5 pt-16">
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-2xl">
-          🐯
-        </div>
-        <div>
-          <p className="font-bold text-foreground">Sofie</p>
-          <p className="text-sm text-muted-foreground">Min ønskeliste</p>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <p className="mb-4 text-sm font-medium text-muted-foreground">Jeg sparer til:</p>
-        
-        <motion.div 
-          className="rounded-2xl bg-card p-4"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-pink-500/20 text-2xl">
-              🎀
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-foreground">Nytt halskjede</p>
-              <p className="text-sm text-muted-foreground">150 kr</p>
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>32 av 150 kr</span>
-              <span>21%</span>
-            </div>
-            <div className="mt-1.5 h-2.5 w-full rounded-full bg-muted">
-              <motion.div 
-                className="h-full rounded-full bg-gradient-to-r from-pink-500 to-rose-400"
-                initial={{ width: 0 }}
-                animate={{ width: "21%" }}
-                transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          className="mt-3 rounded-2xl bg-card p-4"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-purple-500/20 text-2xl">
-              🎮
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-foreground">Nintendo spill</p>
-              <p className="text-sm text-muted-foreground">499 kr</p>
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>32 av 499 kr</span>
-              <span>6%</span>
-            </div>
-            <div className="mt-1.5 h-2.5 w-full rounded-full bg-muted">
-              <motion.div 
-                className="h-full rounded-full bg-gradient-to-r from-purple-500 to-violet-400"
-                initial={{ width: 0 }}
-                animate={{ width: "6%" }}
-                transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-              />
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      <motion.button 
-        className="mt-5 w-full rounded-2xl bg-card py-3 text-sm font-semibold text-primary"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        + Legg til nytt ønske
-      </motion.button>
-    </motion.div>
-  );
-}
-
-// QR Code Setup Demo - iPad and iPhone side by side
-function QRSetupDemo() {
-  const [step, setStep] = useState(0);
-  const reduceMotion = useReducedMotion();
-  
-  useEffect(() => {
-    if (reduceMotion) return;
-    
-    const interval = setInterval(() => {
-      setStep((prev) => (prev + 1) % 4);
-    }, 2500);
-    
-    return () => clearInterval(interval);
-  }, [reduceMotion]);
-
-  return (
-    <div className="relative flex flex-row items-center justify-center gap-3 sm:gap-5 lg:flex-row lg:justify-center lg:gap-16">
-      {/* Parent Phone */}
-      <div className="relative">
-        <div className="origin-top scale-[0.85] rounded-[36px] bg-gradient-to-b from-zinc-700 to-zinc-900 p-[8px] shadow-xl sm:scale-[0.9] lg:scale-100">
-          <div className="rounded-[28px] bg-black p-[2px]">
-            <div className="relative h-[320px] w-[150px] overflow-hidden rounded-[26px] bg-background sm:h-[380px] sm:w-[180px]">
-              {/* Status bar */}
-              <div className="flex h-8 items-center justify-between px-4 pt-1">
-                <span className="text-[10px] font-semibold text-foreground">9:41</span>
-                <div className="h-4 w-12 rounded-full bg-black" />
-                <span className="text-[10px] text-foreground">100%</span>
-              </div>
-              
-              <div className="p-4 pt-2">
-                <p className="text-xs text-muted-foreground">Forelder</p>
-                <p className="text-sm font-bold text-foreground">Legg til barn</p>
-                
-                <motion.div 
-                  className="mt-4 flex aspect-square items-center justify-center rounded-2xl bg-white p-3"
-                  animate={step >= 1 ? { scale: [1, 1.05, 1] } : {}}
-                  transition={{ duration: 0.5 }}
-                >
-                  {/* QR Code SVG */}
-                  <svg viewBox="0 0 100 100" className="h-full w-full">
-                    <rect fill="black" x="10" y="10" width="25" height="25" />
-                    <rect fill="black" x="65" y="10" width="25" height="25" />
-                    <rect fill="black" x="10" y="65" width="25" height="25" />
-                    <rect fill="white" x="15" y="15" width="15" height="15" />
-                    <rect fill="white" x="70" y="15" width="15" height="15" />
-                    <rect fill="white" x="15" y="70" width="15" height="15" />
-                    <rect fill="black" x="18" y="18" width="9" height="9" />
-                    <rect fill="black" x="73" y="18" width="9" height="9" />
-                    <rect fill="black" x="18" y="73" width="9" height="9" />
-                    <rect fill="black" x="40" y="10" width="5" height="5" />
-                    <rect fill="black" x="50" y="10" width="5" height="5" />
-                    <rect fill="black" x="40" y="20" width="5" height="5" />
-                    <rect fill="black" x="45" y="25" width="5" height="5" />
-                    <rect fill="black" x="40" y="40" width="20" height="5" />
-                    <rect fill="black" x="40" y="50" width="5" height="5" />
-                    <rect fill="black" x="50" y="45" width="5" height="5" />
-                    <rect fill="black" x="55" y="55" width="5" height="5" />
-                    <rect fill="black" x="65" y="40" width="5" height="5" />
-                    <rect fill="black" x="70" y="45" width="5" height="5" />
-                    <rect fill="black" x="80" y="40" width="10" height="5" />
-                    <rect fill="black" x="65" y="55" width="25" height="5" />
-                    <rect fill="black" x="65" y="65" width="5" height="25" />
-                    <rect fill="black" x="75" y="70" width="5" height="5" />
-                    <rect fill="black" x="85" y="65" width="5" height="5" />
-                    <rect fill="black" x="80" y="80" width="10" height="10" />
-                    <rect fill="black" x="10" y="40" width="5" height="5" />
-                    <rect fill="black" x="20" y="45" width="5" height="5" />
-                    <rect fill="black" x="10" y="50" width="15" height="5" />
-                    <rect fill="black" x="40" y="65" width="5" height="5" />
-                    <rect fill="black" x="45" y="75" width="10" height="5" />
-                    <rect fill="black" x="40" y="85" width="5" height="5" />
-                  </svg>
-                </motion.div>
-                
-                <p className="mt-3 text-center text-[10px] text-muted-foreground">
-                  La barnet skanne denne koden
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <p className="mt-4 text-center text-sm font-medium text-muted-foreground">Mamma/Pappa</p>
-      </div>
-
-      {/* Connection animation */}
-      <motion.div 
-        className="hidden lg:block"
-        animate={step >= 1 && step < 3 ? { opacity: [0.3, 1, 0.3] } : { opacity: 0.3 }}
-        transition={{ duration: 1.5, repeat: step >= 1 && step < 3 ? Infinity : 0 }}
-      >
-        <svg width="80" height="40" viewBox="0 0 80 40">
-          <path 
-            d="M0 20 Q40 0 80 20" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeDasharray="4 4"
-            fill="none"
-            className="text-primary"
-          />
-          <motion.circle
-            cx="40"
-            cy="10"
-            r="4"
-            fill="currentColor"
-            className="text-primary"
-            animate={step >= 1 && step < 3 ? { 
-              cx: [0, 80],
-              cy: [20, 20]
-            } : {}}
-            transition={{ duration: 1.5, repeat: Infinity }}
-          />
-        </svg>
-      </motion.div>
-
-      {/* Child iPad */}
-      <div className="relative">
-        <div className="origin-top scale-[0.85] rounded-[28px] bg-gradient-to-b from-zinc-700 to-zinc-900 p-[8px] shadow-xl sm:scale-[0.9] lg:scale-100">
-          <div className="rounded-[20px] bg-black p-[2px]">
-            <div className="relative h-[280px] w-[200px] overflow-hidden rounded-[18px] bg-background sm:h-[320px] sm:w-[240px]">
-              {/* Camera */}
-              <div className="absolute top-3 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-zinc-700" />
-              
-              <AnimatePresence mode="wait">
-                {step < 2 && (
-                  <motion.div 
-                    key="camera"
-                    className="flex h-full flex-col items-center justify-center p-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <div className="relative h-32 w-32 rounded-2xl border-4 border-dashed border-primary/50 sm:h-40 sm:w-40">
-                      <motion.div
-                        className="absolute inset-2 rounded-xl border-2 border-primary"
-                        animate={{ scale: [1, 1.05, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      />
-                      <motion.div
-                        className="absolute left-1/2 top-0 h-full w-0.5 -translate-x-1/2 bg-primary/50"
-                        animate={{ y: [-60, 60] }}
-                        transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse" }}
-                      />
+                <div className="mt-3 space-y-2">
+                  {aktivt.oppgaver.map((o) => (
+                    <div key={o.tittel} className="flex items-center gap-2 rounded-xl bg-secondary p-2.5">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                        <Check className="size-3" />
+                      </span>
+                      <span className="truncate text-[10px] font-semibold">{o.tittel}</span>
+                      <span className="ml-auto shrink-0 text-[10px] font-bold">{o.belop}</span>
                     </div>
-                    <p className="mt-4 text-center text-xs text-muted-foreground">
-                      Skann QR-koden
-                    </p>
-                  </motion.div>
-                )}
-                
-                {step >= 2 && step < 3 && (
-                  <motion.div 
-                    key="scanning"
-                    className="flex h-full flex-col items-center justify-center p-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <motion.div 
-                      className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/20"
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <motion.div
-                        className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      />
-                    </motion.div>
-                    <p className="mt-4 text-center text-xs text-muted-foreground">
-                      Kobler til...
-                    </p>
-                  </motion.div>
-                )}
-                
-                {step >= 3 && (
-                  <motion.div 
-                    key="connected"
-                    className="flex h-full flex-col items-center justify-center p-4"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                  >
-                    <motion.div 
-                      className="flex h-20 w-20 items-center justify-center rounded-full bg-primary"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    >
-                      <IconCheck className="h-10 w-10 text-accent-foreground" />
-                    </motion.div>
-                    <motion.p 
-                      className="mt-4 text-center text-sm font-bold text-foreground"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      Koblet til!
-                    </motion.p>
-                    <motion.div
-                      className="mt-4 flex items-center gap-2 rounded-full bg-card px-4 py-2"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
-                      <span className="text-lg">🐯</span>
-                      <span className="text-sm font-medium text-foreground">Sofie</span>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  ))}
+                </div>
+
+                <div className="mt-auto rounded-2xl bg-primary p-3 text-primary-foreground">
+                  <p className="text-[9px] font-medium opacity-80">Til gode</p>
+                  <p className="text-xl font-bold tracking-tight" style={{ fontFamily: "var(--font-mono)" }}>{aktivt.tilGode}</p>
+                </div>
+              </div>
+            </Device>
+            <span className={styles.flowCaption}>2 · Barnets eller familiens iPad</span>
+            <span className={styles.qrBadge}>
+              <span className={styles.qrBadgeIcon}>
+                <QrCode className="size-4" />
+                <span className={styles.qrBadgeBeam} />
+              </span>
+              <span className={styles.qrBadgeText}>Skann QR én gang for å koble til</span>
+            </span>
+          </div>
+
+          <FlowConnector />
+
+          <div className={`${styles.flowStep} w-full max-w-[260px]`}>
+            <div className={styles.flowCard}>
+              <div className="flex items-center justify-between">
+                <span className={styles.miniLabel}>3 · DU GODKJENNER</span>
+                <span className={styles.statusDot} />
+              </div>
+              <div className="mt-5 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border">
+                <div className="flex items-center gap-2">
+                  <span className={`${styles.avatar} ${styles.avatarCoral} size-8 text-xs`}>E</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold">Emma har gjort en oppgave</p>
+                    <p className="text-[10px] text-muted-foreground">Rydde rommet · nå</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-2 rounded-xl bg-accent px-3 py-3">
+                  <span className="text-xs font-bold text-accent-foreground">+ 25 kr til gode</span>
+                  <CheckCircle2 className="size-4 shrink-0 text-accent-foreground" />
+                </div>
+                <div className="mt-3 rounded-xl bg-primary px-3 py-2 text-center text-xs font-bold text-primary-foreground">Godkjenn krav</div>
+              </div>
             </div>
+            <span className={styles.flowCaption}>Forelderens mobil</span>
           </div>
         </div>
-        <p className="mt-4 text-center text-sm font-medium text-muted-foreground">Barnets iPad</p>
-      </div>
-    </div>
-  );
-}
 
-function FeatureCard(props: { icon: React.ReactNode; title: string; description: string }) {
-  return (
-    <div className="rounded-3xl bg-card p-6 sm:p-8">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-        {props.icon}
+        <div className="mx-auto mt-14 flex max-w-2xl items-center justify-center gap-3 rounded-2xl bg-card px-4 py-4 text-center shadow-sm ring-1 ring-border sm:gap-4 sm:px-6">
+          <QrCode className="size-5 shrink-0 text-primary" />
+          <p className="text-sm leading-5 text-muted-foreground">
+            <span className="font-bold text-foreground">Én QR-kode.</span> Ingen brukernavn eller passord for barna.
+          </p>
+        </div>
       </div>
-      <h3 className="mt-5 text-lg font-bold text-foreground">{props.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{props.description}</p>
-    </div>
+    </section>
   );
 }
 
 export default function LandingClient() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const knapp = toggleRef.current;
+    const forrigeOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Menyflaten er visibility:hidden til overgangen starter, og et skjult
+    // element kan ikke fa fokus. Venter derfor en frame.
+    const fokusFrame = requestAnimationFrame(() => {
+      sheetRef.current?.querySelector("a")?.focus();
+    });
+
+    // Menyen er aria-modal, sa tabbing skal ga i ring mellom knappen og
+    // innholdet i stedet for a havne pa siden bak, som er dekket til.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || !knapp || !sheetRef.current) return;
+
+      const fokuserbare = [knapp, ...sheetRef.current.querySelectorAll<HTMLElement>("a, button")];
+      const forste = fokuserbare[0];
+      const siste = fokuserbare[fokuserbare.length - 1];
+
+      if (e.shiftKey && document.activeElement === forste) {
+        e.preventDefault();
+        siste.focus();
+      } else if (!e.shiftKey && document.activeElement === siste) {
+        e.preventDefault();
+        forste.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(fokusFrame);
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = forrigeOverflow;
+      knapp?.focus();
+    };
+  }, [menuOpen]);
+
+  const heroBarn = barn[0];
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Nav />
+    <main id="top" className={`${landingSans.variable} ${landingMono.variable} ${styles.landingPage} min-h-screen`}>
+      {/* Ligger over menyflaten, sa logo og knapp blir staende i ro nar
+          menyen apnes i stedet for a bli dekket til. */}
+      <nav className="relative z-[60] mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">
+        <Logo />
+        <div className="hidden items-center gap-7 md:flex">
+          <a href="#slik-fungerer-det" className={styles.navLink}>Slik fungerer det</a>
+          <a href="#hva-koster-det" className={styles.navLink}>Hva koster det</a>
+          <a href="#sporsmal" className={styles.navLink}>Spørsmål</a>
+          <Link href="/login" className={styles.navLink}>Logg inn</Link>
+          <Link href="/login" className={styles.buttonPrimary}>
+            Kom i gang <ArrowRight className="size-4" />
+          </Link>
+        </div>
+        <button
+          ref={toggleRef}
+          type="button"
+          className={`${styles.menuToggle} ${menuOpen ? styles.menuToggleOpen : ""} md:hidden`}
+          onClick={() => setMenuOpen((apen) => !apen)}
+          aria-label={menuOpen ? "Lukk meny" : "Åpne meny"}
+          aria-expanded={menuOpen}
+          aria-controls="mobilmeny"
+        >
+          <span className={`${styles.menuBar} ${styles.menuBarTop}`} />
+          <span className={`${styles.menuBar} ${styles.menuBarBottom}`} />
+        </button>
+      </nav>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden pt-28 pb-16 sm:pt-36 sm:pb-24">
-        <Container>
-          <div className="mx-auto max-w-3xl text-center">
-            <motion.h1 
-              className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <span className="block text-balance">Ukepenger for</span>
-              <span className="block text-balance text-primary">hele familien.</span>
-            </motion.h1>
-            <motion.p 
-              className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              Barn registrerer oppgaver. Foreldre godkjenner. Alt på ett sted.
-            </motion.p>
-            <motion.div 
-              className="mt-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <Link
-                href="/login"
-                className="inline-flex h-14 items-center justify-center rounded-2xl bg-primary px-8 text-base font-semibold text-accent-foreground transition-all duration-300 hover:bg-primary-dark hover:scale-105"
-              >
-                Kom i gang
-                <IconArrowRight className="ml-2 h-5 w-5" />
+      <div
+        id="mobilmeny"
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Meny"
+        className={`${styles.menuSheet} ${menuOpen ? styles.menuSheetOpen : ""} md:hidden`}
+      >
+        <nav className="flex flex-col gap-1 px-4">
+          {menyLenker.map((lenke) => (
+            <a key={lenke.href} href={lenke.href} className={styles.menuItem} onClick={() => setMenuOpen(false)}>
+              <span className={styles.menuItemNumber}>{lenke.nummer}</span>
+              {lenke.label}
+            </a>
+          ))}
+        </nav>
+
+        {/* Andre niva: det folk leter etter nar de trenger det, ikke det vi
+            vil at de skal gjore. Derfor mindre og gratt, ikke store lenker. */}
+        <div className={`${styles.menuFooter} mt-auto flex flex-wrap gap-x-6 gap-y-2 px-5 pb-6`}>
+          {hjelpeLenker.map((lenke) =>
+            lenke.intern ? (
+              <Link key={lenke.href} href={lenke.href} className={styles.menuHelpLink} onClick={() => setMenuOpen(false)}>
+                {lenke.label}
               </Link>
-            </motion.div>
-          </div>
-        </Container>
-      </section>
+            ) : (
+              <a key={lenke.href} href={lenke.href} className={styles.menuHelpLink} onClick={() => setMenuOpen(false)}>
+                {lenke.label}
+              </a>
+            )
+          )}
+        </div>
 
-      {/* Phone Demo Section */}
-      <section id="demo" className="scroll-mt-20 py-16 sm:py-24">
-        <Container>
-          <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Se hvordan det fungerer
-            </h2>
-            <p className="mt-3 text-muted-foreground">
-              Fra oppgave til godkjenning på sekunder.
+        <div className={`${styles.menuFooter} border-t border-border px-5 pb-10 pt-6`}>
+          <Link href="/login" className={`${styles.buttonPrimary} w-full justify-center`} onClick={() => setMenuOpen(false)}>
+            Kom i gang <ArrowRight className="size-4" />
+          </Link>
+          <p className="mt-3 text-center text-sm text-muted-foreground">Gratis å bruke. Ingen kredittkort nødvendig.</p>
+        </div>
+      </div>
+
+      <section className="mx-auto max-w-6xl px-5 pb-20 pt-12 sm:px-8 sm:pb-28 sm:pt-20 lg:pt-28">
+        <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+          <div className="max-w-xl">
+            <div className={styles.eyebrow}>
+              <span className={styles.eyebrowDot} /> Ukepenger, gjort enkelt
+            </div>
+            <h1
+              className="mt-5 text-balance text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold leading-[0.98] tracking-[-0.08em] text-foreground"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              Mindre mas.
+              <br />
+              <span className="text-primary">Mer mestring.</span>
+            </h1>
+            <p className="mt-7 max-w-md text-pretty text-lg leading-8 text-muted-foreground sm:text-xl">
+              Ukepenger gjør det enkelt for barn å ta ansvar – og for foreldre å ha oversikt.
             </p>
-          </div>
-
-          <div className="mt-12 sm:mt-16">
-            <PhoneDemo />
-          </div>
-        </Container>
-      </section>
-
-      {/* QR Setup Section */}
-      <section className="border-t border-border py-16 sm:py-24">
-        <Container>
-          <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Enkel oppsett med QR-kode
-            </h2>
-            <p className="mt-3 text-muted-foreground">
-              Barnet skanner koden - ferdig på sekunder.
-            </p>
-          </div>
-
-          <div className="mt-12 sm:mt-16">
-            <QRSetupDemo />
-          </div>
-        </Container>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="scroll-mt-20 border-t border-border py-16 sm:py-24">
-        <Container>
-          <div className="mx-auto max-w-xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Alt du trenger
-            </h2>
-          </div>
-
-          <div className="mt-12 grid gap-4 sm:mt-16 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard
-              icon={
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-              }
-              title="Oppgaveliste"
-              description="Definer oppgaver med belønning. Barna velger og registrerer selv hva de har gjort."
-            />
-            <FeatureCard
-              icon={
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-              title="Enkel godkjenning"
-              description="Se alle krav i innboksen. Godkjenn med ett trykk når oppgavene er gjort."
-            />
-            <FeatureCard
-              icon={
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-              title="Full oversikt"
-              description="Hold styr på saldo, utbetalinger og sparemål for alle barna."
-            />
-            <FeatureCard
-              icon={
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              }
-              title="Flere barn"
-              description="Legg til så mange barn du vil. Hver med sin egen profil og saldo."
-            />
-            <FeatureCard
-              icon={
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-              }
-              title="Fungerer overalt"
-              description="Mobil, nettbrett eller PC. Appen tilpasser seg enheten."
-            />
-            <FeatureCard
-              icon={
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              }
-              title="Trygt og sikkert"
-              description="All data er kryptert. Kun familien har tilgang."
-            />
-          </div>
-        </Container>
-      </section>
-
-      {/* CTA */}
-      <section className="border-t border-border py-16 sm:py-24">
-        <Container>
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Klar til å komme i gang?
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Gratis å bruke. Ingen kredittkort nødvendig.
-            </p>
-            <div className="mt-10">
-              <Link
-                href="/login"
-                className="inline-flex h-14 items-center justify-center rounded-2xl bg-primary px-8 text-base font-semibold text-accent-foreground transition-all duration-300 hover:bg-primary-dark hover:scale-105"
-              >
-                Kom i gang
-                <IconArrowRight className="ml-2 h-5 w-5" />
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link href="/login" className={`${styles.buttonPrimary} justify-center`}>
+                Start med familien <ArrowRight className="size-4" />
               </Link>
+              <a href="#slik-fungerer-det" className={`${styles.buttonSecondary} justify-center`}>
+                Se hvordan det fungerer <ChevronDown className="size-4" />
+              </a>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">Gratis å bruke. Ingen kredittkort nødvendig.</p>
+            <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex -space-x-2">
+                {barn.map((b) => (
+                  <span key={b.id} className={`${styles.avatar} ${styles[b.avatarClass]} border-2 border-background`}>
+                    {b.initial}
+                  </span>
+                ))}
+              </div>
+              <span>For familier som vil ha litt mindre mas i hverdagen</span>
             </div>
           </div>
-        </Container>
+
+          <div className={`${styles.heroVisual} relative mx-auto w-full max-w-xl`}>
+            <div className={`${styles.heroNote} ${styles.heroNoteTop}`}>
+              <Sparkles className="size-4" /> Gjort!
+            </div>
+            <div className={`${styles.heroNote} ${styles.heroNoteBottom}`}>
+              <Coins className="size-4" /> + 25 kr
+            </div>
+            <div className={styles.heroBlob} />
+            <Device type="tablet">
+              <div className="h-full bg-card px-5 py-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold" style={{ fontFamily: "var(--font-mono)" }}>ukepenger</span>
+                  <span className="text-[10px] text-muted-foreground">09:41</span>
+                </div>
+                <div className="mt-7">
+                  <p className="text-xs font-semibold text-muted-foreground">Hei, {heroBarn.navn}!</p>
+                  <h3 className="mt-1 text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-mono)" }}>Dine oppgaver</h3>
+                </div>
+                <div className="mt-5 space-y-3">
+                  {heroBarn.oppgaver.map((o) => {
+                    const Ikon = o.ikon;
+                    return (
+                      <div key={o.tittel} className={styles.taskRow}>
+                        <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${o.fremhevet ? "bg-accent text-accent-foreground" : "bg-secondary text-primary"}`}>
+                          <Ikon className="size-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold">{o.tittel}</p>
+                          <p className="text-[10px] text-muted-foreground">{o.belop}</p>
+                        </div>
+                        <span className={styles.taskCheck}>
+                          <Check className="size-3" />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-6 rounded-2xl bg-primary p-4 text-primary-foreground">
+                  <p className="text-[10px] font-medium opacity-80">Til gode</p>
+                  <p className="mt-1 text-3xl font-bold tracking-tight" style={{ fontFamily: "var(--font-mono)" }}>{heroBarn.tilGode}</p>
+                  <div className="mt-3 h-1.5 rounded-full bg-primary-foreground/25">
+                    <div className="h-full w-3/4 rounded-full bg-primary-foreground" />
+                  </div>
+                  <p className="mt-2 text-[10px] opacity-80">{heroBarn.maal}</p>
+                </div>
+              </div>
+            </Device>
+          </div>
+        </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-10">
-        <Container>
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-2 text-foreground">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-                <span className="text-xs font-bold text-accent-foreground">U</span>
-              </span>
-              <span className="font-semibold">Ukepenger</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Laget for norske familier
-            </p>
+      <FamilyFlow />
+
+      <section id="for-familien" className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+        <div className="grid gap-14 lg:grid-cols-2 lg:items-end">
+          <div>
+            <p className={styles.eyebrow}>Bygget for hele familien</p>
+            <h2 className="mt-4 max-w-lg text-balance text-3xl font-bold tracking-[-0.07em] sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
+              Ansvar for barna. Oversikt for foreldrene.
+            </h2>
           </div>
-        </Container>
+          <p className="max-w-md text-pretty text-lg leading-8 text-muted-foreground">
+            Ukepenger gir barna en tydelig vei fra innsats til belønning, samtidig som foreldrene slipper å holde styr på alt i hodet.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-4 md:grid-cols-3">
+          {verdier.map((verdi) => {
+            const Icon = verdi.icon;
+            return (
+              <div key={verdi.title} className={styles.infoCard}>
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                  <Icon className="size-5" />
+                </span>
+                <h3 className="mt-5 text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-mono)" }}>{verdi.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{verdi.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section id="hva-koster-det" className="border-y border-border bg-secondary/45 py-20 sm:py-28">
+        <div className="mx-auto max-w-3xl px-5 text-center sm:px-8">
+          <p className={`${styles.eyebrow} justify-center`}>Hva koster det</p>
+          <h2 className="mt-4 text-balance text-3xl font-bold tracking-[-0.07em] sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
+            Ingenting.
+          </h2>
+          <p className="mx-auto mt-5 max-w-xl text-pretty text-lg leading-8 text-muted-foreground">
+            Ukepenger er gratis, og vi har ingen planer om å ta betalt. Ingen prøveperiode som går ut, ingen
+            funksjoner som plutselig krever oppgradering.
+          </p>
+          <ul className="mx-auto mt-10 grid gap-3 text-left sm:grid-cols-3">
+            {["Ingen kredittkort", "Så mange barn du vil", "Ingen reklame eller sporing"].map((punkt) => (
+              <li key={punkt} className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 text-sm font-semibold shadow-sm ring-1 ring-border">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Check className="size-3.5" />
+                </span>
+                {punkt}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section id="sporsmal" className="mx-auto max-w-3xl px-5 py-20 sm:px-8 sm:py-28">
+        <div className="text-center">
+          <p className={`${styles.eyebrow} justify-center`}>Ofte stilte spørsmål</p>
+          <h2 className="mt-4 text-balance text-3xl font-bold tracking-[-0.07em] sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
+            Det foreldre lurer på.
+          </h2>
+        </div>
+        {/* <details> gir apning/lukking og skjermlesersto/tastatur uten JS. */}
+        <div className="mt-12 space-y-3">
+          {sporsmal.map((post) => (
+            <details key={post.sporsmal} className={styles.faqItem}>
+              <summary className={styles.faqSummary}>
+                {post.sporsmal}
+                <ChevronDown className={`${styles.faqChevron} size-5 shrink-0`} />
+              </summary>
+              <p className="px-5 pb-5 text-[0.9375rem] leading-7 text-muted-foreground">{post.svar}</p>
+            </details>
+          ))}
+        </div>
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Noe annet du lurer på?{" "}
+          <a href="mailto:hei@ukepenger.no" className="font-semibold text-foreground underline underline-offset-4">
+            Send oss en e-post
+          </a>
+          .
+        </p>
+      </section>
+
+      <section className="mx-5 mb-8 overflow-hidden rounded-[2rem] bg-primary px-6 py-16 text-center text-primary-foreground sm:mx-8 sm:px-12 sm:py-20">
+        <p className="text-sm font-bold uppercase tracking-[0.18em] opacity-80" style={{ fontFamily: "var(--font-mono)" }}>En enklere uke starter her</p>
+        <h2 className="mx-auto mt-4 max-w-2xl text-balance text-3xl font-bold tracking-[-0.07em] sm:text-5xl" style={{ fontFamily: "var(--font-mono)" }}>
+          La ukepengene ordne seg litt mer selv.
+        </h2>
+        <p className="mx-auto mt-5 max-w-lg text-pretty leading-7 opacity-90">
+          Barnet gjør jobben på sin enhet. Du har kontroll på mobilen. Resten flyter.
+        </p>
+        <Link href="/login" className={`${styles.buttonLight} mx-auto mt-8`}>
+          Kom i gang <ArrowRight className="size-4" />
+        </Link>
+      </section>
+
+      <footer className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <Logo />
+        <div className="flex flex-col gap-3 sm:items-end">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <Link href="/login" className={styles.navLink}>Logg inn</Link>
+            <a href="mailto:hei@ukepenger.no" className={styles.navLink}>Kontakt oss</a>
+            <Link href="/personvern" className={styles.navLink}>Personvern</Link>
+          </div>
+          <span>© 2026 Ukepenger.no · Laget for familielivet</span>
+        </div>
       </footer>
-    </div>
+    </main>
   );
 }

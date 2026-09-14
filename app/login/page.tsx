@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ensureFamilyForUser, getAdminSetupStatus } from "@/lib/family-client";
+import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
 type AuthAction = "login" | "signup" | "google" | "apple" | null;
@@ -59,6 +59,8 @@ export default function LoginPage() {
       return;
     }
 
+    primeAdminIdentity(result.data.user, ensure.familyId);
+
     await goAfterAuth();
     setAction(null);
   };
@@ -90,6 +92,8 @@ export default function LoginPage() {
       setStatus(`Feil: ${ensure.error}`);
       return;
     }
+
+    primeAdminIdentity(result.data.user, ensure.familyId);
 
     await goAfterAuth();
     setAction(null);

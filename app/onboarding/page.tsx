@@ -51,6 +51,11 @@ export default function OnboardingPage() {
   const [hasTasksAlready, setHasTasksAlready] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const [qrBusy, setQrBusy] = useState(false);
+  const [qrCopied, setQrCopied] = useState(false);
+  const [qrError, setQrError] = useState("");
+
   useEffect(() => {
     const run = async () => {
       const session = await getCurrentSessionUser();
@@ -124,10 +129,50 @@ export default function OnboardingPage() {
     setTaskTemplates((prev) => prev.map((task) => (task.key === key ? { ...task, amountOre } : task)));
   };
 
-  const finish = async () => {
+  const qrImageUrl = useMemo(() => {
+    if (!claimUrl) return null;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(claimUrl)}`;
+  }, [claimUrl]);
+
+  const openQr = async (regenerate: boolean) => {
+    setQrBusy(true);
+    setQrError("");
+    setQrCopied(false);
+
+    const sessionRes = await supabase.auth.getSession();
+    const accessToken = sessionRes.data.session?.access_token;
+    if (!accessToken) {
+      setQrBusy(false);
+      setQrError("Ikke innlogget.");
+      return;
+    }
+
+    const res = await fetch("/api/admin/devices/qr", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ regenerate }),
+    });
+
+    const payload = (await res.json().catch(() => ({}))) as { error?: string; claimUrl?: string };
+    setQrBusy(false);
+
+    if (!res.ok || payload.error || !payload.claimUrl) {
+      setQrError(payload.error ?? "Kunne ikke lage QR-lenke.");
+      return;
+    }
+
+    setClaimUrl(payload.claimUrl);
+  };
+
+  // Barn og oppgaver maa ligge i databasen foer QR-koden vises: forelderen skanner
+  // den med en gang, og en iPad som lander paa /kids uten profiler er en blindvei.
+  const persistSetup = async (): Promise<boolean> => {
     if (!familyId) {
       setStatus("Feil: Mangler familyId.");
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -138,7 +183,7 @@ export default function OnboardingPage() {
       if (familyUpdate.error) {
         setSaving(false);
         setStatus(`Feil: ${familyUpdate.error.message}`);
-        return;
+        return false;
       }
     }
 
@@ -153,7 +198,7 @@ export default function OnboardingPage() {
       if (childInsert.error) {
         setSaving(false);
         setStatus(`Feil: ${childInsert.error.message}`);
-        return;
+        return false;
       }
     }
 
@@ -172,7 +217,7 @@ export default function OnboardingPage() {
         if (taskInsert.error) {
           setSaving(false);
           setStatus(`Feil: ${taskInsert.error.message}`);
-          return;
+          return false;
         }
       }
     }
@@ -181,11 +226,27 @@ export default function OnboardingPage() {
     if (settingsUpdate.error) {
       setSaving(false);
       setStatus(`Feil: ${settingsUpdate.error.message}`);
-      return;
+      return false;
     }
 
+    // Gjoer et nytt kall til persistSetup til en no-op for barn/oppgaver, slik at
+    // "Tilbake" fra barnemodus og "Neste" igjen ikke oppretter duplikater.
+    if (childrenDrafts.length > 0) setHasChildrenAlready(true);
+    setChildrenDrafts([]);
+    setHasTasksAlready(true);
+
     setSaving(false);
-    router.replace("/admin/inbox");
+    return true;
+  };
+
+  const goToBarnemodus = async () => {
+    const saved = await persistSetup();
+    if (!saved) return;
+
+    setStep(5);
+    if (!claimUrl && !qrBusy) {
+      void openQr(false);
+    }
   };
 
   if (loading) {
@@ -199,7 +260,7 @@ export default function OnboardingPage() {
       <section className="mx-auto max-w-3xl space-y-5">
         <header className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
           <h1 className="text-2xl font-semibold tracking-tight">Setup wizard</h1>
-          <p className="mt-2 text-sm text-slate-300">Steg {step} av 4. Sett opp familie, barn og oppgaver.</p>
+          <p className="mt-2 text-sm text-slate-300">Steg {step} av 5. Sett opp familie, barn, oppgaver og barnemodus.</p>
         </header>
 
         {step === 1 && (
@@ -386,11 +447,93 @@ export default function OnboardingPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void finish()}
+                onClick={() => void goToBarnemodus()}
                 disabled={saving}
-                className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
               >
-                {saving ? "Lagrer..." : "Fullfor setup"}
+                {saving ? "Lagrer..." : "Neste"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <h2 className="text-lg font-semibold">Steg 5: Aktiver barnemodus</h2>
+            <p className="mt-2 rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+              Barn og oppgaver er lagret. Na gjenstar bare enheten barna skal bruke.
+            </p>
+            <p className="mt-3 text-sm text-slate-300">
+              Barnesiden kjorer pa en delt iPad i kiosk-modus. Apne QR-koden under pa iPaden (eller skann den) for a koble
+              nettbrettet til familien. Barnet velger sin egen profil hver gang - ingenting lagres permanent pa enheten.
+            </p>
+
+            <div className="mt-4">
+              {qrBusy && <p className="text-sm text-slate-400">Lager QR-kode...</p>}
+
+              {qrError && (
+                <p className="rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-200">Feil: {qrError}</p>
+              )}
+
+              {claimUrl && (
+                <div className="rounded-2xl border border-amber-700/60 bg-amber-950/40 p-4 text-sm text-amber-100">
+                  <div className="mb-3 text-sm font-semibold text-amber-200">Skann QR med iPad</div>
+                  {qrImageUrl && (
+                    <img
+                      src={qrImageUrl}
+                      alt="Kiosk QR"
+                      className="h-[260px] w-[260px] rounded-lg border border-amber-700/70 bg-white p-2"
+                    />
+                  )}
+                  <div className="mt-3 break-all rounded-lg border border-amber-700/60 bg-amber-950/60 px-3 py-2 text-xs">{claimUrl}</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(claimUrl);
+                        setQrCopied(true);
+                      }}
+                      className="rounded-lg border border-amber-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 transition hover:border-amber-500 hover:bg-amber-900/50"
+                    >
+                      {qrCopied ? "Kopiert" : "Kopier lenke"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void openQr(true)}
+                      disabled={qrBusy}
+                      className="rounded-lg border border-amber-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 transition hover:border-amber-500 hover:bg-amber-900/50 disabled:opacity-50"
+                    >
+                      Regenerer QR
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!qrBusy && !claimUrl && (
+                <button
+                  type="button"
+                  onClick={() => void openQr(false)}
+                  className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
+                >
+                  Lag QR-kode
+                </button>
+              )}
+            </div>
+
+            <p className="mt-4 text-xs text-slate-400">
+              Du finner alltid QR-koden igjen under Admin - Enheter.
+            </p>
+
+            <div className="mt-5 flex justify-between">
+              <button type="button" onClick={() => setStep(4)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold">
+                Tilbake
+              </button>
+              <button
+                type="button"
+                onClick={() => router.replace("/admin/inbox")}
+                className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950"
+              >
+                Begynn a bruke appen
               </button>
             </div>
           </div>
