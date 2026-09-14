@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { signInWithGoogle } from "./lib/google-auth";
+import {
+  decideClaim,
+  getChildren,
+  getFamilyId,
+  getPendingClaims,
+  getTasks,
+  type Child,
+  type PendingClaim,
+  type Task,
+} from "./lib/api";
+import LoginScreen from "./screens/LoginScreen";
+import OverviewScreen from "./screens/OverviewScreen";
+import InboxScreen from "./screens/InboxScreen";
+import TasksScreen from "./screens/TasksScreen";
+import { colors } from "./theme";
 
-type Child = {
-  id: string;
-  name: string;
-};
+type Tab = "overview" | "inbox" | "tasks";
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -38,11 +45,11 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       {session === undefined ? (
-        <View style={styles.centered}>
+        <View style={styles.loading}>
           <ActivityIndicator />
         </View>
       ) : session ? (
-        <ChildrenScreen session={session} />
+        <ParentApp session={session} />
       ) : (
         <LoginScreen />
       )}
@@ -50,389 +57,190 @@ export default function App() {
   );
 }
 
-function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [mode, setMode] = useState<"password" | "code">("password");
-  const [codeSent, setCodeSent] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const run = useCallback(async (action: () => Promise<string | null>) => {
-    setErrorMessage(null);
-    setInfoMessage(null);
-    setLoading(true);
-    try {
-      const info = await action();
-      if (info) setInfoMessage(info);
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Noe gikk galt.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const handlePasswordLogin = useCallback(
-    () =>
-      run(async () => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        return null;
-      }),
-    [run, email, password]
-  );
-
-  const handleSendCode = useCallback(
-    () =>
-      run(async () => {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: { shouldCreateUser: false },
-        });
-        if (error) throw error;
-        setCodeSent(true);
-        return "Kode sendt. Sjekk e-posten din.";
-      }),
-    [run, email]
-  );
-
-  const handleVerifyCode = useCallback(
-    () =>
-      run(async () => {
-        const { error } = await supabase.auth.verifyOtp({
-          email,
-          token: code.trim(),
-          type: "email",
-        });
-        if (error) throw error;
-        return null;
-      }),
-    [run, email, code]
-  );
-
-  const handleGoogleLogin = useCallback(async () => {
-    setErrorMessage(null);
-    setInfoMessage(null);
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Google-innlogging feilet.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  }, []);
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.loginContainer}>
-        <Text style={styles.title}>Ukepenger</Text>
-        <Text style={styles.subtitle}>Logg inn med kontoen din</Text>
-
-        <Pressable
-          style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
-          onPress={handleGoogleLogin}
-          disabled={googleLoading}
-        >
-          {googleLoading ? (
-            <ActivityIndicator />
-          ) : (
-            <Text style={styles.googleButtonText}>Logg inn med Google</Text>
-          )}
-        </Pressable>
-
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>eller</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <TextInput
-          style={styles.input}
-          placeholder="E-post"
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        {mode === "password" ? (
-          <TextInput
-            style={styles.input}
-            placeholder="Passord"
-            secureTextEntry
-            autoCapitalize="none"
-            value={password}
-            onChangeText={setPassword}
-          />
-        ) : codeSent ? (
-          <TextInput
-            style={styles.input}
-            placeholder="6-sifret kode fra e-post"
-            keyboardType="number-pad"
-            value={code}
-            onChangeText={setCode}
-          />
-        ) : null}
-
-        {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
-        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-
-        <Pressable
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={
-            mode === "password"
-              ? handlePasswordLogin
-              : codeSent
-                ? handleVerifyCode
-                : handleSendCode
-          }
-          disabled={loading || !email}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>
-              {mode === "password" ? "Logg inn" : codeSent ? "Logg inn" : "Send kode"}
-            </Text>
-          )}
-        </Pressable>
-
-        <Pressable
-          onPress={() => {
-            setMode(mode === "password" ? "code" : "password");
-            setCodeSent(false);
-            setCode("");
-            setErrorMessage(null);
-            setInfoMessage(null);
-          }}
-        >
-          <Text style={styles.link}>
-            {mode === "password"
-              ? "Bruk engangskode på e-post i stedet"
-              : "Bruk passord i stedet"}
-          </Text>
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
-  );
-}
-
-function ChildrenScreen({ session }: { session: Session }) {
+function ParentApp({ session }: { session: Session }) {
+  const [tab, setTab] = useState<Tab>("overview");
   const [children, setChildren] = useState<Child[] | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [claims, setClaims] = useState<PendingClaim[] | null>(null);
+  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const familyId = await getFamilyId(session.user.id);
+      const [nextChildren, nextClaims, nextTasks] = await Promise.all([
+        getChildren(familyId),
+        getPendingClaims(familyId),
+        getTasks(familyId),
+      ]);
+      setChildren(nextChildren);
+      setClaims(nextClaims);
+      setTasks(nextTasks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kunne ikke hente data.");
+      setChildren((current) => current ?? []);
+      setClaims((current) => current ?? []);
+      setTasks((current) => current ?? []);
+    }
+  }, [session.user.id]);
 
   useEffect(() => {
-    let cancelled = false;
+    void load();
+  }, [load]);
 
-    async function loadChildren() {
-      setErrorMessage(null);
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
-      const profileRes = await supabase
-        .from("profiles")
-        .select("family_id")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      if (profileRes.error || !profileRes.data?.family_id) {
-        setErrorMessage(profileRes.error?.message ?? "Fant ingen familie for denne kontoen.");
-        setChildren([]);
-        return;
+  const handleDecide = useCallback(
+    async (claimId: string, status: "APPROVED" | "REJECTED") => {
+      try {
+        await decideClaim(claimId, status, session.user.id);
+        await load();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Kunne ikke lagre avgjørelsen.");
       }
+    },
+    [session.user.id, load]
+  );
 
-      const childrenRes = await supabase
-        .from("children")
-        .select("id, name")
-        .eq("family_id", profileRes.data.family_id)
-        .order("name");
-
-      if (cancelled) return;
-
-      if (childrenRes.error) {
-        setErrorMessage(childrenRes.error.message);
-        setChildren([]);
-        return;
-      }
-
-      setChildren(childrenRes.data ?? []);
-    }
-
-    loadChildren();
-    return () => {
-      cancelled = true;
-    };
-  }, [session.user.id]);
+  const pendingCount = claims?.length ?? 0;
 
   return (
     <View style={styles.flex}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Barna mine</Text>
-        <Pressable onPress={() => supabase.auth.signOut()}>
+      <View style={styles.topBar}>
+        <Text style={styles.brand}>Ukepenger</Text>
+        <Pressable onPress={() => supabase.auth.signOut()} hitSlop={8}>
           <Text style={styles.signOut}>Logg ut</Text>
         </Pressable>
       </View>
 
-      {children === null ? (
-        <View style={styles.centered}>
-          <ActivityIndicator />
-        </View>
-      ) : errorMessage ? (
-        <View style={styles.centered}>
-          <Text style={styles.error}>{errorMessage}</Text>
-        </View>
-      ) : children.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.subtitle}>Ingen barn registrert enda.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={children}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.childRow}>
-              <Text style={styles.childName}>{item.name}</Text>
-            </View>
-          )}
+      <View style={styles.flex}>
+        {tab === "overview" ? (
+          <OverviewScreen
+            items={children}
+            error={error}
+            refreshing={refreshing}
+            onRefresh={refresh}
+          />
+        ) : tab === "inbox" ? (
+          <InboxScreen
+            claims={claims}
+            error={error}
+            refreshing={refreshing}
+            onRefresh={refresh}
+            onDecide={handleDecide}
+          />
+        ) : (
+          <TasksScreen tasks={tasks} error={error} refreshing={refreshing} onRefresh={refresh} />
+        )}
+      </View>
+
+      <View style={styles.tabBar}>
+        <TabButton label="Oversikt" active={tab === "overview"} onPress={() => setTab("overview")} />
+        <TabButton
+          label="Innboks"
+          active={tab === "inbox"}
+          badge={pendingCount}
+          onPress={() => setTab("inbox")}
         />
-      )}
+        <TabButton label="Oppgaver" active={tab === "tasks"} onPress={() => setTab("tasks")} />
+      </View>
     </View>
+  );
+}
+
+function TabButton({
+  label,
+  active,
+  badge,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  badge?: number;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.tab} onPress={onPress}>
+      <View style={styles.tabLabelRow}>
+        <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
+        {badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
   },
-  flex: {
-    flex: 1,
-  },
-  centered: {
+  flex: { flex: 1 },
+  loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
   },
-  loginContainer: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: "#111",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  googleButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  googleButtonText: {
-    color: "#111",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginVertical: 4,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#ddd",
-  },
-  dividerText: {
-    color: "#999",
-    fontSize: 13,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  error: {
-    color: "#c00",
-    textAlign: "center",
-  },
-  info: {
-    color: "#0a7",
-    textAlign: "center",
-  },
-  link: {
-    color: "#06c",
-    textAlign: "center",
-    fontSize: 15,
-    paddingVertical: 8,
-  },
-  header: {
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ddd",
+    paddingVertical: 12,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+  brand: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.muted,
   },
   signOut: {
-    color: "#c00",
     fontSize: 15,
+    color: colors.muted,
   },
-  list: {
-    padding: 20,
-    gap: 10,
+  tabBar: {
+    flexDirection: "row",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
-  childRow: {
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: "#f5f5f5",
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 14,
   },
-  childName: {
-    fontSize: 17,
-    fontWeight: "600",
+  tabLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.muted,
+  },
+  tabLabelActive: {
+    color: colors.text,
+    fontWeight: "700",
+  },
+  badge: {
+    minWidth: 20,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: colors.danger,
+    alignItems: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });
