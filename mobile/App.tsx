@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getRedirectUrl, signInWithGoogle } from "./lib/google-auth";
+import { signInWithGoogle } from "./lib/google-auth";
 
 type Child = {
   id: string;
@@ -220,8 +220,6 @@ function LoginScreen() {
               : "Bruk passord i stedet"}
           </Text>
         </Pressable>
-
-        <Text style={styles.debug}>redirect: {getRedirectUrl()}</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -406,12 +404,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 15,
     paddingVertical: 8,
-  },
-  debug: {
-    color: "#bbb",
-    textAlign: "center",
-    fontSize: 11,
-    marginTop: 12,
   },
   header: {
     flexDirection: "row",

@@ -12,34 +12,70 @@ npm install
 cp .env.example .env   # fyll inn EXPO_PUBLIC_SUPABASE_ANON_KEY (anon key, ikke hemmelig)
 ```
 
-## Kjøre appen
+## Hvordan appen testes
+
+`npx expo start --tunnel` virker **ikke** i miljøet dette utvikles i:
+tunnelen går via ngrok, som bruker cert-pinning, og det bryter mot
+utgående proxy (CONNECT går gjennom, TLS-handshaken feiler på ALPN).
+Derfor testes appen via **EAS Update** i stedet – den publiserte bunten
+lastes ned med vanlig HTTPS og kjøres i Expo Go, uten dev-server.
 
 ```bash
-npx expo start --tunnel
+export EXPO_TOKEN=<access token fra expo.dev>
+npx eas-cli update --branch preview --message "..." --environment preview --non-interactive
 ```
 
-**NB:** `--tunnel` bruker ngrok, og ngrok sin TLS (cert-pinning) blir
-blokkert av dette miljøets utgående proxy (bekreftet: CONNECT går
-gjennom, men TLS-handshaken feiler med "no application protocol").
-Dette er en kjent begrensning i sandkasse-miljøet dette prosjektet
-utvikles i (Claude Code på nett), ikke noe galt med selve Expo-oppsettet.
+Kommandoen skriver ut en dashboard-URL. Åpne den på telefonen,
+trykk **Preview** → **Open in Expo Go**.
 
-Alternativer for å teste på en iPhone uten Mac/PC:
-- Kjør `npx expo start --tunnel` fra en maskin/økt som ikke går via en
-  slik proxy (f.eks. GitHub Codespaces, en annen skytjeneste, eller en
-  økt der nettverkspolicyen faktisk slipper gjennom ngrok sin TLS).
-- Bruk **EAS Update** i stedet for en live dev-tunnel: `eas update`
-  bruker vanlige HTTPS-kall (ikke WebSocket/cert-pinning) mot
-  `expo.dev`/`u.expo.dev`, som er bekreftet nåbare herfra. Brukeren
-  scanner en QR-kode i Expo Go som peker til den publiserte bunten.
-  Krever et gratis Expo-konto og `eas init`/`eas update:configure`.
+Konsekvensen er at det ikke finnes live reload: hver endring krever en ny
+publisering (~2 min). Får man åpnet nettverket for ngrok, er `--tunnel`
+den raske veien tilbake.
 
-## Status – milepæl 1
+### Miljøvariabler
 
-- [x] Tomt Expo-prosjekt (`mobile/`)
-- [x] Supabase-klient satt opp med samme prosjekt som nettappen
-- [x] Innlogging med e-post/passord mot Supabase Auth
-- [x] Viser liste over barn (`children`-tabellen) for innlogget families
-      `family_id`
-- [ ] Tunnel + QR-kode + kjøring på ekte iPhone via Expo Go – blokkert av
-      nettverksmiljøet, se over
+`eas update` leser **ikke** lokal `.env` – den henter variabler fra EAS.
+De ligger allerede der for `production`, `preview` og `development`:
+
+```bash
+npx eas-cli env:set --name EXPO_PUBLIC_SUPABASE_URL --value "..." \
+  --visibility plaintext --environment production preview development --non-interactive
+```
+
+### Smoke-test før publisering
+
+Siden hver publisering er dyr, kjør appen i nettleser først for å fange
+krasj og renderfeil:
+
+```bash
+npx expo export --platform web
+npx serve dist -l 4173
+# åpne http://localhost:4173 med Playwright/Chromium og les konsollen
+```
+
+## Innlogging
+
+Tre veier, alle mot samme Supabase-brukere som nettappen:
+
+- **Google** – `signInWithOAuth` + `expo-web-browser`. Redirect-URL-en
+  bygges av `Linking.createURL()`, og i Expo Go blir den
+  `exp://u.expo.dev/<projectId>/group/<updateId>/--/auth/callback`.
+  ID-en endrer seg for hver publisering, så Supabase må ha wildcard
+  `exp://u.expo.dev/**` i **Authentication → URL Configuration →
+  Redirect URLs**. `ukepenger://auth/callback` ligger også inne, og blir
+  den gjeldende når appen en gang bygges som ekte app.
+- **E-post + passord** – `signInWithPassword`.
+- **Engangskode på e-post** – `signInWithOtp` / `verifyOtp`. Krever at
+  `{{ .Token }}` står i Magic Link-malen under **Authentication →
+  Email Templates**.
+
+## Status
+
+Milepæl 1 er ferdig: appen kjører på ekte iPhone i Expo Go, logger inn
+med ekte konto og viser familiens barn fra `children`-tabellen.
+
+Neste steg er skjermene for oppgaver, krav og godkjenning.
+
+**NB:** Expo Go er kun for testing. Skal appen installeres permanent på
+familiens telefoner, må den bygges og distribueres via TestFlight/App
+Store, og det krever Apple Developer Program.
