@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
+import { signInWithGoogle } from "./lib/google-auth";
 
 type Child = {
   id: string;
@@ -53,6 +54,7 @@ function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleLogin = useCallback(async () => {
@@ -65,6 +67,18 @@ function LoginScreen() {
     }
   }, [email, password]);
 
+  const handleGoogleLogin = useCallback(async () => {
+    setErrorMessage(null);
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Google-innlogging feilet.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, []);
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -73,6 +87,24 @@ function LoginScreen() {
       <View style={styles.loginContainer}>
         <Text style={styles.title}>Ukepenger</Text>
         <Text style={styles.subtitle}>Logg inn med kontoen din</Text>
+
+        <Pressable
+          style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
+          onPress={handleGoogleLogin}
+          disabled={googleLoading}
+        >
+          {googleLoading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.googleButtonText}>Logg inn med Google</Text>
+          )}
+        </Pressable>
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>eller</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
         <TextInput
           style={styles.input}
@@ -239,6 +271,34 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 8,
+  },
+  googleButton: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  googleButtonText: {
+    color: "#111",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#ddd",
+  },
+  dividerText: {
+    color: "#999",
+    fontSize: 13,
   },
   buttonDisabled: {
     opacity: 0.5,
