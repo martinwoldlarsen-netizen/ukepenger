@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { signInWithGoogle } from "./lib/google-auth";
+import { getRedirectUrl, signInWithGoogle } from "./lib/google-auth";
 
 type Child = {
   id: string;
@@ -53,22 +53,69 @@ export default function App() {
 function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [mode, setMode] = useState<"password" | "code">("password");
+  const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleLogin = useCallback(async () => {
+  const run = useCallback(async (action: () => Promise<string | null>) => {
     setErrorMessage(null);
+    setInfoMessage(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setErrorMessage(error.message);
+    try {
+      const info = await action();
+      if (info) setInfoMessage(info);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Noe gikk galt.");
+    } finally {
+      setLoading(false);
     }
-  }, [email, password]);
+  }, []);
+
+  const handlePasswordLogin = useCallback(
+    () =>
+      run(async () => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        return null;
+      }),
+    [run, email, password]
+  );
+
+  const handleSendCode = useCallback(
+    () =>
+      run(async () => {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: { shouldCreateUser: false },
+        });
+        if (error) throw error;
+        setCodeSent(true);
+        return "Kode sendt. Sjekk e-posten din.";
+      }),
+    [run, email]
+  );
+
+  const handleVerifyCode = useCallback(
+    () =>
+      run(async () => {
+        const { error } = await supabase.auth.verifyOtp({
+          email,
+          token: code.trim(),
+          type: "email",
+        });
+        if (error) throw error;
+        return null;
+      }),
+    [run, email, code]
+  );
 
   const handleGoogleLogin = useCallback(async () => {
     setErrorMessage(null);
+    setInfoMessage(null);
     setGoogleLoading(true);
     try {
       await signInWithGoogle();
@@ -115,28 +162,66 @@ function LoginScreen() {
           value={email}
           onChangeText={setEmail}
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Passord"
-          secureTextEntry
-          autoCapitalize="none"
-          value={password}
-          onChangeText={setPassword}
-        />
 
+        {mode === "password" ? (
+          <TextInput
+            style={styles.input}
+            placeholder="Passord"
+            secureTextEntry
+            autoCapitalize="none"
+            value={password}
+            onChangeText={setPassword}
+          />
+        ) : codeSent ? (
+          <TextInput
+            style={styles.input}
+            placeholder="6-sifret kode fra e-post"
+            keyboardType="number-pad"
+            value={code}
+            onChangeText={setCode}
+          />
+        ) : null}
+
+        {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
         <Pressable
           style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading || !email || !password}
+          onPress={
+            mode === "password"
+              ? handlePasswordLogin
+              : codeSent
+                ? handleVerifyCode
+                : handleSendCode
+          }
+          disabled={loading || !email}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Logg inn</Text>
+            <Text style={styles.buttonText}>
+              {mode === "password" ? "Logg inn" : codeSent ? "Logg inn" : "Send kode"}
+            </Text>
           )}
         </Pressable>
+
+        <Pressable
+          onPress={() => {
+            setMode(mode === "password" ? "code" : "password");
+            setCodeSent(false);
+            setCode("");
+            setErrorMessage(null);
+            setInfoMessage(null);
+          }}
+        >
+          <Text style={styles.link}>
+            {mode === "password"
+              ? "Bruk engangskode på e-post i stedet"
+              : "Bruk passord i stedet"}
+          </Text>
+        </Pressable>
+
+        <Text style={styles.debug}>redirect: {getRedirectUrl()}</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -311,6 +396,22 @@ const styles = StyleSheet.create({
   error: {
     color: "#c00",
     textAlign: "center",
+  },
+  info: {
+    color: "#0a7",
+    textAlign: "center",
+  },
+  link: {
+    color: "#06c",
+    textAlign: "center",
+    fontSize: 15,
+    paddingVertical: 8,
+  },
+  debug: {
+    color: "#bbb",
+    textAlign: "center",
+    fontSize: 11,
+    marginTop: 12,
   },
   header: {
     flexDirection: "row",

@@ -51,6 +51,14 @@ async function createSessionFromUrl(url: string) {
   throw new Error(`Fikk ingen tokens tilbake. URL: ${url.slice(0, 120)}`);
 }
 
+export function getRedirectUrl() {
+  try {
+    return Linking.createURL("auth/callback");
+  } catch (err) {
+    return err instanceof Error ? `FEIL: ${err.message}` : "FEIL: ukjent";
+  }
+}
+
 export async function signInWithGoogle() {
   const redirectUrl = Linking.createURL("auth/callback");
 
