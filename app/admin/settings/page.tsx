@@ -1,201 +1,119 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { CheckCheck, LogOut, PiggyBank } from "lucide-react";
-import { useRouter } from "next/navigation";
+import useSWR from "swr";
+import { CheckCheck, PiggyBank } from "lucide-react";
+import { Card, CardHeader, ListSkeleton, Switch, cx, focusRing } from "@/components/ui";
+import { useToast } from "@/components/ui/feedback";
+import { friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
+import type { ApprovalMode } from "@/lib/family-client";
 import { formatKr } from "@/lib/money";
-import { type ApprovalMode, clearAdminIdentityCache, getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
 const SAVINGS_OPTIONS = [0, 5, 10, 15, 20, 25];
 
+type FamilySettings = { approval_mode: ApprovalMode; savings_percent: number; show_savings_to_kids: boolean };
+
 export default function AdminSettingsPage() {
-  const router = useRouter();
-  const [signingOut, setSigningOut] = useState(false);
-  const [familyId, setFamilyId] = useState<string | null>(null);
-  const [approvalMode, setApprovalMode] = useState<ApprovalMode>("REQUIRE_APPROVAL");
-  const [savingsPercent, setSavingsPercent] = useState(0);
-  const [showSavingsToKids, setShowSavingsToKids] = useState(true);
-  const [status, setStatus] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const { familyId } = useAdminIdentity();
+  const settings = useSWR(
+    familyId ? ["family-settings", familyId] : null,
+    async () => {
+      const res = await supabase.from("families").select("approval_mode, savings_percent, show_savings_to_kids").eq("id", familyId as string).maybeSingle();
+      if (res.error || !res.data) throw new Error(res.error?.message ?? "Fant ikke familien");
+      return {
+        approval_mode: (res.data.approval_mode as ApprovalMode) ?? "REQUIRE_APPROVAL",
+        savings_percent: res.data.savings_percent ?? 0,
+        show_savings_to_kids: res.data.show_savings_to_kids ?? true,
+      } as FamilySettings;
+    },
+    swrDefaults
+  );
 
-  const load = useCallback(async (nextFamilyId?: string) => {
-    const id = nextFamilyId ?? familyId;
-    if (!id) return;
-    const res = await supabase
-      .from("families")
-      .select("approval_mode, savings_percent, show_savings_to_kids")
-      .eq("id", id)
-      .maybeSingle();
-    if (res.error || !res.data) {
-      setStatus(`Feil: ${res.error?.message ?? "Familie ikke funnet."}`);
-      return;
+  // Lagres med en gang; skjermen oppdateres før svaret kommer.
+  const save = async (patch: Partial<FamilySettings>) => {
+    if (!familyId || !settings.data) return;
+    try {
+      await settings.mutate(
+        async (current) => {
+          const res = await supabase.from("families").update(patch).eq("id", familyId);
+          if (res.error) throw new Error(res.error.message);
+          return { ...(current as FamilySettings), ...patch };
+        },
+        { optimisticData: (current) => ({ ...(current as FamilySettings), ...patch }), rollbackOnError: true, revalidate: false }
+      );
+      toast({ text: "Lagret" });
+    } catch (error) {
+      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å lagre.") });
     }
-    setApprovalMode((res.data.approval_mode as ApprovalMode) ?? "REQUIRE_APPROVAL");
-    setSavingsPercent(res.data.savings_percent ?? 0);
-    setShowSavingsToKids(res.data.show_savings_to_kids ?? true);
-  }, [familyId]);
-
-  useEffect(() => {
-    const run = async () => {
-      const ctx = await getCurrentAdminContext();
-      if (!ctx.familyId) {
-        setStatus("Fant ikke familie.");
-        setLoading(false);
-        return;
-      }
-      setFamilyId(ctx.familyId);
-      await load(ctx.familyId);
-      setLoading(false);
-    };
-    void run();
-  }, [load]);
-
-  const save = async (patch: Record<string, unknown>, onSaved: () => void) => {
-    if (!familyId || saving) return;
-    setSaving(true);
-    setStatus("");
-    const res = await supabase.from("families").update(patch).eq("id", familyId);
-    setSaving(false);
-    if (res.error) {
-      setStatus(`Feil: ${res.error.message}`);
-      return;
-    }
-    onSaved();
-    setStatus("Lagret.");
   };
 
-  if (loading) return <div className="text-muted-foreground">Laster…</div>;
-
-  const isError = status.startsWith("Feil:");
+  if (!settings.data) return <ListSkeleton rows={2} />;
+  const s = settings.data;
+  const exampleSaved = Math.floor((2000 * s.savings_percent) / 100);
 
   return (
-    <section className="max-w-2xl space-y-5">
-      <div className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-            <CheckCheck className="size-5" strokeWidth={2.25} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold tracking-tight">Godkjenning av krav</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Skal en voksen godkjenne hver oppgave før pengene havner hos barnet?
-            </p>
-          </div>
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-secondary p-1.5">
+    <section className="space-y-5">
+      <Card>
+        <CardHeader icon={<CheckCheck className="size-5" />} title="Godkjenning" description="Skal en voksen godkjenne hver oppgave før pengene havner hos barnet?" />
+        <div className="mt-5 grid grid-cols-2 gap-1.5 rounded-2xl bg-secondary p-1.5">
           {(
             [
-              ["REQUIRE_APPROVAL", "Krever godkjenning"],
-              ["AUTO_APPROVE", "Godkjenn automatisk"],
+              ["REQUIRE_APPROVAL", "Jeg godkjenner"],
+              ["AUTO_APPROVE", "Automatisk"],
             ] as const
           ).map(([mode, label]) => (
             <button
               key={mode}
               type="button"
-              disabled={saving}
-              aria-pressed={approvalMode === mode}
-              onClick={() => approvalMode !== mode && void save({ approval_mode: mode }, () => setApprovalMode(mode))}
-              className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
-                approvalMode === mode ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
+              aria-pressed={s.approval_mode === mode}
+              onClick={() => s.approval_mode !== mode && void save({ approval_mode: mode })}
+              className={cx("min-h-11 rounded-xl px-3 text-sm font-semibold transition", focusRing, s.approval_mode === mode ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
             >
               {label}
             </button>
           ))}
         </div>
-      </div>
+      </Card>
 
-      <div className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-            <PiggyBank className="size-5" strokeWidth={2.25} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold tracking-tight">Sparing</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              En fast del av alt barnet tjener settes av automatisk når et krav blir godkjent. Resten kan brukes
-              som vanlig. Gjelder krav som godkjennes fra nå av.
-            </p>
-          </div>
-        </div>
-
+      <Card>
+        <CardHeader
+          icon={<PiggyBank className="size-5" />}
+          title="Sparing"
+          description="En fast del av alt barnet tjener settes av automatisk når en oppgave blir godkjent. Gjelder oppgaver som godkjennes fra nå av."
+        />
         <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-6">
           {SAVINGS_OPTIONS.map((pct) => (
             <button
               key={pct}
               type="button"
-              disabled={saving}
-              aria-pressed={savingsPercent === pct}
-              onClick={() =>
-                savingsPercent !== pct && void save({ savings_percent: pct }, () => setSavingsPercent(pct))
-              }
-              className={`font-num rounded-2xl border py-3 text-base font-bold transition disabled:opacity-60 ${
-                savingsPercent === pct
-                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                  : "border-border bg-card hover:border-primary/40 hover:bg-secondary"
-              }`}
+              aria-pressed={s.savings_percent === pct}
+              onClick={() => s.savings_percent !== pct && void save({ savings_percent: pct })}
+              className={cx(
+                "font-num min-h-12 rounded-2xl border text-base font-bold transition",
+                focusRing,
+                s.savings_percent === pct ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary"
+              )}
             >
               {pct === 0 ? "Av" : `${pct} %`}
             </button>
           ))}
         </div>
-        {savingsPercent > 0 && (
+        {s.savings_percent > 0 && (
           <p className="mt-3 text-sm text-muted-foreground">
-            Eksempel: en oppgave til 20 kr gir <strong className="text-foreground">{formatKr(2000 - Math.floor((2000 * savingsPercent) / 100))}</strong> til
-            gode og <strong className="text-foreground">{formatKr(Math.floor((2000 * savingsPercent) / 100))}</strong> på sparekontoen.
+            En oppgave til 20 kr gir <strong className="text-foreground">{formatKr(2000 - exampleSaved)}</strong> til gode og{" "}
+            <strong className="text-foreground">{formatKr(exampleSaved)}</strong> i sparegrisen.
           </p>
         )}
-
-        <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-secondary px-4 py-3.5">
-          <span>
-            <span className="block text-sm font-semibold">Vis sparingen for barna</span>
-            <span className="block text-sm text-muted-foreground">Barnet ser sparegrisen sin på barnesiden.</span>
-          </span>
-          <input
-            type="checkbox"
-            className="peer sr-only"
-            checked={showSavingsToKids}
-            disabled={saving}
-            onChange={(e) => {
-              const next = e.target.checked;
-              void save({ show_savings_to_kids: next }, () => setShowSavingsToKids(next));
-            }}
+        <div className="mt-5 rounded-2xl bg-secondary px-4 py-3.5">
+          <Switch
+            checked={s.show_savings_to_kids}
+            onChange={(next) => void save({ show_savings_to_kids: next })}
+            label="Vis sparegrisen for barna"
+            description="Barnet ser hvor mye det har spart."
           />
-          <span
-            aria-hidden="true"
-            className="relative h-7 w-12 shrink-0 rounded-full bg-border transition peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30 after:absolute after:left-1 after:top-1 after:size-5 after:rounded-full after:bg-card after:shadow after:transition peer-checked:after:translate-x-5"
-          />
-        </label>
-      </div>
-
-      <button
-        type="button"
-        disabled={signingOut}
-        onClick={async () => {
-          setSigningOut(true);
-          await supabase.auth.signOut();
-          clearAdminIdentityCache();
-          router.replace("/login");
-        }}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition hover:bg-secondary disabled:opacity-60 md:hidden"
-      >
-        <LogOut className="size-4" />
-        {signingOut ? "Logger ut…" : "Logg ut"}
-      </button>
-
-      {status && (
-        <p
-          role="status"
-          className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
-            isError ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"
-          }`}
-        >
-          {status}
-        </p>
-      )}
+        </div>
+      </Card>
     </section>
   );
 }
-

@@ -113,6 +113,8 @@ export default function AdminBetaMembersPage() {
 
   const inviteRows = useMemo(() => {
     return invites.map((invite) => {
+      // Utløp sjekkes når listen bygges på nytt (etter lasting), ikke hvert sekund.
+      // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
       const expired = new Date(invite.expires_at).getTime() <= now;
       const statusLabel = invite.revoked_at

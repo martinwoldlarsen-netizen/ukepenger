@@ -86,12 +86,16 @@ export default async function InvitePage({ params }: PageProps) {
   const inviteEmail = invite.email.toLowerCase();
   const userEmail = (user.email ?? "").toLowerCase();
 
+  // Serverkomponent som rendres én gang per forespørsel, så "nå" er stabilt.
+  // eslint-disable-next-line react-hooks/purity
+  const isExpired = new Date(invite.expires_at).getTime() <= Date.now();
+
   let message: string | null = null;
   if (invite.revoked_at) {
     message = "Invitasjonen er trukket tilbake.";
   } else if (invite.accepted_at) {
     message = "Invitasjonen er allerede akseptert.";
-  } else if (new Date(invite.expires_at).getTime() <= Date.now()) {
+  } else if (isExpired) {
     message = "Invitasjonen er utløpt.";
   } else if (!userEmail || userEmail !== inviteEmail) {
     message = `Du er logget inn som ${user.email ?? "ukjent"}, men invitasjonen er for ${invite.email}.`;

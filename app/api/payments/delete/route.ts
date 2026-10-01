@@ -95,15 +95,30 @@ export async function POST(request: Request) {
     new Set((claimsRes.data ?? []).map((row) => row.claim_id as string).filter(Boolean))
   );
 
+  // Kravene går tilbake til "til gode" (APPROVED), slik at pengene ikke blir
+  // borte når en utbetaling slettes. Sparing er allerede trukket på disse
+  // kravene (savings_applied), så triggeren trekker ikke en gang til.
   if (claimIds.length > 0) {
     const revertRes = await serviceClient
       .from("claims")
-      .update({ status: "REJECTED", paid_at: null })
-      .in("id", claimIds);
+      .update({ status: "APPROVED", paid_at: null })
+      .in("id", claimIds)
+      .eq("status", "PAID");
 
     if (revertRes.error) {
       return NextResponse.json({ error: revertRes.error.message }, { status: 400 });
     }
+  }
+
+  // Var dette et ønske som ble betalt ut, blir ønsket et sparemål igjen.
+  const wishRes = await serviceClient
+    .from("wishlist_items")
+    .update({ status: "ACTIVE", paid_at: null })
+    .eq("payment_id", paymentId)
+    .eq("status", "PAID");
+
+  if (wishRes.error) {
+    return NextResponse.json({ error: wishRes.error.message }, { status: 400 });
   }
 
   const deleteLinksRes = await serviceClient
