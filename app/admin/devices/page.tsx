@@ -116,21 +116,21 @@ export default function AdminDevicesPage() {
     return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(claimUrl)}`;
   }, [claimUrl]);
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
+  if (loading) return <div className="text-foreground/80">Laster...</div>;
 
   const isError = status.startsWith("Feil:");
 
   return (
     <section className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="mb-2 text-base font-semibold tracking-tight">Kiosk QR</h3>
-        <p className="mb-4 text-sm text-slate-300">Vis QR pa forelders telefon, skann pa iPad, og barnet lander rett pa /kids.</p>
+        <p className="mb-4 text-sm text-foreground/80">Vis QR på forelders telefon, skann på iPad, og barnet lander rett på /kids.</p>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void openQr(false)}
             disabled={busy}
-            className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? "Lager..." : "Vis QR"}
           </button>
@@ -138,7 +138,7 @@ export default function AdminDevicesPage() {
             type="button"
             onClick={() => void openQr(true)}
             disabled={busy}
-            className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             Regenerer QR
           </button>
@@ -147,10 +147,10 @@ export default function AdminDevicesPage() {
 
       {status && (
         <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
+          className={`rounded-xl border px-3 py-2 text-sm ${
             isError
-              ? "border-red-800 bg-red-950/40 text-red-200"
-              : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
           }`}
         >
           {status}
@@ -158,26 +158,26 @@ export default function AdminDevicesPage() {
       )}
 
       {claimUrl && (
-        <div className="rounded-2xl border border-amber-700/60 bg-amber-950/40 p-4 text-sm text-amber-100">
-          <div className="mb-3 text-sm font-semibold text-amber-200">Skann QR med iPad</div>
-          {qrImageUrl && <img src={qrImageUrl} alt="Kiosk QR" className="h-[260px] w-[260px] rounded-lg border border-amber-700/70 bg-white p-2" />}
-          <div className="mt-3 break-all rounded-lg border border-amber-700/60 bg-amber-950/60 px-3 py-2 text-xs">{claimUrl}</div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="mb-3 text-sm font-semibold text-amber-800">Skann QR med iPad</div>
+          {qrImageUrl && <img src={qrImageUrl} alt="Kiosk QR" className="h-[260px] w-[260px] rounded-xl border border-amber-200 bg-card p-2" />}
+          <div className="mt-3 break-all rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs">{claimUrl}</div>
           <button
             type="button"
             onClick={async () => {
               await navigator.clipboard.writeText(claimUrl);
               setCopied(true);
             }}
-            className="mt-2 rounded-lg border border-amber-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 transition hover:border-amber-500 hover:bg-amber-900/50"
+            className="mt-2 rounded-xl border border-amber-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-900 transition hover:border-amber-400 hover:bg-amber-100"
           >
             {copied ? "Kopiert" : "Kopier lenke"}
           </button>
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/70 text-slate-300">
+          <thead className="bg-secondary/70 text-foreground/80">
             <tr>
               <th className="px-4 py-3">Navn</th>
               <th className="px-4 py-3">Kode</th>
@@ -188,13 +188,13 @@ export default function AdminDevicesPage() {
           </thead>
           <tbody>
             {devices.map((device) => (
-              <tr key={device.id} className="border-t border-slate-800 text-slate-100">
+              <tr key={device.id} className="border-t border-border text-foreground">
                 <td className="px-4 py-3">{device.name}</td>
                 <td className="px-4 py-3 font-mono text-xs">{device.device_code ?? "-"}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                      !device.active || device.revoked_at ? "bg-slate-800 text-slate-300" : "bg-emerald-950/60 text-emerald-300"
+                      !device.active || device.revoked_at ? "bg-secondary text-foreground/80" : "bg-emerald-50 text-emerald-700"
                     }`}
                   >
                     {!device.active || device.revoked_at ? "Deaktivert" : "Aktiv"}
@@ -203,12 +203,12 @@ export default function AdminDevicesPage() {
                 <td className="px-4 py-3">{new Date(device.created_at).toLocaleString("nb-NO")}</td>
                 <td className="px-4 py-3">
                   {!device.active || device.revoked_at ? (
-                    <span className="text-xs text-slate-500">Ingen handling</span>
+                    <span className="text-xs text-muted-foreground">Ingen handling</span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => void revokeDevice(device.id)}
-                      className="rounded-lg border border-red-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-200 transition hover:border-red-500 hover:bg-red-950"
+                      className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-800 transition hover:border-red-400 hover:bg-red-100"
                     >
                       Deaktiver
                     </button>
@@ -218,8 +218,8 @@ export default function AdminDevicesPage() {
             ))}
             {devices.length === 0 && (
               <tr>
-                <td className="px-4 py-10 text-center text-slate-400" colSpan={5}>
-                  Ingen enheter opprettet enda.
+                <td className="px-4 py-10 text-center text-muted-foreground" colSpan={5}>
+                  Ingen enheter opprettet ennå.
                 </td>
               </tr>
             )}

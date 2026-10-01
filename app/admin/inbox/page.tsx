@@ -86,7 +86,7 @@ export default function AdminInboxPage() {
       const kr = Number((wishPrices[wish.id] ?? "").replace(",", "."));
       targetOre = Number.isFinite(kr) ? Math.round(kr * 100) : 0;
       if (!targetOre || targetOre <= 0) {
-        setStatus(`Feil: Sett en pris pa "${wish.title}" for du godkjenner.`);
+        setStatus(`Feil: Sett en pris på "${wish.title}" før du godkjenner.`);
         return;
       }
     }
@@ -94,7 +94,7 @@ export default function AdminInboxPage() {
     const sessionRes = await supabase.auth.getSession();
     const accessToken = sessionRes.data.session?.access_token;
     if (!accessToken) {
-      setStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -114,9 +114,9 @@ export default function AdminInboxPage() {
 
     const childName = childMap[wish.child_id] ?? "Barnet";
     if (payload.result === "PAID") {
-      setStatus(`Utbetalt som onske: ${wish.title}. Trukket fra ${childName} sin saldo.`);
+      setStatus(`Utbetalt som ønske: ${wish.title}. Trukket fra ${childName} sin saldo.`);
     } else if (payload.result === "SAVING") {
-      setStatus(`${wish.title} er godkjent som sparemal - ${childName} har ikke nok til gode enna.`);
+      setStatus(`${wish.title} er godkjent som sparemål - ${childName} har ikke nok til gode ennå.`);
     } else {
       setStatus(`Onsket "${wish.title}" er avvist.`);
     }
@@ -214,7 +214,7 @@ export default function AdminInboxPage() {
     return taskMap[item.task_id] ?? item.tasks?.[0]?.title ?? "Ukjent oppgave";
   };
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
+  if (loading) return <div className="text-foreground/80">Laster...</div>;
   const isError = status.startsWith("Feil:");
 
   return (
@@ -223,18 +223,18 @@ export default function AdminInboxPage() {
         <h2 className="text-xl font-semibold tracking-tight">Ventende krav</h2>
         <Link
           href="/admin/payments"
-          className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-900"
+          className="rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-secondary"
         >
-          Ga til utbetalinger
+          Gå til utbetalinger
         </Link>
       </div>
 
       {status && (
         <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
+          className={`rounded-xl border px-3 py-2 text-sm ${
             isError
-              ? "border-red-800 bg-red-950/40 text-red-200"
-              : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
           }`}
         >
           {status}
@@ -243,19 +243,19 @@ export default function AdminInboxPage() {
 
       <div className="md:hidden space-y-3">
         {items.length === 0 && pendingWishes.length === 0 && (
-          <p className="rounded-xl border border-slate-200 bg-white p-4 text-slate-700">Ingen krav til godkjenning.</p>
+          <p className="rounded-2xl border border-border bg-card p-4 text-foreground/80">Ingen krav til godkjenning.</p>
         )}
         {pendingWishes.map((wish) => {
           const price = wishPriceOre(wish);
           const enough = price > 0 && wish.balance_ore >= price;
           return (
-            <div key={wish.id} className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-900">
+            <div key={wish.id} className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-foreground">
               <span className="inline-flex rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
-                {wish.status === "ACTIVE" ? "Onske - spart nok" : "Onske"}
+                {wish.status === "ACTIVE" ? "Ønske - spart nok" : "Ønske"}
               </span>
               <div className="mt-2 space-y-1 text-sm">
                 <p><span className="font-semibold">Barn:</span> {childMap[wish.child_id] ?? "Ukjent barn"}</p>
-                <p><span className="font-semibold">Onsker seg:</span> {wish.title}</p>
+                <p><span className="font-semibold">Ønsker seg:</span> {wish.title}</p>
                 <p><span className="font-semibold">Til gode:</span> {formatKr(wish.balance_ore)}</p>
               </div>
               {wish.status === "PROPOSED" ? (
@@ -266,33 +266,33 @@ export default function AdminInboxPage() {
                     onChange={(e) => setWishPrices((prev) => ({ ...prev, [wish.id]: e.target.value }))}
                     inputMode="decimal"
                     placeholder="49"
-                    className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-2"
+                    className="w-28 rounded-xl border border-border bg-card px-3 py-2"
                   />
                 </label>
               ) : (
                 <p className="mt-2 text-sm"><span className="font-semibold">Pris:</span> {formatKr(price)}</p>
               )}
-              <p className="mt-2 text-xs text-slate-600">
+              <p className="mt-2 text-xs text-muted-foreground">
                 {price <= 0
                   ? "Sett en pris for a godkjenne."
                   : enough
                     ? "Utbetales med en gang og trekkes fra saldoen."
-                    : "For lite til gode - blir et sparemal til det er nok."}
+                    : "For lite til gode - blir et sparemål til det er nok."}
               </p>
               <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   disabled={wishBusyId === wish.id}
                   onClick={() => void reviewWish(wish, wish.status === "ACTIVE" ? "payout" : "approve")}
-                  className="w-full rounded-lg bg-slate-900 px-3 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                  className="w-full rounded-xl bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {wish.status === "ACTIVE" ? "Utbetal onske" : "Godkjenn"}
+                  {wish.status === "ACTIVE" ? "Utbetal ønske" : "Godkjenn"}
                 </button>
                 <button
                   type="button"
                   disabled={wishBusyId === wish.id}
                   onClick={() => void reviewWish(wish, "decline")}
-                  className="w-full rounded-lg bg-red-600 px-3 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+                  className="w-full rounded-xl border border-red-200 bg-card px-3 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                 >
                   Avvis
                 </button>
@@ -301,25 +301,25 @@ export default function AdminInboxPage() {
           );
         })}
         {items.map((item) => (
-          <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 text-slate-900">
+          <div key={item.id} className="rounded-2xl border border-border bg-card p-4 text-foreground">
             <div className="space-y-1 text-sm">
               <p><span className="font-semibold">Barn:</span> {getChildName(item)}</p>
               <p><span className="font-semibold">Oppgave:</span> {getTaskTitle(item)}</p>
-              <p><span className="font-semibold">Belop:</span> {formatKr(item.amount_ore)}</p>
+              <p><span className="font-semibold">Beløp:</span> {formatKr(item.amount_ore)}</p>
               <p><span className="font-semibold">Tid:</span> {new Date(item.created_at).toLocaleString("nb-NO")}</p>
             </div>
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 onClick={() => void decide(item.id, "APPROVED")}
-                className="w-full rounded-lg bg-slate-900 px-3 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+                className="w-full rounded-xl bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
               >
                 Godkjenn
               </button>
               <button
                 type="button"
                 onClick={() => void decide(item.id, "REJECTED")}
-                className="w-full rounded-lg bg-red-600 px-3 py-3 text-sm font-semibold text-white transition hover:bg-red-500"
+                className="w-full rounded-xl border border-red-200 bg-card px-3 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50"
               >
                 Avvis
               </button>
@@ -329,13 +329,13 @@ export default function AdminInboxPage() {
       </div>
 
       <div className="hidden md:block">
-        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-800/70 text-slate-300">
+            <thead className="bg-secondary/70 text-foreground/80">
               <tr>
                 <th className="px-4 py-3">Barn</th>
-                <th className="px-4 py-3">Oppgave / onske</th>
-                <th className="px-4 py-3">Belop</th>
+                <th className="px-4 py-3">Oppgave / ønske</th>
+                <th className="px-4 py-3">Beløp</th>
                 <th className="px-4 py-3">Tid</th>
                 <th className="px-4 py-3">Handling</th>
               </tr>
@@ -345,16 +345,16 @@ export default function AdminInboxPage() {
                 const price = wishPriceOre(wish);
                 const enough = price > 0 && wish.balance_ore >= price;
                 return (
-                  <tr key={wish.id} className="border-t border-slate-800 bg-amber-950/20 text-slate-100">
+                  <tr key={wish.id} className="border-t border-border bg-amber-50/60 text-foreground">
                     <td className="px-4 py-3">{childMap[wish.child_id] ?? "Ukjent barn"}</td>
                     <td className="px-4 py-3">
-                      <span className="mr-2 rounded-full bg-amber-900/60 px-2 py-0.5 text-xs font-semibold text-amber-200">
-                        {wish.status === "ACTIVE" ? "Onske - spart nok" : "Onske"}
+                      <span className="mr-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        {wish.status === "ACTIVE" ? "Ønske - spart nok" : "Ønske"}
                       </span>
                       {wish.title}
-                      <div className="mt-1 text-xs text-slate-400">
+                      <div className="mt-1 text-xs text-muted-foreground">
                         Til gode {formatKr(wish.balance_ore)}
-                        {price > 0 && (enough ? " - utbetales med en gang" : " - blir sparemal")}
+                        {price > 0 && (enough ? " - utbetales med en gang" : " - blir sparemål")}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -365,7 +365,7 @@ export default function AdminInboxPage() {
                           inputMode="decimal"
                           placeholder="kr"
                           aria-label={`Pris for ${wish.title}`}
-                          className="w-24 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-100"
+                          className="w-24 rounded-xl border border-border bg-card px-2 py-1.5 text-foreground"
                         />
                       ) : (
                         formatKr(price)
@@ -378,7 +378,7 @@ export default function AdminInboxPage() {
                           type="button"
                           disabled={wishBusyId === wish.id}
                           onClick={() => void reviewWish(wish, wish.status === "ACTIVE" ? "payout" : "approve")}
-                          className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 transition hover:bg-white disabled:opacity-50"
+                          className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
                         >
                           {wish.status === "ACTIVE" ? "Utbetal" : "Godkjenn"}
                         </button>
@@ -386,7 +386,7 @@ export default function AdminInboxPage() {
                           type="button"
                           disabled={wishBusyId === wish.id}
                           onClick={() => void reviewWish(wish, "decline")}
-                          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-500 disabled:opacity-50"
+                          className="rounded-xl border border-red-200 bg-card px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                         >
                           Avvis
                         </button>
@@ -396,7 +396,7 @@ export default function AdminInboxPage() {
                 );
               })}
               {items.map((item) => (
-                <tr key={item.id} className="border-t border-slate-800 text-slate-100">
+                <tr key={item.id} className="border-t border-border text-foreground">
                   <td className="px-4 py-3">{getChildName(item)}</td>
                   <td className="px-4 py-3">{getTaskTitle(item)}</td>
                   <td className="px-4 py-3">{formatKr(item.amount_ore)}</td>
@@ -406,14 +406,14 @@ export default function AdminInboxPage() {
                       <button
                         type="button"
                         onClick={() => void decide(item.id, "APPROVED")}
-                        className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 transition hover:bg-white"
+                        className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary-foreground transition hover:bg-primary/90"
                       >
                         Godkjenn
                       </button>
                       <button
                         type="button"
                         onClick={() => void decide(item.id, "REJECTED")}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-500"
+                        className="rounded-xl border border-red-200 bg-card px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-700 transition hover:bg-red-50"
                       >
                         Avvis
                       </button>
@@ -423,7 +423,7 @@ export default function AdminInboxPage() {
               ))}
               {items.length === 0 && pendingWishes.length === 0 && (
                 <tr>
-                  <td className="px-4 py-10 text-center text-slate-400" colSpan={5}>
+                  <td className="px-4 py-10 text-center text-muted-foreground" colSpan={5}>
                     Ingen krav til godkjenning.
                   </td>
                 </tr>

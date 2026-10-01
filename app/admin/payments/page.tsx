@@ -59,7 +59,7 @@ const methodLabelMap: Record<string, string> = {
   BANK: "Bank",
   OTHER: "Annet",
   // Satt av databasefunksjonen approve_wish nar et onske utbetales.
-  WISH: "Onske",
+  WISH: "Ønske",
 };
 
 function formatKr(ore: number) {
@@ -240,7 +240,7 @@ export default function AdminPaymentsPage() {
 
     if (!accessToken) {
       setSubmitting(false);
-      setStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -287,7 +287,7 @@ export default function AdminPaymentsPage() {
       setStatus("Ingen til gode å utbetale.");
       return;
     }
-    if (!window.confirm(`Er du sikker pa at du vil utbetale ${formatKr(allTotal)} til ${selectedChildName}?`)) {
+    if (!window.confirm(`Er du sikker på at du vil utbetale ${formatKr(allTotal)} til ${selectedChildName}?`)) {
       return;
     }
 
@@ -299,7 +299,7 @@ export default function AdminPaymentsPage() {
 
     if (!accessToken) {
       setSubmitting(false);
-      setStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -334,7 +334,7 @@ export default function AdminPaymentsPage() {
 
   const deletePayment = async (paymentId: string) => {
     const confirmed = window.confirm(
-      "Er du sikker pa at du vil slette denne utbetalingen? Kravene blir satt tilbake til APPROVED."
+      "Er du sikker på at du vil slette denne utbetalingen? Kravene blir satt tilbake til APPROVED."
     );
     if (!confirmed) return;
 
@@ -344,7 +344,7 @@ export default function AdminPaymentsPage() {
     const accessToken = sessionRes.data.session?.access_token;
 
     if (!accessToken) {
-      setStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -368,20 +368,20 @@ export default function AdminPaymentsPage() {
     await load();
   };
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
+  if (loading) return <div className="text-foreground/80">Laster...</div>;
 
   const isError = status.startsWith("Feil:");
 
   return (
     <section className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 md:p-5">
+      <div className="rounded-2xl border border-border bg-card p-4 md:p-5">
         <h3 className="mb-3 text-base font-semibold tracking-tight">Marker krav som utbetalt</h3>
 
         <div className="grid gap-3 md:grid-cols-3">
           <label className="space-y-1.5 text-sm">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Barn</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Barn</span>
             <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground"
               value={selectedChildId}
               onChange={(e) => {
                 setSelectedChildId(e.target.value);
@@ -398,9 +398,9 @@ export default function AdminPaymentsPage() {
           </label>
 
           <label className="space-y-1.5 text-sm">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Metode</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Metode</span>
             <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground"
               value={method}
               onChange={(e) => setMethod(e.target.value as PaymentMethod)}
             >
@@ -412,9 +412,9 @@ export default function AdminPaymentsPage() {
           </label>
 
           <label className="space-y-1.5 text-sm">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Notat</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Notat</span>
             <input
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Valgfritt notat"
@@ -423,20 +423,20 @@ export default function AdminPaymentsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/70 text-slate-300">
+          <thead className="bg-secondary/70 text-foreground/80">
             <tr>
               <th className="px-4 py-3">Velg</th>
               <th className="px-4 py-3">Barn</th>
               <th className="px-4 py-3">Oppgave</th>
-              <th className="px-4 py-3">Belop</th>
+              <th className="px-4 py-3">Beløp</th>
               <th className="px-4 py-3">Tid</th>
             </tr>
           </thead>
           <tbody>
             {visibleClaims.map((claim) => (
-              <tr key={claim.id} className="border-t border-slate-800 text-slate-100">
+              <tr key={claim.id} className="border-t border-border text-foreground">
                 <td className="px-4 py-3">
                   <input
                     type="checkbox"
@@ -453,7 +453,7 @@ export default function AdminPaymentsPage() {
             ))}
             {visibleClaims.length === 0 && (
               <tr>
-                <td className="px-4 py-10 text-center text-slate-400" colSpan={5}>
+                <td className="px-4 py-10 text-center text-muted-foreground" colSpan={5}>
                   Ingen APPROVED krav klare for utbetaling.
                 </td>
               </tr>
@@ -463,14 +463,14 @@ export default function AdminPaymentsPage() {
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-4">
-        <p className="text-sm text-slate-200">
+        <p className="text-sm text-foreground">
           Valgt: {selectedIds.length} krav. Sum: <strong>{formatKr(selectedTotal)}</strong>
         </p>
         <button
           type="button"
           disabled={submitting || !selectedChildId || allTotal === 0}
           onClick={() => void payAllForSelectedChild()}
-          className="w-full rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
+          className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
         >
           {submitting ? "Lagrer..." : allTotal === 0 ? "Ingen til gode" : `Utbetal alt (${formatKr(allTotal)})`}
         </button>
@@ -478,7 +478,7 @@ export default function AdminPaymentsPage() {
           type="button"
           disabled={submitting || selectedIds.length === 0}
           onClick={() => void markPaid()}
-          className="w-full rounded-lg border border-slate-500 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
+          className="w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
         >
           {submitting ? "Lagrer..." : "Marker utbetalt"}
         </button>
@@ -486,45 +486,45 @@ export default function AdminPaymentsPage() {
 
       {status && (
         <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
+          className={`rounded-xl border px-3 py-2 text-sm ${
             isError
-              ? "border-red-800 bg-red-950/40 text-red-200"
-              : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
           }`}
         >
           {status}
         </p>
       )}
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 md:p-5">
+      <div className="rounded-2xl border border-border bg-card p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-semibold tracking-tight">Kvitteringer</h3>
-          <span className="text-xs uppercase tracking-wide text-slate-500">Historikk</span>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">Historikk</span>
         </div>
 
         {paymentHistory.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 p-6 text-center text-sm text-slate-400">
-            Ingen utbetalinger registrert enda.
+          <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
+            Ingen utbetalinger registrert ennå.
           </div>
         ) : (
           <>
             <div className="hidden md:block">
               <div className="space-y-3">
                 {paymentHistory.map((entry) => (
-                  <article key={entry.payment.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                  <article key={entry.payment.id} className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <div className="text-sm font-semibold text-slate-100">{entry.childName}</div>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-sm font-semibold text-foreground">{entry.childName}</div>
+                        <div className="text-xs text-muted-foreground">
                           {new Date(entry.payment.created_at).toLocaleString("nb-NO")} ·{" "}
                           {methodLabelMap[entry.payment.method as PaymentMethod] ?? entry.payment.method}
                         </div>
                       </div>
-                      <div className="text-sm font-semibold text-emerald-300">{formatKr(entry.payment.amount_ore)}</div>
+                      <div className="text-sm font-semibold text-emerald-700">{formatKr(entry.payment.amount_ore)}</div>
                     </div>
                     <div className="mt-3 space-y-2">
                       {entry.claims.map((claim) => (
-                        <div key={claim.id} className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
+                        <div key={claim.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2 text-sm">
                           <span>{claim.title}</span>
                           <span className="font-semibold">{formatKr(claim.amount_ore)}</span>
                         </div>
@@ -534,7 +534,7 @@ export default function AdminPaymentsPage() {
                       <button
                         type="button"
                         onClick={() => void deletePayment(entry.payment.id)}
-                        className="rounded-lg border border-red-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-200 transition hover:border-red-700 hover:bg-red-950/40"
+                        className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-800 transition hover:border-red-300 hover:bg-red-50"
                       >
                         Slett
                       </button>
@@ -545,24 +545,24 @@ export default function AdminPaymentsPage() {
             </div>
             <div className="md:hidden space-y-3">
               {paymentHistory.map((entry) => (
-                <article key={entry.payment.id} className="rounded-xl border border-slate-700 bg-slate-950 p-4">
-                  <div className="space-y-1 text-sm text-slate-200">
+                <article key={entry.payment.id} className="rounded-2xl border border-border bg-card p-4">
+                  <div className="space-y-1 text-sm text-foreground">
                     <p>
-                      <span className="font-semibold text-slate-100">Barn:</span> {entry.childName || entry.payment.child_id}
+                      <span className="font-semibold text-foreground">Barn:</span> {entry.childName || entry.payment.child_id}
                     </p>
                     <p>
-                      <span className="font-semibold text-slate-100">Sum:</span> {formatKr(entry.payment.amount_ore)}
+                      <span className="font-semibold text-foreground">Sum:</span> {formatKr(entry.payment.amount_ore)}
                     </p>
                     <p>
-                      <span className="font-semibold text-slate-100">Metode:</span>{" "}
+                      <span className="font-semibold text-foreground">Metode:</span>{" "}
                       {methodLabelMap[entry.payment.method as PaymentMethod] ?? entry.payment.method}
                     </p>
                     <p>
-                      <span className="font-semibold text-slate-100">Dato:</span> {new Date(entry.payment.created_at).toLocaleString()}
+                      <span className="font-semibold text-foreground">Dato:</span> {new Date(entry.payment.created_at).toLocaleString()}
                     </p>
                     {entry.payment.note && (
                       <p>
-                        <span className="font-semibold text-slate-100">Notat:</span> {entry.payment.note}
+                        <span className="font-semibold text-foreground">Notat:</span> {entry.payment.note}
                       </p>
                     )}
                   </div>
@@ -570,7 +570,7 @@ export default function AdminPaymentsPage() {
                     <button
                       type="button"
                       onClick={() => void deletePayment(entry.payment.id)}
-                      className="w-full rounded-lg border border-red-800 px-3 py-2.5 text-sm font-semibold text-red-200 transition hover:border-red-700 hover:bg-red-950/40"
+                      className="w-full rounded-xl border border-red-200 px-3 py-2.5 text-sm font-semibold text-red-800 transition hover:border-red-300 hover:bg-red-50"
                     >
                       Slett
                     </button>

@@ -97,7 +97,7 @@ export default function AdminChildTaskSettingsPage() {
     if (!accessToken) {
       setWishlistItems([]);
       setWishlistLoading(false);
-      setWishlistStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setWishlistStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -112,7 +112,7 @@ export default function AdminChildTaskSettingsPage() {
 
     if (!response.ok || payload.error) {
       setWishlistItems([]);
-      setWishlistStatus(`Feil: ${payload.error ?? "Kunne ikke hente onskeliste."}`);
+      setWishlistStatus(`Feil: ${payload.error ?? "Kunne ikke hente ønskeliste."}`);
       return;
     }
 
@@ -166,14 +166,14 @@ export default function AdminChildTaskSettingsPage() {
       return;
     }
     if (!Number.isInteger(targetOre) || targetOre <= 0) {
-      setWishlistStatus("Feil: Skriv gyldig belop i kr.");
+      setWishlistStatus("Feil: Skriv gyldig beløp i kr.");
       return;
     }
 
     const sessionRes = await supabase.auth.getSession();
     const accessToken = sessionRes.data.session?.access_token;
     if (!accessToken) {
-      setWishlistStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setWishlistStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -206,8 +206,8 @@ export default function AdminChildTaskSettingsPage() {
     await loadWishlist();
   };
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
-  if (!child) return <div className="text-slate-300">Barn ikke funnet.</div>;
+  if (loading) return <div className="text-foreground/80">Laster...</div>;
+  if (!child) return <div className="text-foreground/80">Barn ikke funnet.</div>;
 
   const isError = status.startsWith("Feil:");
   const parsedTargetKr = Number(wishlistTargetKr);
@@ -220,7 +220,7 @@ export default function AdminChildTaskSettingsPage() {
         <h2 className="text-xl font-semibold tracking-tight">Oppgave-tilganger: {child.name}</h2>
         <Link
           href="/admin/children"
-          className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-900"
+          className="rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-secondary"
         >
           Tilbake
         </Link>
@@ -228,33 +228,33 @@ export default function AdminChildTaskSettingsPage() {
 
       {status && (
         <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
+          className={`rounded-xl border px-3 py-2 text-sm ${
             isError
-              ? "border-red-800 bg-red-950/40 text-red-200"
-              : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
           }`}
         >
           {status}
         </p>
       )}
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 md:p-5">
+      <div className="rounded-2xl border border-border bg-card p-4 md:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-base font-semibold tracking-tight">Onskeliste</h3>
-          <span className="text-xs text-slate-500">Legg til et onske selv</span>
+          <h3 className="text-base font-semibold tracking-tight">Ønskeliste</h3>
+          <span className="text-xs text-muted-foreground">Legg til et ønske selv</span>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Tittel</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tittel</span>
             <input
               value={wishlistTitle}
               onChange={(e) => setWishlistTitle(e.target.value)}
               placeholder="For eksempel: Ny sykkel"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Belop (kr)</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Beløp (kr)</span>
             <input
               value={wishlistTargetKr}
               onChange={(e) => setWishlistTargetKr(e.target.value)}
@@ -262,16 +262,16 @@ export default function AdminChildTaskSettingsPage() {
               min="0"
               step="0.01"
               placeholder="299.00"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Notat (valgfritt)</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Notat (valgfritt)</span>
             <input
               value={wishlistNote}
               onChange={(e) => setWishlistNote(e.target.value)}
               placeholder="Farge, modell, osv."
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
         </div>
@@ -279,46 +279,46 @@ export default function AdminChildTaskSettingsPage() {
           type="button"
           onClick={() => void createWishlistItem()}
           disabled={!canSubmitWishlist}
-          className="mt-3 w-full rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
+          className="mt-3 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
         >
           {wishlistSaving ? "Lagrer..." : "Legg til"}
         </button>
         {wishlistStatus && (
           <p
-            className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+            className={`mt-3 rounded-xl border px-3 py-2 text-sm ${
               wishlistStatus.startsWith("Feil:")
-                ? "border-red-800 bg-red-950/40 text-red-200"
-                : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-800"
             }`}
           >
             {wishlistStatus}
           </p>
         )}
 
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-3">
-          <h4 className="text-sm font-semibold text-slate-100">Eksisterende onsker</h4>
+        <div className="mt-4 rounded-2xl border border-border bg-card p-3">
+          <h4 className="text-sm font-semibold text-foreground">Eksisterende ønsker</h4>
           {wishlistLoading ? (
-            <p className="mt-2 text-sm text-slate-400">Laster...</p>
+            <p className="mt-2 text-sm text-muted-foreground">Laster...</p>
           ) : wishlistItems.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">Ingen onskeliste enda.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Ingen ønskeliste ennå.</p>
           ) : (
             <div className="mt-2 space-y-2">
               {wishlistItems.map((item) => (
-                <div key={item.id} className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+                <div key={item.id} className="rounded-xl border border-border bg-card p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-100">
+                    <p className="text-sm font-semibold text-foreground">
                       {item.title}
-                      {item.created_by === "CHILD" && <span className="ml-2 text-xs font-normal text-slate-500">(barnets onske)</span>}
+                      {item.created_by === "CHILD" && <span className="ml-2 text-xs font-normal text-muted-foreground">(barnets ønske)</span>}
                     </p>
-                    <span className="text-xs text-slate-300">
+                    <span className="text-xs text-foreground/80">
                       {item.status === "PROPOSED"
-                        ? "Venter pa godkjenning i Krav"
+                        ? "Venter på godkjenning i Krav"
                         : item.target_ore !== null
-                          ? `Sparemal ${formatKr(item.target_ore)}`
+                          ? `Sparemål ${formatKr(item.target_ore)}`
                           : "-"}
                     </span>
                   </div>
-                  {item.note && <p className="mt-1 text-xs text-slate-400">{item.note}</p>}
+                  {item.note && <p className="mt-1 text-xs text-muted-foreground">{item.note}</p>}
                 </div>
               ))}
             </div>
@@ -326,9 +326,9 @@ export default function AdminChildTaskSettingsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/70 text-slate-300">
+          <thead className="bg-secondary/70 text-foreground/80">
             <tr>
               <th className="px-4 py-3">Oppgave</th>
               <th className="px-4 py-3">Aktiv oppgave</th>
@@ -338,7 +338,7 @@ export default function AdminChildTaskSettingsPage() {
           </thead>
           <tbody>
             {tasks.map((task) => (
-              <tr key={task.id} className="border-t border-slate-800 text-slate-100">
+              <tr key={task.id} className="border-t border-border text-foreground">
                 <td className="px-4 py-3">{task.title}</td>
                 <td className="px-4 py-3">{task.active ? "Ja" : "Nei"}</td>
                 <td className="px-4 py-3">{isEnabled(task.id) ? "Ja" : "Nei"}</td>
@@ -346,7 +346,7 @@ export default function AdminChildTaskSettingsPage() {
                   <button
                     type="button"
                     onClick={() => void toggle(task.id)}
-                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
+                    className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-foreground transition hover:border-primary/40 hover:bg-secondary"
                   >
                     {isEnabled(task.id) ? "Skjul" : "Vis"}
                   </button>
@@ -355,7 +355,7 @@ export default function AdminChildTaskSettingsPage() {
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td className="px-4 py-10 text-center text-slate-400" colSpan={4}>
+                <td className="px-4 py-10 text-center text-muted-foreground" colSpan={4}>
                   Ingen oppgaver funnet.
                 </td>
               </tr>

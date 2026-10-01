@@ -18,7 +18,7 @@ export function AcceptInviteButton({ token }: { token: string }) {
 
     if (!accessToken) {
       setSubmitting(false);
-      setStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -48,11 +48,11 @@ export function AcceptInviteButton({ token }: { token: string }) {
         type="button"
         onClick={() => void acceptInvite()}
         disabled={submitting}
-        className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {submitting ? "Aksepterer..." : "Aksepter invitasjon"}
       </button>
-      {status && <p className="text-sm text-red-300">{status}</p>}
+      {status && <p className="text-sm text-red-700">{status}</p>}
     </div>
   );
 }

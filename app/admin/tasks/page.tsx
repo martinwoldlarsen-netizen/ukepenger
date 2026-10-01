@@ -66,7 +66,7 @@ export default function AdminTasksPage() {
 
     const parsedAmount = Number(amountNok.replace(",", "."));
     if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
-      setStatus("Ugyldig belop.");
+      setStatus("Ugyldig beløp.");
       return;
     }
 
@@ -99,39 +99,39 @@ export default function AdminTasksPage() {
     await load();
   };
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
+  if (loading) return <div className="text-foreground/80">Laster...</div>;
 
   const isError = status.startsWith("Feil:");
   const disableCreate = title.trim().length === 0 || amountNok.trim().length === 0;
 
   return (
     <section className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 md:p-5">
+      <div className="rounded-2xl border border-border bg-card p-4 md:p-5">
         <h3 className="mb-3 text-base font-semibold tracking-tight">Ny oppgave</h3>
         <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Tittel</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tittel</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="For eksempel: Rydde rommet"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Belop (kr)</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Beløp (kr)</span>
             <input
               value={amountNok}
               onChange={(e) => setAmountNok(e.target.value)}
               placeholder="25"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
           <button
             type="button"
             onClick={() => void createTask()}
             disabled={disableCreate}
-            className="self-end rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="self-end rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Opprett
           </button>
@@ -140,35 +140,35 @@ export default function AdminTasksPage() {
 
       {status && (
         <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
+          className={`rounded-xl border px-3 py-2 text-sm ${
             isError
-              ? "border-red-800 bg-red-950/40 text-red-200"
-              : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
           }`}
         >
           {status}
         </p>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/70 text-slate-300">
+          <thead className="bg-secondary/70 text-foreground/80">
             <tr>
               <th className="px-4 py-3">Tittel</th>
-              <th className="px-4 py-3">Belop</th>
+              <th className="px-4 py-3">Beløp</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Handling</th>
             </tr>
           </thead>
           <tbody>
             {tasks.map((task) => (
-              <tr key={task.id} className="border-t border-slate-800 text-slate-100">
+              <tr key={task.id} className="border-t border-border text-foreground">
                 <td className="px-4 py-3">{task.title}</td>
                 <td className="px-4 py-3">{formatKr(task.amount_ore)}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                      task.active ? "bg-emerald-950/60 text-emerald-300" : "bg-slate-800 text-slate-300"
+                      task.active ? "bg-emerald-50 text-emerald-700" : "bg-secondary text-foreground/80"
                     }`}
                   >
                     {task.active ? "Aktiv" : "Inaktiv"}
@@ -178,7 +178,7 @@ export default function AdminTasksPage() {
                   <button
                     type="button"
                     onClick={() => void toggleActive(task)}
-                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
+                    className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-foreground transition hover:border-primary/40 hover:bg-secondary"
                   >
                     {task.active ? "Deaktiver" : "Aktiver"}
                   </button>
@@ -187,8 +187,8 @@ export default function AdminTasksPage() {
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td className="px-4 py-10 text-center text-slate-400" colSpan={4}>
-                  Ingen oppgaver enda. Lag den forste oppgaven over.
+                <td className="px-4 py-10 text-center text-muted-foreground" colSpan={4}>
+                  Ingen oppgaver ennå. Lag den første oppgaven over.
                 </td>
               </tr>
             )}

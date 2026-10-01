@@ -46,6 +46,8 @@ export default function OnboardingPage() {
 
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>(defaultTasks);
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>("REQUIRE_APPROVAL");
+  // Nye familier starter med 10 % sparing; kan endres her og under Innstillinger.
+  const [savingsPercent, setSavingsPercent] = useState(10);
 
   const [hasChildrenAlready, setHasChildrenAlready] = useState(false);
   const [hasTasksAlready, setHasTasksAlready] = useState(false);
@@ -222,7 +224,8 @@ export default function OnboardingPage() {
       }
     }
 
-    const settingsUpdate = await supabase.from("families").update({ approval_mode: approvalMode }).eq("id", familyId);
+    const settingsUpdate = await supabase.from("families").update({ approval_mode: approvalMode, savings_percent: savingsPercent })
+      .eq("id", familyId);
     if (settingsUpdate.error) {
       setSaving(false);
       setStatus(`Feil: ${settingsUpdate.error.message}`);
@@ -250,32 +253,32 @@ export default function OnboardingPage() {
   };
 
   if (loading) {
-    return <main className="min-h-screen bg-slate-950 p-6 text-slate-100">Laster onboarding...</main>;
+    return <main className="min-h-screen bg-background p-6 text-foreground">Laster onboarding...</main>;
   }
 
   const isError = status.startsWith("Feil:");
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 md:px-8">
+    <main className="min-h-screen bg-background px-4 py-8 text-foreground md:px-8">
       <section className="mx-auto max-w-3xl space-y-5">
-        <header className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+        <header className="rounded-2xl border border-border bg-card p-6">
           <h1 className="text-2xl font-semibold tracking-tight">Setup wizard</h1>
-          <p className="mt-2 text-sm text-slate-300">Steg {step} av 5. Sett opp familie, barn, oppgaver og barnemodus.</p>
+          <p className="mt-2 text-sm text-foreground/80">Steg {step} av 5. Sett opp familie, barn, oppgaver og barnemodus.</p>
         </header>
 
         {step === 1 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold">Steg 1: Familie</h2>
             <label className="mt-4 block space-y-1.5 text-sm">
-              <span className="text-slate-300">Familienavn (valgfritt)</span>
+              <span className="text-foreground/80">Familienavn (valgfritt)</span>
               <input
                 value={familyName}
                 onChange={(e) => setFamilyName(e.target.value)}
                 placeholder="For eksempel: Hansen"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2.5"
               />
             </label>
-            <label className="mt-4 flex items-start gap-3 text-sm text-slate-300">
+            <label className="mt-4 flex items-start gap-3 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={acceptedTerms}
@@ -289,7 +292,7 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={() => setStep(2)}
                 disabled={!canContinueStep1}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
                 Neste
               </button>
@@ -298,10 +301,10 @@ export default function OnboardingPage() {
         )}
 
         {step === 2 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold">Steg 2: Legg til barn</h2>
             {hasChildrenAlready && (
-              <p className="mt-2 rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+              <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                 Familien har allerede barn registrert. Du kan likevel legge til flere.
               </p>
             )}
@@ -310,12 +313,12 @@ export default function OnboardingPage() {
                 value={childName}
                 onChange={(e) => setChildName(e.target.value)}
                 placeholder="Barnets navn"
-                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5"
+                className="rounded-xl border border-border bg-card px-3 py-2.5"
               />
               <button
                 type="button"
                 onClick={addChildDraft}
-                className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold hover:border-slate-500"
+                className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:border-primary/40"
               >
                 Legg til barn
               </button>
@@ -327,8 +330,8 @@ export default function OnboardingPage() {
                   key={avatar.key}
                   type="button"
                   onClick={() => setChildAvatar(avatar.key)}
-                  className={`rounded-lg border px-3 py-2 text-lg ${
-                    childAvatar === avatar.key ? "border-emerald-400 bg-emerald-900/30" : "border-slate-700 bg-slate-950"
+                  className={`rounded-xl border px-3 py-2 text-lg ${
+                    childAvatar === avatar.key ? "border-primary bg-secondary" : "border-border bg-card"
                   }`}
                   title={avatar.label}
                 >
@@ -339,12 +342,12 @@ export default function OnboardingPage() {
 
             <div className="mt-5 space-y-2">
               {childrenDrafts.map((child, index) => (
-                <div key={`${child.name}-${index}`} className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950 px-3 py-2">
+                <div key={`${child.name}-${index}`} className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2">
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-lg">{getAvatarByKey(child.avatarKey).emoji}</span>
                     <span>{child.name}</span>
                   </div>
-                  <button type="button" onClick={() => removeChildDraft(index)} className="text-xs text-red-300 hover:text-red-200">
+                  <button type="button" onClick={() => removeChildDraft(index)} className="text-xs text-red-700 hover:text-red-800">
                     Fjern
                   </button>
                 </div>
@@ -352,14 +355,14 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mt-5 flex justify-between">
-              <button type="button" onClick={() => setStep(1)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold">
+              <button type="button" onClick={() => setStep(1)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold">
                 Tilbake
               </button>
               <button
                 type="button"
                 onClick={() => setStep(3)}
                 disabled={!canContinueStep2}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
                 Neste
               </button>
@@ -368,38 +371,38 @@ export default function OnboardingPage() {
         )}
 
         {step === 3 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold">Steg 3: Standard-oppgaver</h2>
             {hasTasksAlready && (
-              <p className="mt-2 rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+              <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                 Familien har allerede oppgaver. Du kan hoppe videre eller legge til flere.
               </p>
             )}
             <div className="mt-4 space-y-3">
               {taskTemplates.map((task) => (
-                <div key={task.key} className="grid items-center gap-3 rounded-lg border border-slate-800 bg-slate-950 p-3 md:grid-cols-[auto_1fr_120px]">
+                <div key={task.key} className="grid items-center gap-3 rounded-xl border border-border bg-card p-3 md:grid-cols-[auto_1fr_120px]">
                   <input type="checkbox" checked={task.enabled} onChange={() => toggleTask(task.key)} className="h-4 w-4" />
                   <div className="text-sm">{task.title}</div>
                   <input
                     type="text"
                     defaultValue={(task.amountOre / 100).toString()}
                     onChange={(e) => updateTaskAmount(task.key, e.target.value)}
-                    className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+                    className="rounded border border-border bg-card px-2 py-1 text-sm"
                   />
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-sm text-slate-400">Valgt: {selectedTaskCount} oppgaver.</p>
+            <p className="mt-3 text-sm text-muted-foreground">Valgt: {selectedTaskCount} oppgaver.</p>
 
             <div className="mt-5 flex justify-between">
-              <button type="button" onClick={() => setStep(2)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold">
+              <button type="button" onClick={() => setStep(2)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold">
                 Tilbake
               </button>
               <button
                 type="button"
                 onClick={() => setStep(4)}
                 disabled={!canContinueStep3}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
                 Neste
               </button>
@@ -408,10 +411,10 @@ export default function OnboardingPage() {
         )}
 
         {step === 4 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-            <h2 className="text-lg font-semibold">Steg 4: Godkjenning</h2>
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h2 className="text-lg font-semibold">Steg 4: Godkjenning og sparing</h2>
             <div className="mt-4 space-y-3">
-              <label className="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-3 text-sm">
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm">
                 <input
                   type="radio"
                   name="approvalMode"
@@ -420,10 +423,10 @@ export default function OnboardingPage() {
                 />
                 <span>
                   Krev godkjenning
-                  <span className="block text-slate-400">Barn sender krav, forelder godkjenner manuelt.</span>
+                  <span className="block text-muted-foreground">Barn sender krav, forelder godkjenner manuelt.</span>
                 </span>
               </label>
-              <label className="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-3 text-sm">
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm">
                 <input
                   type="radio"
                   name="approvalMode"
@@ -432,24 +435,50 @@ export default function OnboardingPage() {
                 />
                 <span>
                   Auto-godkjenn
-                  <span className="block text-slate-400">Krav godkjennes automatisk.</span>
+                  <span className="block text-muted-foreground">Krav godkjennes automatisk.</span>
                 </span>
               </label>
             </div>
 
-            <div className="mt-5 rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm text-slate-300">
-              Oppsummering: {childrenDrafts.length} nye barn, {selectedTaskCount} nye oppgaver, modus {approvalMode}.
+            <div className="mt-6">
+              <h3 className="text-base font-semibold">Sparing</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                En del av alt barnet tjener settes av automatisk. Du kan endre dette senere under Innstillinger.
+              </p>
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {[0, 5, 10, 20].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    aria-pressed={savingsPercent === pct}
+                    onClick={() => setSavingsPercent(pct)}
+                    className={`font-num rounded-xl border py-2.5 text-sm font-bold transition ${
+                      savingsPercent === pct
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card hover:bg-secondary"
+                    }`}
+                  >
+                    {pct === 0 ? "Av" : `${pct} %`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl bg-secondary p-3 text-sm text-foreground/80">
+              Oppsummering: {childrenDrafts.length} nye barn, {selectedTaskCount} nye oppgaver,{" "}
+              {approvalMode === "REQUIRE_APPROVAL" ? "krever godkjenning" : "godkjennes automatisk"},{" "}
+              {savingsPercent === 0 ? "ingen sparing" : `${savingsPercent} % sparing`}.
             </div>
 
             <div className="mt-5 flex justify-between">
-              <button type="button" onClick={() => setStep(3)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold">
+              <button type="button" onClick={() => setStep(3)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold">
                 Tilbake
               </button>
               <button
                 type="button"
                 onClick={() => void goToBarnemodus()}
                 disabled={saving}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
                 {saving ? "Lagrer..." : "Neste"}
               </button>
@@ -458,34 +487,34 @@ export default function OnboardingPage() {
         )}
 
         {step === 5 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold">Steg 5: Aktiver barnemodus</h2>
-            <p className="mt-2 rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+            <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               Barn og oppgaver er lagret. Na gjenstar bare enheten barna skal bruke.
             </p>
-            <p className="mt-3 text-sm text-slate-300">
-              Barnesiden kjorer pa en delt iPad i kiosk-modus. Apne QR-koden under pa iPaden (eller skann den) for a koble
-              nettbrettet til familien. Barnet velger sin egen profil hver gang - ingenting lagres permanent pa enheten.
+            <p className="mt-3 text-sm text-foreground/80">
+              Barnesiden kjører på en delt iPad i kiosk-modus. Åpne QR-koden under på iPaden (eller skann den) for å koble
+              nettbrettet til familien. Barnet velger sin egen profil hver gang - ingenting lagres permanent på enheten.
             </p>
 
             <div className="mt-4">
-              {qrBusy && <p className="text-sm text-slate-400">Lager QR-kode...</p>}
+              {qrBusy && <p className="text-sm text-muted-foreground">Lager QR-kode...</p>}
 
               {qrError && (
-                <p className="rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-200">Feil: {qrError}</p>
+                <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">Feil: {qrError}</p>
               )}
 
               {claimUrl && (
-                <div className="rounded-2xl border border-amber-700/60 bg-amber-950/40 p-4 text-sm text-amber-100">
-                  <div className="mb-3 text-sm font-semibold text-amber-200">Skann QR med iPad</div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <div className="mb-3 text-sm font-semibold text-amber-800">Skann QR med iPad</div>
                   {qrImageUrl && (
                     <img
                       src={qrImageUrl}
                       alt="Kiosk QR"
-                      className="h-[260px] w-[260px] rounded-lg border border-amber-700/70 bg-white p-2"
+                      className="h-[260px] w-[260px] rounded-xl border border-amber-200 bg-card p-2"
                     />
                   )}
-                  <div className="mt-3 break-all rounded-lg border border-amber-700/60 bg-amber-950/60 px-3 py-2 text-xs">{claimUrl}</div>
+                  <div className="mt-3 break-all rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs">{claimUrl}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -493,7 +522,7 @@ export default function OnboardingPage() {
                         await navigator.clipboard.writeText(claimUrl);
                         setQrCopied(true);
                       }}
-                      className="rounded-lg border border-amber-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 transition hover:border-amber-500 hover:bg-amber-900/50"
+                      className="rounded-xl border border-amber-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-900 transition hover:border-amber-400 hover:bg-amber-100"
                     >
                       {qrCopied ? "Kopiert" : "Kopier lenke"}
                     </button>
@@ -501,7 +530,7 @@ export default function OnboardingPage() {
                       type="button"
                       onClick={() => void openQr(true)}
                       disabled={qrBusy}
-                      className="rounded-lg border border-amber-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 transition hover:border-amber-500 hover:bg-amber-900/50 disabled:opacity-50"
+                      className="rounded-xl border border-amber-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:opacity-50"
                     >
                       Regenerer QR
                     </button>
@@ -513,25 +542,25 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => void openQr(false)}
-                  className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
+                  className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-secondary"
                 >
                   Lag QR-kode
                 </button>
               )}
             </div>
 
-            <p className="mt-4 text-xs text-slate-400">
+            <p className="mt-4 text-xs text-muted-foreground">
               Du finner alltid QR-koden igjen under Admin - Enheter.
             </p>
 
             <div className="mt-5 flex justify-between">
-              <button type="button" onClick={() => setStep(4)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold">
+              <button type="button" onClick={() => setStep(4)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold">
                 Tilbake
               </button>
               <button
                 type="button"
                 onClick={() => router.replace("/admin/inbox")}
-                className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
               >
                 Begynn a bruke appen
               </button>
@@ -541,10 +570,10 @@ export default function OnboardingPage() {
 
         {status && (
           <p
-            className={`rounded-lg border px-3 py-2 text-sm ${
+            className={`rounded-xl border px-3 py-2 text-sm ${
               isError
-                ? "border-red-800 bg-red-950/40 text-red-200"
-                : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-800"
             }`}
           >
             {status}

@@ -44,7 +44,7 @@ export default function LoginPage() {
 
     if (!result.data.session) {
       setAction(null);
-      setStatus("Konto opprettet. Bekreft e-post for du logger inn.");
+      setStatus("Konto opprettet. Bekreft e-post før du logger inn.");
       return;
     }
 
@@ -120,17 +120,17 @@ export default function LoginPage() {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-slate-100">
-      <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-black/20 md:p-7">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
+      <section className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl shadow-black/5 md:p-7">
         <h1 className="mb-1 text-2xl font-semibold tracking-tight">Logg inn</h1>
-        <p className="mb-6 text-sm text-slate-400">E-post/passord eller OAuth for aa aaapne admin.</p>
+        <p className="mb-6 text-sm text-muted-foreground">E-post/passord eller OAuth for å åpne admin.</p>
 
         <div className="space-y-3">
           <button
             type="button"
             onClick={() => void handleOAuth("google")}
             disabled={isLoading}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {action === "google" ? "Sender til Google..." : "Fortsett med Google"}
           </button>
@@ -138,21 +138,21 @@ export default function LoginPage() {
             type="button"
             onClick={() => void handleOAuth("apple")}
             disabled={isLoading}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {action === "apple" ? "Sender til Apple..." : "Fortsett med Apple"}
           </button>
         </div>
 
-        <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-slate-500">
-          <div className="h-px flex-1 bg-slate-800" />
+        <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="h-px flex-1 bg-secondary" />
           <span>Eller</span>
-          <div className="h-px flex-1 bg-slate-800" />
+          <div className="h-px flex-1 bg-secondary" />
         </div>
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-300">
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground/80">
               E-post
             </label>
             <input
@@ -160,13 +160,13 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15"
               placeholder="navn@epost.no"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-300">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground/80">
               Passord
             </label>
             <input
@@ -174,7 +174,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/15"
               placeholder="Skriv passord"
             />
           </div>
@@ -185,7 +185,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => void handleLogin()}
             disabled={!canSubmit}
-            className="w-full rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {action === "login" ? "Logger inn..." : "Logg inn"}
           </button>
@@ -194,7 +194,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => void handleSignUp()}
             disabled={!canSubmit}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {action === "signup" ? "Oppretter konto..." : "Opprett konto"}
           </button>
@@ -203,10 +203,10 @@ export default function LoginPage() {
         <div className="mt-4 min-h-5">
           {status && (
             <p
-              className={`rounded-lg border px-3 py-2 text-sm ${
+              className={`rounded-xl border px-3 py-2 text-sm ${
                 isError
-                  ? "border-red-800 bg-red-950/40 text-red-200"
-                  : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+                  ? "border-red-200 bg-red-50 text-red-800"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }`}
             >
               {status}

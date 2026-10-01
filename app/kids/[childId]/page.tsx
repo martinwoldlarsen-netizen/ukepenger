@@ -51,6 +51,9 @@ export default function KidTaskPage() {
   const [approvedOre, setApprovedOre] = useState(0);
   const [paidOre, setPaidOre] = useState(0);
   const [earnedOre, setEarnedOre] = useState(0);
+  // null = sparegrisen er skjult for barnet (eller sparing er av).
+  const [savedOre, setSavedOre] = useState<number | null>(null);
+  const [savingsPercent, setSavingsPercent] = useState(0);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
   const [wishTitle, setWishTitle] = useState("");
@@ -80,6 +83,8 @@ export default function KidTaskPage() {
         approved_ore?: number;
         paid_ore?: number;
         earned_ore?: number;
+        saved_ore?: number | null;
+        savings_percent?: number;
       };
 
       if (!tasksRes.ok || tasksPayload.error || !tasksPayload.child) {
@@ -95,6 +100,8 @@ export default function KidTaskPage() {
       setApprovedOre(tasksPayload.approved_ore ?? 0);
       setPaidOre(tasksPayload.paid_ore ?? 0);
       setEarnedOre(tasksPayload.earned_ore ?? 0);
+      setSavedOre(tasksPayload.saved_ore ?? null);
+      setSavingsPercent(tasksPayload.savings_percent ?? 0);
 
       const wishlistPayload = (await wishlistRes.json().catch(() => ({}))) as {
         error?: string;
@@ -160,8 +167,11 @@ export default function KidTaskPage() {
 
     setConfirmations((prev) => ({ ...prev, [taskId]: nowTs + 2_500 }));
     if (payload.status === "APPROVED") {
+      // Samme regel som databasen: sparedelen rundes ned og trekkes fra beløpet.
+      const savedPart = Math.floor((task.amount_ore * savingsPercent) / 100);
       setPendingOre((prev) => Math.max(0, prev - task.amount_ore));
-      setApprovedOre((prev) => prev + task.amount_ore);
+      setApprovedOre((prev) => prev + task.amount_ore - savedPart);
+      setSavedOre((prev) => (prev === null ? null : prev + savedPart));
       setEarnedOre((prev) => prev + task.amount_ore);
       setNotice({ kind: "ok", text: `Bra jobba! ${formatKr(task.amount_ore)} er lagt til.` });
       return;
@@ -264,6 +274,24 @@ export default function KidTaskPage() {
               Tjent totalt: <span className="font-num font-bold opacity-100">{formatKr(earnedOre)}</span>
             </p>
           </section>
+
+          {savedOre !== null && (savedOre > 0 || savingsPercent > 0) && (
+            <section
+              className="flex items-center gap-4 rounded-[1.75rem] bg-accent p-5 text-accent-foreground shadow-sm ring-1 ring-black/5"
+              aria-label="Sparegrisen din"
+            >
+              <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-white/80 text-3xl" aria-hidden="true">
+                🐷
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold opacity-80">Sparegrisen din</p>
+                <p className="font-num text-3xl font-bold tracking-tight">{loading ? "…" : formatKr(savedOre)}</p>
+                {savingsPercent > 0 && (
+                  <p className="text-sm opacity-80">{savingsPercent} % av alt du tjener blir spart her.</p>
+                )}
+              </div>
+            </section>
+          )}
 
           {notice && (
             <p

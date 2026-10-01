@@ -1,8 +1,7 @@
 /*
- * Skjermede design-tokens for forsiden. Resten av appen (admin/kids/login)
- * bruker det mørke slate/lime-temaet definert i app/globals.css sin :root.
- * Disse verdiene overstyres KUN innenfor .landingPage-treet via vanlig CSS
- * custom-property-cascading - :root og resten av appen er upåvirket.
+ * Design-tokens for forsiden. Resten av appen bruker de samme fargene fra
+ * app/globals.css sin :root; her ligger de i tillegg skjermet slik at
+ * forsiden er uavhengig av endringer i app-temaet.
  */
 .landingPage {
   --background: oklch(0.985 0.012 89);
@@ -23,8 +22,6 @@
 
   background: var(--background);
   color: var(--foreground);
-  /* Uten denne arver forsiden Geist fra body-regelen i globals.css,
-     og DM Sans lastes ned uten a bli brukt. */
   font-family: var(--font-sans);
   min-height: 100vh;
   overflow: hidden;
