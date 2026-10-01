@@ -25,7 +25,10 @@ type ChildTaskSettingRow = {
 type WishlistItem = {
   id: string;
   title: string;
-  target_ore: number;
+  target_ore: number | null;
+  suggested_ore: number | null;
+  status: "PROPOSED" | "ACTIVE";
+  created_by: "PARENT" | "CHILD";
   note: string | null;
   created_at: string;
 };
@@ -238,7 +241,7 @@ export default function AdminChildTaskSettingsPage() {
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 md:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-semibold tracking-tight">Onskeliste</h3>
-          <span className="text-xs text-slate-500">MVP: legg til nye onsker</span>
+          <span className="text-xs text-slate-500">Legg til et onske selv</span>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="space-y-1.5">
@@ -303,8 +306,17 @@ export default function AdminChildTaskSettingsPage() {
               {wishlistItems.map((item) => (
                 <div key={item.id} className="rounded-lg border border-slate-800 bg-slate-900 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-100">{item.title}</p>
-                    <span className="text-xs text-slate-300">{formatKr(item.target_ore)}</span>
+                    <p className="text-sm font-semibold text-slate-100">
+                      {item.title}
+                      {item.created_by === "CHILD" && <span className="ml-2 text-xs font-normal text-slate-500">(barnets onske)</span>}
+                    </p>
+                    <span className="text-xs text-slate-300">
+                      {item.status === "PROPOSED"
+                        ? "Venter pa godkjenning i Krav"
+                        : item.target_ore !== null
+                          ? `Sparemal ${formatKr(item.target_ore)}`
+                          : "-"}
+                    </span>
                   </div>
                   {item.note && <p className="mt-1 text-xs text-slate-400">{item.note}</p>}
                 </div>

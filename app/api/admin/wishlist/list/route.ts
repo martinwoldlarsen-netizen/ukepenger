@@ -78,10 +78,11 @@ export async function GET(request: Request) {
 
   const itemsRes = await serviceClient
     .from("wishlist_items")
-    .select("id, title, target_ore, note, created_at")
+    .select("id, title, target_ore, suggested_ore, status, created_by, note, created_at")
     .eq("family_id", profile.family_id)
     .eq("child_id", childId)
     .eq("active", true)
+    .in("status", ["PROPOSED", "ACTIVE"])
     .order("created_at", { ascending: false });
 
   if (itemsRes.error) {

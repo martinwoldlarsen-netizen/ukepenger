@@ -44,3 +44,45 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/*
+ * Lyst tema - samme uttrykk som forsiden (kremhvit, mørkegrønn, DM Sans /
+ * Space Mono). Brukes av barnesiden nå, og er grunnmuren når resten av appen
+ * redesignes. Overstyrer bare tokenene innenfor .theme-light; resten av
+ * appen beholder det mørke temaet fra :root til den er flyttet over.
+ */
+.theme-light {
+  --background: oklch(0.985 0.012 89);
+  --foreground: oklch(0.24 0.035 155);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.035 155);
+  --primary: oklch(0.42 0.12 155);
+  --primary-foreground: oklch(0.98 0.01 89);
+  --secondary: oklch(0.94 0.025 91);
+  --secondary-foreground: oklch(0.32 0.04 155);
+  --muted: oklch(0.94 0.02 90);
+  --muted-foreground: oklch(0.48 0.035 155);
+  --accent: oklch(0.89 0.095 77);
+  --accent-foreground: oklch(0.3 0.06 70);
+  --border: oklch(0.88 0.025 90);
+
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Beløp og store tall: monospace som på forsiden. */
+.theme-light .font-num {
+  font-family: var(--font-ui-mono), "Space Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.96); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.theme-light .animate-pop { animation: pop-in 0.25s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-light .animate-pop { animation: none; }
+}

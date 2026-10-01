@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentAdminContext } from "@/lib/family-client";
@@ -58,6 +58,8 @@ const methodLabelMap: Record<string, string> = {
   CASH: "Kontanter",
   BANK: "Bank",
   OTHER: "Annet",
+  // Satt av databasefunksjonen approve_wish nar et onske utbetales.
+  WISH: "Onske",
 };
 
 function formatKr(ore: number) {
