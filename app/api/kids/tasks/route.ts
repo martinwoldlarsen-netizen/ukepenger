@@ -29,6 +29,7 @@ type ClaimRow = {
 
 type BalanceClaimRow = {
   amount_ore: number;
+  saved_ore: number | null;
   status: "SENT" | "APPROVED" | "PAID";
 };
 
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   }
 
-  const [tasksRes, settingsRes, recentClaimsRes, balanceClaimsRes] = await Promise.all([
+  const [tasksRes, settingsRes, recentClaimsRes, balanceClaimsRes, familyRes] = await Promise.all([
     supabase
       .from("tasks")
       .select("id, title, amount_ore, active")
@@ -80,10 +81,15 @@ export async function GET(request: Request) {
       .select("task_id, created_at")
       .eq("child_id", childId)
       .gte("created_at", new Date(Date.now() - 10_000).toISOString()),
-    supabase.from("claims").select("amount_ore, status").eq("child_id", childId).in("status", ["SENT", "APPROVED", "PAID"]),
+    supabase
+      .from("claims")
+      .select("amount_ore, saved_ore, status")
+      .eq("child_id", childId)
+      .in("status", ["SENT", "APPROVED", "PAID"]),
+    supabase.from("families").select("savings_percent, show_savings_to_kids").eq("id", auth.familyId).maybeSingle(),
   ]);
 
-  if (tasksRes.error || settingsRes.error || recentClaimsRes.error || balanceClaimsRes.error) {
+  if (tasksRes.error || settingsRes.error || recentClaimsRes.error || balanceClaimsRes.error || familyRes.error) {
     return NextResponse.json(
       {
         error:
@@ -91,6 +97,7 @@ export async function GET(request: Request) {
           settingsRes.error?.message ??
           recentClaimsRes.error?.message ??
           balanceClaimsRes.error?.message ??
+          familyRes.error?.message ??
           "Ukjent feil.",
       },
       { status: 400 }
@@ -112,14 +119,18 @@ export async function GET(request: Request) {
   let pending_ore = 0;
   let approved_ore = 0;
   let paid_ore = 0;
+  let saved_ore = 0;
   for (const claim of (balanceClaimsRes.data ?? []) as BalanceClaimRow[]) {
     if (claim.status === "SENT") pending_ore += claim.amount_ore;
     if (claim.status === "APPROVED") approved_ore += claim.amount_ore;
     if (claim.status === "PAID") paid_ore += claim.amount_ore;
+    if (claim.status !== "SENT") saved_ore += claim.saved_ore ?? 0;
   }
-  // "Tjent totalt" er alt barnet har opparbeidet seg: det som staar til gode pluss
-  // det som allerede er utbetalt. Dette tallet skal aldri ga ned etter en utbetaling.
-  const earned_ore = approved_ore + paid_ore;
+  // "Tjent totalt" er alt barnet har opparbeidet seg: det som staar til gode,
+  // det som er utbetalt og det som er spart. Skal aldri ga ned etter en utbetaling.
+  const earned_ore = approved_ore + paid_ore + saved_ore;
+  const savings_percent = familyRes.data?.savings_percent ?? 0;
+  const show_savings = familyRes.data?.show_savings_to_kids ?? true;
 
   return NextResponse.json({
     child: { id: child.id, name: child.name, avatar_key: child.avatar_key },
@@ -129,5 +140,9 @@ export async function GET(request: Request) {
     approved_ore,
     paid_ore,
     earned_ore,
+    // Prosenten trengs for å vise riktig "Til gode" rett etter auto-godkjenning,
+    // også når sparegrisen er skjult for barnet.
+    savings_percent,
+    saved_ore: show_savings ? saved_ore : null,
   });
 }

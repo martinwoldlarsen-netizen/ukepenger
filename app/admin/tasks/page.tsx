@@ -1,200 +1,178 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { getCurrentAdminContext } from "@/lib/family-client";
+import { useState } from "react";
+import { Plus, X } from "lucide-react";
+import { Button, Card, EmptyState, Field, Input, ListSkeleton, Switch } from "@/components/ui";
+import { useToast } from "@/components/ui/feedback";
+import { type AdminTask, friendlyError, useAdminIdentity, useTasks } from "@/lib/admin-data";
+import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { kidColor } from "@/app/kids/_lib/palette";
 
-type TaskRow = {
-  id: string;
-  title: string;
-  amount_ore: number;
-  active: boolean;
-};
-
-function formatKr(ore: number) {
-  return `${(ore / 100).toFixed(2)} kr`;
-}
+const SUGGESTIONS = [
+  { title: "Rydde rommet", kr: 25 },
+  { title: "Ta oppvasken", kr: 20 },
+  { title: "Ta ut søppel", kr: 15 },
+  { title: "Støvsuge", kr: 30 },
+  { title: "Dekke bordet", kr: 10 },
+];
 
 export default function AdminTasksPage() {
-  const [familyId, setFamilyId] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const toast = useToast();
+  const { familyId } = useAdminIdentity();
+  const tasks = useTasks(familyId);
+
+  const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [amountNok, setAmountNok] = useState("");
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState<Record<string, boolean>>({});
 
-  const load = useCallback(async (nextFamilyId?: string) => {
-    const id = nextFamilyId ?? familyId;
-    if (!id) return;
-    const res = await supabase
-      .from("tasks")
-      .select("id, title, amount_ore, active")
-      .eq("family_id", id)
-      .order("created_at", { ascending: false });
-
-    if (res.error) {
-      setStatus(`Feil: ${res.error.message}`);
-      return;
-    }
-
-    setTasks((res.data ?? []) as TaskRow[]);
-  }, [familyId]);
-
-  useEffect(() => {
-    const run = async () => {
-      const ctx = await getCurrentAdminContext();
-      if (!ctx.familyId) {
-        setLoading(false);
-        setStatus("Fant ikke familie.");
-        return;
-      }
-      setFamilyId(ctx.familyId);
-      await load(ctx.familyId);
-      setLoading(false);
-    };
-
-    void run();
-  }, [load]);
+  const list = [...(tasks.data ?? [])].sort((a, b) => Number(b.active) - Number(a.active));
+  const existingTitles = new Set(list.map((t) => t.title.toLowerCase()));
 
   const createTask = async () => {
-    if (!familyId) return;
-    setStatus("");
+    if (!familyId || saving) return;
+    const amountOre = parseKrToOre(amount);
     if (!title.trim()) {
-      setStatus("Skriv en oppgavetittel.");
+      toast({ kind: "error", text: "Skriv hva oppgaven er." });
       return;
     }
-
-    const parsedAmount = Number(amountNok.replace(",", "."));
-    if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
-      setStatus("Ugyldig belop.");
+    if (amountOre === null || amountOre === "invalid") {
+      toast({ kind: "error", text: "Skriv beløpet som et tall, f.eks. 25." });
       return;
     }
-
-    const amountOre = Math.round(parsedAmount * 100);
-    const res = await supabase.from("tasks").insert({
-      family_id: familyId,
-      title: title.trim(),
-      amount_ore: amountOre,
-      active: true,
-    });
-
+    setSaving(true);
+    const res = await supabase.from("tasks").insert({ family_id: familyId, title: title.trim(), amount_ore: amountOre, active: true });
+    setSaving(false);
     if (res.error) {
-      setStatus(`Feil: ${res.error.message}`);
+      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å lage oppgaven.") });
       return;
     }
-
+    toast({ text: `«${title.trim()}» er lagt til` });
     setTitle("");
-    setAmountNok("");
-    setStatus("Oppgave opprettet.");
-    await load();
+    setAmount("");
+    setFormOpen(false);
+    await tasks.mutate();
   };
 
-  const toggleActive = async (task: TaskRow) => {
-    setStatus("");
-    const res = await supabase.from("tasks").update({ active: !task.active }).eq("id", task.id);
-    if (res.error) {
-      setStatus(`Feil: ${res.error.message}`);
-      return;
+  const toggleActive = async (task: AdminTask) => {
+    if (toggling[task.id]) return;
+    setToggling((prev) => ({ ...prev, [task.id]: true }));
+    try {
+      await tasks.mutate(
+        async (current) => {
+          const res = await supabase.from("tasks").update({ active: !task.active }).eq("id", task.id);
+          if (res.error) throw new Error(res.error.message);
+          return (current ?? []).map((t) => (t.id === task.id ? { ...t, active: !task.active } : t));
+        },
+        {
+          optimisticData: (current) => (current ?? []).map((t) => (t.id === task.id ? { ...t, active: !task.active } : t)),
+          rollbackOnError: true,
+          revalidate: false,
+        }
+      );
+    } catch (error) {
+      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å lagre.") });
+    } finally {
+      setToggling((prev) => {
+        const next = { ...prev };
+        delete next[task.id];
+        return next;
+      });
     }
-    await load();
   };
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
-
-  const isError = status.startsWith("Feil:");
-  const disableCreate = title.trim().length === 0 || amountNok.trim().length === 0;
+  if (!familyId || (tasks.isLoading && !tasks.data)) return <ListSkeleton rows={4} />;
 
   return (
     <section className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 md:p-5">
-        <h3 className="mb-3 text-base font-semibold tracking-tight">Ny oppgave</h3>
-        <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
-          <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Tittel</span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="For eksempel: Rydde rommet"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
-            />
-          </label>
-          <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Belop (kr)</span>
-            <input
-              value={amountNok}
-              onChange={(e) => setAmountNok(e.target.value)}
-              placeholder="25"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => void createTask()}
-            disabled={disableCreate}
-            className="self-end rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+      {formOpen ? (
+        <Card className="animate-pop space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold tracking-tight">Ny oppgave</h2>
+            <button type="button" aria-label="Lukk" onClick={() => setFormOpen(false)} className="flex size-10 items-center justify-center rounded-full hover:bg-secondary">
+              <X className="size-5" />
+            </button>
+          </div>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void createTask();
+            }}
           >
-            Opprett
-          </button>
-        </div>
-      </div>
-
-      {status && (
-        <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
-            isError
-              ? "border-red-800 bg-red-950/40 text-red-200"
-              : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
-          }`}
-        >
-          {status}
-        </p>
+            <Field label="Hva skal gjøres?">
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="F.eks. Rydde rommet" autoFocus maxLength={60} />
+            </Field>
+            <Field label="Hvor mye får barnet?">
+              <span className="relative block">
+                <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="25" inputMode="decimal" className="pr-12" />
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">kr</span>
+              </span>
+            </Field>
+            {SUGGESTIONS.some((s) => !existingTitles.has(s.title.toLowerCase())) && (
+              <div>
+                <p className="mb-2 text-sm font-semibold text-foreground/85">Forslag</p>
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTIONS.filter((s) => !existingTitles.has(s.title.toLowerCase())).map((s) => (
+                    <button
+                      key={s.title}
+                      type="button"
+                      onClick={() => {
+                        setTitle(s.title);
+                        setAmount(String(s.kr));
+                      }}
+                      className="min-h-10 rounded-full bg-secondary px-4 text-sm font-semibold transition hover:bg-accent"
+                    >
+                      {s.title} · {s.kr} kr
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Button type="submit" block size="lg" loading={saving} disabled={!title.trim() || !amount.trim()}>
+              Legg til oppgave
+            </Button>
+          </form>
+        </Card>
+      ) : (
+        <Button size="lg" block icon={<Plus className="size-5" />} onClick={() => setFormOpen(true)}>
+          Ny oppgave
+        </Button>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/70 text-slate-300">
-            <tr>
-              <th className="px-4 py-3">Tittel</th>
-              <th className="px-4 py-3">Belop</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Handling</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((task) => (
-              <tr key={task.id} className="border-t border-slate-800 text-slate-100">
-                <td className="px-4 py-3">{task.title}</td>
-                <td className="px-4 py-3">{formatKr(task.amount_ore)}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                      task.active ? "bg-emerald-950/60 text-emerald-300" : "bg-slate-800 text-slate-300"
-                    }`}
-                  >
-                    {task.active ? "Aktiv" : "Inaktiv"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => void toggleActive(task)}
-                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
-                  >
-                    {task.active ? "Deaktiver" : "Aktiver"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {tasks.length === 0 && (
-              <tr>
-                <td className="px-4 py-10 text-center text-slate-400" colSpan={4}>
-                  Ingen oppgaver enda. Lag den forste oppgaven over.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {list.length === 0 ? (
+        <EmptyState emoji="🧹" title="Ingen oppgaver ennå">
+          Lag den første, så kan barna begynne å tjene penger.
+        </EmptyState>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {list.map((task, index) => {
+            const color = kidColor(index);
+            return (
+              <li
+                key={task.id}
+                className="flex flex-col justify-between gap-4 rounded-3xl p-5 shadow-sm ring-1 ring-black/5 transition"
+                style={task.active ? { background: color.bg, color: color.ink } : undefined}
+              >
+                <div className={task.active ? "" : "opacity-60"}>
+                  <p className="text-xl font-extrabold leading-tight tracking-tight">{task.title}</p>
+                  <p className="font-num mt-1 text-lg font-bold">{formatKr(task.amount_ore)}</p>
+                </div>
+                <div className="rounded-2xl bg-white/70 px-4 py-3 text-foreground">
+                  <Switch
+                    checked={task.active}
+                    disabled={toggling[task.id]}
+                    onChange={() => void toggleActive(task)}
+                    label={task.active ? "Synlig for barna" : "Skjult for barna"}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

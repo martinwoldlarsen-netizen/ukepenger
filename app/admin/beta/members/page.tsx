@@ -29,7 +29,7 @@ export default function AdminBetaMembersPage() {
     const accessToken = sessionRes.data.session?.access_token;
     if (!accessToken) {
       setLoading(false);
-      setStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -85,7 +85,7 @@ export default function AdminBetaMembersPage() {
     const accessToken = sessionRes.data.session?.access_token;
     if (!accessToken) {
       setSubmitting(false);
-      setStatus("Feil: Mangler innloggingstoken. Logg inn pa nytt.");
+      setStatus("Feil: Mangler innloggingstoken. Logg inn på nytt.");
       return;
     }
 
@@ -113,6 +113,8 @@ export default function AdminBetaMembersPage() {
 
   const inviteRows = useMemo(() => {
     return invites.map((invite) => {
+      // Utløp sjekkes når listen bygges på nytt (etter lasting), ikke hvert sekund.
+      // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
       const expired = new Date(invite.expires_at).getTime() <= now;
       const statusLabel = invite.revoked_at
@@ -133,68 +135,68 @@ export default function AdminBetaMembersPage() {
     setStatus("Invitasjonslenke kopiert.");
   };
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
+  if (loading) return <div className="text-foreground/80">Laster...</div>;
 
   return (
     <section className="space-y-5">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Medlemmer (beta)</h2>
-        <p className="mt-1 text-sm text-slate-400">Inviter medlemmer via e-post.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Inviter medlemmer via e-post.</p>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="navn@epost.no"
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100"
+            className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-foreground"
           />
           <button
             type="button"
             onClick={() => void sendInvite()}
             disabled={submitting}
-            className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Sender..." : "Send invitasjon"}
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="mb-3 text-base font-semibold">Medlemmer</h3>
         {members.length === 0 ? (
-          <p className="text-sm text-slate-400">Ingen medlemmer funnet.</p>
+          <p className="text-sm text-muted-foreground">Ingen medlemmer funnet.</p>
         ) : (
           <div className="space-y-2">
             {members.map((member) => (
-              <div key={member.user_id} className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm">
-                <div className="font-medium text-slate-100">{member.user_id}</div>
-                <div className="text-xs uppercase tracking-wide text-slate-400">{member.role}</div>
+              <div key={member.user_id} className="rounded-xl border border-border bg-card px-3 py-2 text-sm">
+                <div className="font-medium text-foreground">{member.user_id}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{member.role}</div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="mb-3 text-base font-semibold">Invitasjoner</h3>
         {inviteRows.length === 0 ? (
-          <p className="text-sm text-slate-400">Ingen invitasjoner.</p>
+          <p className="text-sm text-muted-foreground">Ingen invitasjoner.</p>
         ) : (
           <div className="space-y-2">
             {inviteRows.map((invite) => (
-              <div key={invite.id} className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-3 text-sm">
-                <div className="font-medium text-slate-100">{invite.email}</div>
-                <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">
+              <div key={invite.id} className="rounded-xl border border-border bg-card px-3 py-3 text-sm">
+                <div className="font-medium text-foreground">{invite.email}</div>
+                <div className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
                   {invite.statusLabel} · utloper {new Date(invite.expires_at).toLocaleString("nb-NO")}
                 </div>
                 {invite.statusLabel === "pending" && (
                   <button
                     type="button"
                     onClick={() => void copyInviteLink(invite.token)}
-                    className="mt-3 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-slate-500 hover:bg-slate-900"
+                    className="mt-3 rounded-xl border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-foreground transition hover:border-primary/40 hover:bg-secondary"
                   >
                     Kopier lenke
                   </button>
@@ -205,7 +207,7 @@ export default function AdminBetaMembersPage() {
         )}
       </div>
 
-      {status && <p className="text-sm text-slate-300">{status}</p>}
+      {status && <p className="text-sm text-foreground/80">{status}</p>}
     </section>
   );
 }

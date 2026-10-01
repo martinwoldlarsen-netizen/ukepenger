@@ -24,7 +24,7 @@ export default async function InvitePage({ params }: PageProps) {
 
   if (!url || !anonKey) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-slate-100">
+      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
         <p>Feil: Supabase env mangler.</p>
       </main>
     );
@@ -44,15 +44,15 @@ export default async function InvitePage({ params }: PageProps) {
 
   if (!user) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-slate-100">
-        <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-6">
           <h1 className="text-xl font-semibold">Invitasjon</h1>
-          <p>Logg inn for aa akseptere invitasjonen.</p>
+          <p>Logg inn for å akseptere invitasjonen.</p>
           <Link
             href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}
-            className="inline-flex rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-900"
+            className="inline-flex rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-secondary"
           >
-            Ga til login
+            Gå til login
           </Link>
         </section>
       </main>
@@ -62,7 +62,7 @@ export default async function InvitePage({ params }: PageProps) {
   const serviceClient = getServiceSupabaseClient();
   if (!serviceClient) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-slate-100">
+      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
         <p>Feil: Server mangler service role key.</p>
       </main>
     );
@@ -76,7 +76,7 @@ export default async function InvitePage({ params }: PageProps) {
 
   if (inviteRes.error || !inviteRes.data) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-slate-100">
+      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
         <p>Invitasjonen finnes ikke.</p>
       </main>
     );
@@ -86,22 +86,26 @@ export default async function InvitePage({ params }: PageProps) {
   const inviteEmail = invite.email.toLowerCase();
   const userEmail = (user.email ?? "").toLowerCase();
 
+  // Serverkomponent som rendres én gang per forespørsel, så "nå" er stabilt.
+  // eslint-disable-next-line react-hooks/purity
+  const isExpired = new Date(invite.expires_at).getTime() <= Date.now();
+
   let message: string | null = null;
   if (invite.revoked_at) {
     message = "Invitasjonen er trukket tilbake.";
   } else if (invite.accepted_at) {
     message = "Invitasjonen er allerede akseptert.";
-  } else if (new Date(invite.expires_at).getTime() <= Date.now()) {
-    message = "Invitasjonen er utlopet.";
+  } else if (isExpired) {
+    message = "Invitasjonen er utløpt.";
   } else if (!userEmail || userEmail !== inviteEmail) {
     message = `Du er logget inn som ${user.email ?? "ukjent"}, men invitasjonen er for ${invite.email}.`;
   }
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-10 text-slate-100">
-      <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+    <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
+      <section className="space-y-4 rounded-2xl border border-border bg-card p-6">
         <h1 className="text-xl font-semibold">Invitasjon til Ukepenger</h1>
-        <p className="text-sm text-slate-300">Link: {`${siteUrl}/invite/${token}`}</p>
+        <p className="text-sm text-foreground/80">Link: {`${siteUrl}/invite/${token}`}</p>
         {message ? (
           <p>{message}</p>
         ) : (

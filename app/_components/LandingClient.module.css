@@ -1,8 +1,7 @@
 /*
- * Skjermede design-tokens for forsiden. Resten av appen (admin/kids/login)
- * bruker det mørke slate/lime-temaet definert i app/globals.css sin :root.
- * Disse verdiene overstyres KUN innenfor .landingPage-treet via vanlig CSS
- * custom-property-cascading - :root og resten av appen er upåvirket.
+ * Design-tokens for forsiden. Resten av appen bruker de samme fargene fra
+ * app/globals.css sin :root; her ligger de i tillegg skjermet slik at
+ * forsiden er uavhengig av endringer i app-temaet.
  */
 .landingPage {
   --background: oklch(0.985 0.012 89);
@@ -18,13 +17,11 @@
   --accent: oklch(0.89 0.095 77);
   --accent-foreground: oklch(0.3 0.06 70);
   --border: oklch(0.88 0.025 90);
-  --font-sans: var(--font-landing-sans), "DM Sans", ui-sans-serif, sans-serif;
-  --font-mono: var(--font-landing-mono), "Space Mono", ui-monospace, monospace;
+  --font-sans: var(--font-ui-sans), "DM Sans", ui-sans-serif, sans-serif;
+  --font-mono: var(--font-ui-mono), "Space Mono", ui-monospace, monospace;
 
   background: var(--background);
   color: var(--foreground);
-  /* Uten denne arver forsiden Geist fra body-regelen i globals.css,
-     og DM Sans lastes ned uten a bli brukt. */
   font-family: var(--font-sans);
   min-height: 100vh;
   overflow: hidden;
@@ -129,6 +126,9 @@
   transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0.25s;
 }
 @media (min-width: 640px) { .menuSheet { padding-top: 6.25rem; } }
+/* Klassene her er ikke i et cascade-lag og vinner derfor over Tailwinds
+   md:hidden. Skjul mobilmenyen eksplisitt på PC. */
+@media (min-width: 768px) { .menuToggle, .menuSheet { display: none; } }
 .menuSheetOpen {
   opacity: 1; visibility: visible; transform: none;
   transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s;

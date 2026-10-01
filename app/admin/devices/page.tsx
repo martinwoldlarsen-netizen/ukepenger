@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getCurrentAdminContext } from "@/lib/family-client";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
+import { Copy, QrCode, RefreshCw, Tablet } from "lucide-react";
+import { Badge, Button, Card, CardHeader, EmptyState, ListSkeleton } from "@/components/ui";
+import { useConfirm, useToast } from "@/components/ui/feedback";
+import { adminFetch, friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
+import { formatWhen } from "@/lib/dates";
 import { supabase } from "@/lib/supabaseClient";
 
 type DeviceRow = {
@@ -14,217 +19,168 @@ type DeviceRow = {
   updated_at?: string;
 };
 
+const isActive = (d: DeviceRow) => d.active && !d.revoked_at;
+
 export default function AdminDevicesPage() {
-  const [familyId, setFamilyId] = useState<string | null>(null);
-  const [devices, setDevices] = useState<DeviceRow[]>([]);
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [claimUrl, setClaimUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const loadDevices = useCallback(
-    async (nextFamilyId?: string) => {
-      const id = nextFamilyId ?? familyId;
-      if (!id) return;
-
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { familyId } = useAdminIdentity();
+  const devices = useSWR(
+    familyId ? ["devices", familyId] : null,
+    async () => {
       const res = await supabase
         .from("devices")
         .select("id, name, device_code, active, revoked_at, created_at, updated_at")
-        .eq("family_id", id)
+        .eq("family_id", familyId as string)
         .order("created_at", { ascending: false });
-
-      if (res.error) {
-        setStatus(`Feil: ${res.error.message}`);
-        return;
-      }
-
-      setDevices((res.data ?? []) as DeviceRow[]);
+      if (res.error) throw new Error(res.error.message);
+      return (res.data ?? []) as DeviceRow[];
     },
-    [familyId]
+    swrDefaults
   );
 
-  useEffect(() => {
-    const run = async () => {
-      const ctx = await getCurrentAdminContext();
-      if (!ctx.familyId) {
-        setStatus("Fant ikke familie.");
-        setLoading(false);
-        return;
-      }
+  const [busy, setBusy] = useState(false);
+  const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const [showOld, setShowOld] = useState(false);
 
-      setFamilyId(ctx.familyId);
-      await loadDevices(ctx.familyId);
-      setLoading(false);
-    };
-
-    void run();
-  }, [loadDevices]);
+  const list = devices.data ?? [];
+  const active = list.filter(isActive);
+  const old = list.filter((d) => !isActive(d));
 
   const openQr = async (regenerate: boolean) => {
+    if (regenerate) {
+      const ok = await confirm({
+        title: "Lage ny QR-kode?",
+        text: "Den nyeste iPaden logges ut og må skanne den nye koden.",
+        confirmLabel: "Lag ny",
+      });
+      if (!ok) return;
+    }
     setBusy(true);
-    setStatus("");
-    setCopied(false);
-
-    const sessionRes = await supabase.auth.getSession();
-    const accessToken = sessionRes.data.session?.access_token;
-    if (!accessToken) {
+    try {
+      const payload = await adminFetch<{ claimUrl?: string }>("/api/admin/devices/qr", { method: "POST", body: JSON.stringify({ regenerate }) });
+      if (!payload.claimUrl) throw new Error("Mangler lenke");
+      setClaimUrl(payload.claimUrl);
+      await devices.mutate();
+    } catch (error) {
+      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å lage QR-kode.") });
+    } finally {
       setBusy(false);
-      setStatus("Feil: Ikke innlogget.");
-      return;
     }
+  };
 
-    const res = await fetch("/api/admin/devices/qr", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ regenerate }),
+  const revoke = async (ids: string[], label: string) => {
+    const ok = await confirm({
+      title: label,
+      text: "iPaden logges ut av barnesiden og må skanne en ny QR-kode for å komme inn igjen.",
+      confirmLabel: "Deaktiver",
+      danger: true,
     });
-
-    const payload = (await res.json()) as { error?: string; claimUrl?: string };
-    setBusy(false);
-
-    if (!res.ok || payload.error || !payload.claimUrl) {
-      setStatus(`Feil: ${payload.error ?? "Kunne ikke lage QR-lenke."}`);
-      return;
-    }
-
-    setClaimUrl(payload.claimUrl);
-    setStatus(regenerate ? "QR regenerert." : "QR klar.");
-    await loadDevices();
-  };
-
-  const revokeDevice = async (deviceId: string) => {
-    setStatus("");
-    const res = await supabase
-      .from("devices")
-      .update({ revoked_at: new Date().toISOString(), active: false, updated_at: new Date().toISOString() })
-      .eq("id", deviceId);
-
+    if (!ok) return;
+    const now = new Date().toISOString();
+    const res = await supabase.from("devices").update({ revoked_at: now, active: false, updated_at: now }).in("id", ids);
     if (res.error) {
-      setStatus(`Feil: ${res.error.message}`);
+      toast({ kind: "error", text: friendlyError(res.error.message) });
       return;
     }
-
-    await loadDevices();
+    toast({ text: ids.length === 1 ? "Enheten er deaktivert" : `${ids.length} enheter er deaktivert` });
+    setClaimUrl(null);
+    await devices.mutate();
   };
 
-  const qrImageUrl = useMemo(() => {
-    if (!claimUrl) return null;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(claimUrl)}`;
-  }, [claimUrl]);
+  // QR-bildet lages av en ekstern tjeneste fra lenken.
+  const qrImageUrl = useMemo(
+    () => (claimUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(claimUrl)}` : null),
+    [claimUrl]
+  );
 
-  if (loading) return <div className="text-slate-300">Laster...</div>;
-
-  const isError = status.startsWith("Feil:");
+  if (!familyId || (devices.isLoading && !devices.data)) return <ListSkeleton rows={2} />;
 
   return (
     <section className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <h3 className="mb-2 text-base font-semibold tracking-tight">Kiosk QR</h3>
-        <p className="mb-4 text-sm text-slate-300">Vis QR pa forelders telefon, skann pa iPad, og barnet lander rett pa /kids.</p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void openQr(false)}
-            disabled={busy}
-            className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? "Lager..." : "Vis QR"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void openQr(true)}
-            disabled={busy}
-            className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Regenerer QR
-          </button>
+      <Card className="space-y-4">
+        <CardHeader
+          icon={<QrCode className="size-5" />}
+          title="Koble til en iPad"
+          description="Vis QR-koden her, og skann den med iPaden barna bruker. Da åpnes barnesiden rett på den."
+        />
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button size="lg" loading={busy} onClick={() => void openQr(false)} icon={<QrCode className="size-5" />}>
+            Vis QR-kode
+          </Button>
+          <Button size="lg" variant="secondary" disabled={busy} onClick={() => void openQr(true)} icon={<RefreshCw className="size-4" />}>
+            Lag ny QR-kode
+          </Button>
         </div>
-      </div>
 
-      {status && (
-        <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
-            isError
-              ? "border-red-800 bg-red-950/40 text-red-200"
-              : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
-          }`}
-        >
-          {status}
-        </p>
-      )}
+        {claimUrl && qrImageUrl && (
+          <div className="animate-pop flex flex-col items-center gap-3 rounded-3xl bg-secondary p-5 text-center">
+            <p className="font-semibold">Skann med kameraet på iPaden</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrImageUrl} alt="QR-kode for å koble til iPaden" className="size-60 rounded-2xl bg-white p-3 shadow-sm" />
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Copy className="size-4" />}
+              onClick={async () => {
+                await navigator.clipboard.writeText(claimUrl);
+                toast({ text: "Lenken er kopiert" });
+              }}
+            >
+              Kopier lenke i stedet
+            </Button>
+          </div>
+        )}
+      </Card>
 
-      {claimUrl && (
-        <div className="rounded-2xl border border-amber-700/60 bg-amber-950/40 p-4 text-sm text-amber-100">
-          <div className="mb-3 text-sm font-semibold text-amber-200">Skann QR med iPad</div>
-          {qrImageUrl && <img src={qrImageUrl} alt="Kiosk QR" className="h-[260px] w-[260px] rounded-lg border border-amber-700/70 bg-white p-2" />}
-          <div className="mt-3 break-all rounded-lg border border-amber-700/60 bg-amber-950/60 px-3 py-2 text-xs">{claimUrl}</div>
-          <button
-            type="button"
-            onClick={async () => {
-              await navigator.clipboard.writeText(claimUrl);
-              setCopied(true);
-            }}
-            className="mt-2 rounded-lg border border-amber-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 transition hover:border-amber-500 hover:bg-amber-900/50"
-          >
-            {copied ? "Kopiert" : "Kopier lenke"}
-          </button>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold tracking-tight">Tilkoblede iPader</h2>
+          {active.length > 1 && (
+            <Button variant="dangerSoft" size="sm" onClick={() => void revoke(active.map((d) => d.id), `Deaktivere alle ${active.length}?`)}>
+              Deaktiver alle
+            </Button>
+          )}
         </div>
-      )}
-
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/70 text-slate-300">
-            <tr>
-              <th className="px-4 py-3">Navn</th>
-              <th className="px-4 py-3">Kode</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Opprettet</th>
-              <th className="px-4 py-3">Handling</th>
-            </tr>
-          </thead>
-          <tbody>
-            {devices.map((device) => (
-              <tr key={device.id} className="border-t border-slate-800 text-slate-100">
-                <td className="px-4 py-3">{device.name}</td>
-                <td className="px-4 py-3 font-mono text-xs">{device.device_code ?? "-"}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                      !device.active || device.revoked_at ? "bg-slate-800 text-slate-300" : "bg-emerald-950/60 text-emerald-300"
-                    }`}
-                  >
-                    {!device.active || device.revoked_at ? "Deaktivert" : "Aktiv"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">{new Date(device.created_at).toLocaleString("nb-NO")}</td>
-                <td className="px-4 py-3">
-                  {!device.active || device.revoked_at ? (
-                    <span className="text-xs text-slate-500">Ingen handling</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void revokeDevice(device.id)}
-                      className="rounded-lg border border-red-700/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-200 transition hover:border-red-500 hover:bg-red-950"
-                    >
-                      Deaktiver
-                    </button>
-                  )}
-                </td>
-              </tr>
+        {active.length === 0 ? (
+          <EmptyState emoji="📱" title="Ingen iPader er koblet til">
+            Trykk «Vis QR-kode» over og skann den med iPaden.
+          </EmptyState>
+        ) : (
+          <ul className="space-y-2">
+            {active.map((device) => (
+              <li key={device.id} className="flex items-center gap-3 rounded-3xl border border-border bg-card p-4 shadow-sm">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-secondary text-primary">
+                  <Tablet className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">
+                    {device.name} <Badge tone="success" className="ml-1">Aktiv</Badge>
+                  </p>
+                  <p className="text-sm text-muted-foreground">Koblet til {formatWhen(device.created_at)}</p>
+                </div>
+                <Button variant="ghost" size="sm" className="text-red-700 hover:bg-red-50" onClick={() => void revoke([device.id], "Deaktivere iPaden?")}>
+                  Deaktiver
+                </Button>
+              </li>
             ))}
-            {devices.length === 0 && (
-              <tr>
-                <td className="px-4 py-10 text-center text-slate-400" colSpan={5}>
-                  Ingen enheter opprettet enda.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </ul>
+        )}
+        {old.length > 0 && (
+          <button type="button" onClick={() => setShowOld((v) => !v)} className="min-h-10 px-1 text-sm font-semibold text-muted-foreground hover:text-foreground">
+            {showOld ? "Skjul gamle" : `Vis ${old.length} gamle`}
+          </button>
+        )}
+        {showOld && (
+          <ul className="space-y-1.5">
+            {old.map((device) => (
+              <li key={device.id} className="flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground">
+                <span>{device.name}</span>
+                <span>Deaktivert {formatWhen(device.revoked_at ?? device.updated_at ?? device.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );

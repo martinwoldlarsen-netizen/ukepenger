@@ -33,7 +33,7 @@ const SESSION_TIMEOUT_MS = 8000;
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [callbackParams] = useState(readCallbackParams);
-  const [status, setStatus] = useState("Fullforer innlogging...");
+  const [status, setStatus] = useState("Fullfører innlogging...");
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function AuthCallbackPage() {
       if (!mounted || handled) return;
 
       if (result === "timeout") {
-        fail("Innlogging tok for lang tid. Prov igjen fra login.");
+        fail("Innlogging tok for lang tid. Prøv igjen fra login.");
         return;
       }
 
@@ -105,7 +105,7 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      fail("Fant ikke aktiv sesjon etter OAuth. Prov igjen fra login.");
+      fail("Fant ikke aktiv sesjon etter OAuth. Prøv igjen fra login.");
     };
 
     // Sikkerhetsnett hvis SIGNED_IN kommer et hakk etter getSession(). Arbeidet
@@ -127,14 +127,14 @@ export default function AuthCallbackPage() {
   }, [router, callbackParams]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center">
         <h1 className="text-xl font-semibold tracking-tight">Logger inn</h1>
-        <p className="mt-3 text-sm text-slate-300">{status}</p>
+        <p className="mt-3 text-sm text-foreground/80">{status}</p>
         {failed && (
           <Link
             href="/login"
-            className="mt-4 inline-flex text-sm text-slate-100 underline underline-offset-4"
+            className="mt-4 inline-flex text-sm text-foreground underline underline-offset-4"
           >
             Tilbake til innlogging
           </Link>

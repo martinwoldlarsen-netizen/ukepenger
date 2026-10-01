@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Coins } from "lucide-react";
+import { Button, Field, Input, cx, focusRing } from "@/components/ui";
 import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -32,19 +35,19 @@ export default function LoginPage() {
 
     if (result.error) {
       setAction(null);
-      setStatus(`Feil: ${result.error.message}`);
+      setStatus(`Feil: ${authErrorText(result.error.message)}`);
       return;
     }
 
     if (!result.data.user) {
       setAction(null);
-      setStatus("Konto opprettet, men fant ikke brukerdata.");
+      setStatus("Feil: Kontoen ble laget, men noe gikk galt. Prøv å logge inn.");
       return;
     }
 
     if (!result.data.session) {
       setAction(null);
-      setStatus("Konto opprettet. Bekreft e-post for du logger inn.");
+      setStatus("Kontoen er laget! Sjekk e-posten din og trykk på lenken for å bekrefte.");
       return;
     }
 
@@ -55,7 +58,7 @@ export default function LoginPage() {
 
     if (ensure.error) {
       setAction(null);
-      setStatus(`Feil: ${ensure.error}`);
+      setStatus(`Feil: ${authErrorText(ensure.error)}`);
       return;
     }
 
@@ -72,13 +75,13 @@ export default function LoginPage() {
 
     if (result.error) {
       setAction(null);
-      setStatus(`Feil: ${result.error.message}`);
+      setStatus(`Feil: ${authErrorText(result.error.message)}`);
       return;
     }
 
     if (!result.data.user) {
       setAction(null);
-      setStatus("Innlogging feilet: fant ikke bruker.");
+      setStatus("Feil: Noe gikk galt. Prøv igjen.");
       return;
     }
 
@@ -89,7 +92,7 @@ export default function LoginPage() {
 
     if (ensure.error) {
       setAction(null);
-      setStatus(`Feil: ${ensure.error}`);
+      setStatus(`Feil: ${authErrorText(ensure.error)}`);
       return;
     }
 
@@ -111,7 +114,7 @@ export default function LoginPage() {
 
     if (result.error) {
       setAction(null);
-      setStatus(`Feil: ${result.error.message}`);
+      setStatus(`Feil: ${authErrorText(result.error.message)}`);
       return;
     }
   };
@@ -120,100 +123,74 @@ export default function LoginPage() {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-slate-100">
-      <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-black/20 md:p-7">
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight">Logg inn</h1>
-        <p className="mb-6 text-sm text-slate-400">E-post/passord eller OAuth for aa aaapne admin.</p>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10 text-foreground">
+      <Link href="/" className={cx("mb-8 flex items-center gap-2.5 rounded-xl", focusRing)}>
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          <Coins className="size-5" strokeWidth={2.5} />
+        </span>
+        <span className="font-num text-lg font-bold tracking-[-0.06em]">ukepenger</span>
+      </Link>
 
-        <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => void handleOAuth("google")}
-            disabled={isLoading}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {action === "google" ? "Sender til Google..." : "Fortsett med Google"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleOAuth("apple")}
-            disabled={isLoading}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {action === "apple" ? "Sender til Apple..." : "Fortsett med Apple"}
-          </button>
+      <section className="w-full max-w-md rounded-[2rem] border border-border bg-card p-6 shadow-xl shadow-black/5 sm:p-8">
+        <h1 className="text-3xl font-extrabold tracking-tight">Hei igjen 👋</h1>
+        <p className="mt-1 text-muted-foreground">Logg inn for å se hva barna har gjort.</p>
+
+        <div className="mt-6 space-y-2.5">
+          <Button variant="secondary" size="lg" block loading={action === "google"} disabled={isLoading} onClick={() => void handleOAuth("google")}>
+            Fortsett med Google
+          </Button>
+          <Button variant="secondary" size="lg" block loading={action === "apple"} disabled={isLoading} onClick={() => void handleOAuth("apple")}>
+            Fortsett med Apple
+          </Button>
         </div>
 
-        <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-slate-500">
-          <div className="h-px flex-1 bg-slate-800" />
-          <span>Eller</span>
-          <div className="h-px flex-1 bg-slate-800" />
+        <div className="my-6 flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="h-px flex-1 bg-border" />
+          <span>eller med e-post</span>
+          <div className="h-px flex-1 bg-border" />
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-300">
-              E-post
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
-              placeholder="navn@epost.no"
-            />
-          </div>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (canSubmit) void handleLogin();
+          }}
+        >
+          <Field label="E-post">
+            <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="navn@epost.no" />
+          </Field>
+          <Field label="Passord">
+            <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minst 6 tegn" />
+          </Field>
 
-          <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-300">
-              Passord
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-500"
-              placeholder="Skriv passord"
-            />
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <button
-            type="button"
-            onClick={() => void handleLogin()}
-            disabled={!canSubmit}
-            className="w-full rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {action === "login" ? "Logger inn..." : "Logg inn"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void handleSignUp()}
-            disabled={!canSubmit}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {action === "signup" ? "Oppretter konto..." : "Opprett konto"}
-          </button>
-        </div>
-
-        <div className="mt-4 min-h-5">
           {status && (
-            <p
-              className={`rounded-lg border px-3 py-2 text-sm ${
-                isError
-                  ? "border-red-800 bg-red-950/40 text-red-200"
-                  : "border-emerald-800 bg-emerald-950/40 text-emerald-200"
-              }`}
-            >
-              {status}
+            <p role={isError ? "alert" : "status"} className={cx("rounded-2xl px-4 py-3 text-sm font-medium", isError ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800")}>
+              {status.replace(/^Feil: /, "")}
             </p>
           )}
-        </div>
+
+          <Button type="submit" size="lg" block loading={action === "login"} disabled={!canSubmit}>
+            Logg inn
+          </Button>
+          <Button variant="ghost" block loading={action === "signup"} disabled={!canSubmit} onClick={() => void handleSignUp()}>
+            Ny her? Opprett konto
+          </Button>
+        </form>
       </section>
     </main>
   );
+}
+
+// Supabase sine feilmeldinger er på engelsk og tekniske.
+function authErrorText(message: string) {
+  if (/invalid login credentials/i.test(message)) return "Feil e-post eller passord.";
+  if (/email not confirmed/i.test(message)) return "Bekreft e-posten din først. Sjekk innboksen.";
+  if (/already registered|already exists/i.test(message)) return "Det finnes allerede en konto med denne e-posten. Prøv å logge inn.";
+  if (/password should be at least|weak password/i.test(message)) return "Passordet må ha minst 6 tegn.";
+  if (/invalid email|unable to validate email/i.test(message)) return "Sjekk at e-postadressen er riktig.";
+  if (/rate limit|too many/i.test(message)) return "For mange forsøk. Vent litt og prøv igjen.";
+  if (/fetch|network/i.test(message)) return "Fikk ikke kontakt med serveren. Sjekk nettet.";
+  console.error("[login]", message);
+  return "Noe gikk galt. Prøv igjen.";
 }

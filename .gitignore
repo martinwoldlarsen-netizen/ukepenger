@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env
+
+# Hemmeligheter / lokale nettleserdata - skal aldri i repoet
+cookies.txt
+*.cookies
+cookies*.txt
