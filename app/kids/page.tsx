@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, Coins, ShoppingBag, X } from "lucide-react";
-import { getAvatarByKey } from "@/lib/avatars";
+import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { kidColor } from "./_lib/palette";
 
 type ChildRow = {
@@ -138,7 +138,6 @@ export default function KidsPage() {
       {!loading && !error && (
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {children.map((child, index) => {
-            const avatar = getAvatarByKey(child.avatar_key);
             const color = kidColor(index);
             return (
               <Link
@@ -147,8 +146,8 @@ export default function KidsPage() {
                 className="animate-pop group flex min-h-44 flex-col justify-between rounded-[1.75rem] p-6 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
                 style={{ background: color.bg, color: color.ink }}
               >
-                <span className="flex size-20 items-center justify-center rounded-full bg-white/85 text-5xl shadow-sm">
-                  {avatar.emoji}
+                <span className="self-start rounded-full bg-white/70 p-1 shadow-sm transition group-hover:-rotate-3 group-hover:scale-105">
+                  <KidAvatar avatarKey={child.avatar_key} size={84} />
                 </span>
                 <span className="mt-4 flex items-center justify-between gap-2">
                   <span className="text-3xl font-extrabold tracking-tight">{child.name}</span>
@@ -241,7 +240,6 @@ export default function KidsPage() {
                 </button>
                 <div className="grid grid-cols-2 gap-3">
                   {children.map((child, index) => {
-                    const avatar = getAvatarByKey(child.avatar_key);
                     const color = kidColor(index);
                     return (
                       <button
@@ -252,7 +250,7 @@ export default function KidsPage() {
                         className="rounded-2xl p-4 text-left transition hover:-translate-y-0.5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                         style={{ background: color.bg, color: color.ink }}
                       >
-                        <span className="text-3xl">{avatar.emoji}</span>
+                        <KidAvatar avatarKey={child.avatar_key} size={44} />
                         <span className="mt-1 block text-lg font-extrabold">{child.name}</span>
                       </button>
                     );

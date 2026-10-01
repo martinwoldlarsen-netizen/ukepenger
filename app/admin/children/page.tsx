@@ -7,7 +7,9 @@ import { ChevronRight, Plus, X } from "lucide-react";
 import { Button, Card, EmptyState, Field, Input, ListSkeleton, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
 import { type AdminChild, friendlyError, swrDefaults, useAdminIdentity, useChildren } from "@/lib/admin-data";
-import { AVATAR_OPTIONS, DEFAULT_AVATAR_KEY } from "@/lib/avatars";
+import { DEFAULT_AVATAR_KEY } from "@/lib/avatars";
+import { FigurePicker } from "@/components/avatars/FigurePicker";
+import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { formatKr } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -26,34 +28,6 @@ async function loadStats(familyId: string) {
     if (claim.status === "APPROVED" || claim.status === "PAID") s.savedOre += claim.saved_ore ?? 0;
   }
   return stats;
-}
-
-function AvatarPicker({ value, onChange }: { value: string; onChange: (key: string) => void }) {
-  return (
-    <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label="Velg figur">
-      {AVATAR_OPTIONS.map((avatar) => {
-        const selected = value === avatar.key;
-        return (
-          <button
-            key={avatar.key}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-label={avatar.label}
-            title={avatar.label}
-            onClick={() => onChange(avatar.key)}
-            className={cx(
-              "flex aspect-square min-h-11 items-center justify-center rounded-2xl text-2xl transition active:scale-95",
-              focusRing,
-              selected ? "bg-primary/12 ring-2 ring-primary" : "bg-secondary hover:bg-accent"
-            )}
-          >
-            {avatar.emoji}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 export default function AdminChildrenPage() {
@@ -142,8 +116,8 @@ export default function AdminChildrenPage() {
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="F.eks. Nora" autoFocus maxLength={40} />
             </Field>
             <div>
-              <p className="mb-2 text-sm font-semibold text-foreground/85">Velg figur</p>
-              <AvatarPicker value={avatarKey} onChange={setAvatarKey} />
+              <p className="mb-2 text-sm font-semibold text-foreground/85">Velg figur (barnet kan bytte selv senere)</p>
+              <FigurePicker value={avatarKey} onChange={setAvatarKey} />
             </div>
             <Button type="submit" block size="lg" loading={saving} disabled={!name.trim()}>
               Legg til
@@ -172,9 +146,9 @@ export default function AdminChildrenPage() {
                   type="button"
                   onClick={() => setEditingAvatarFor(editingAvatarFor === child.id ? null : child.id)}
                   aria-label={`Bytt figur for ${child.name}`}
-                  className={cx("flex size-14 shrink-0 items-center justify-center rounded-full bg-white/85 text-3xl transition hover:scale-105", focusRing)}
+                  className={cx("shrink-0 rounded-full transition hover:scale-105", focusRing)}
                 >
-                  {child.emoji}
+                  <KidAvatar avatarKey={child.avatar_key} size={56} />
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-2xl font-extrabold tracking-tight">{child.name}</p>
@@ -184,7 +158,7 @@ export default function AdminChildrenPage() {
 
               {editingAvatarFor === child.id && (
                 <div className="animate-pop border-b border-border p-4">
-                  <AvatarPicker value={child.avatar_key ?? DEFAULT_AVATAR_KEY} onChange={(key) => void updateAvatar(child, key)} />
+                  <FigurePicker value={child.avatar_key} onChange={(key) => void updateAvatar(child, key)} />
                 </div>
               )}
 
@@ -226,7 +200,7 @@ export default function AdminChildrenPage() {
             <ul className="mt-2 space-y-2">
               {inactive.map((child) => (
                 <li key={child.id} className="flex items-center gap-3 rounded-3xl border border-dashed border-border bg-card/60 p-3">
-                  <span className="flex size-10 items-center justify-center rounded-full bg-secondary text-xl opacity-70">{child.emoji}</span>
+                  <span className="opacity-70"><KidAvatar avatarKey={child.avatar_key} size={40} /></span>
                   <span className="flex-1 font-semibold text-muted-foreground">{child.name}</span>
                   <Button variant="secondary" size="sm" onClick={() => void setActive(child, true)}>
                     Hent tilbake

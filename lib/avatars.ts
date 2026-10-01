@@ -4,6 +4,7 @@
   label: string;
 };
 
+// Gamle emoji-figurer. Vises fortsatt for barn som har valgt dem.
 export const AVATAR_OPTIONS: AvatarOption[] = [
   { key: "lion", emoji: "🦁", label: "Løve" },
   { key: "fox", emoji: "🦊", label: "Rev" },
@@ -19,7 +20,9 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
   { key: "music", emoji: "🎵", label: "Musikk" },
 ];
 
-export const DEFAULT_AVATAR_KEY = AVATAR_OPTIONS[0].key;
+// Nye barn får en av de tegnede figurene (components/avatars/figures.tsx).
+// Emoji-listen over brukes bare for barn som valgte figur før de kom.
+export const DEFAULT_AVATAR_KEY = "skyvalp";
 
 export function getAvatarByKey(key?: string | null): AvatarOption {
   return AVATAR_OPTIONS.find((item) => item.key === key) ?? AVATAR_OPTIONS[0];

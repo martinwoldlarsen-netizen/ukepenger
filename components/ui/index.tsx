@@ -4,6 +4,7 @@
 // kopier av knapper, kort, felter og meldinger, slik at alt ser likt ut og
 // alle trykkflater er store nok (minst 40 px) og har synlig fokus.
 
+import { KidAvatar } from "@/components/avatars/KidAvatar";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { forwardRef } from "react";
 import { Loader2 } from "lucide-react";
@@ -204,11 +205,7 @@ export function ListSkeleton({ rows = 3, className }: { rows?: number; className
 
 /* Barnets avatar i en farget sirkel */
 
-export function Avatar({ emoji, color, size = "md" }: { emoji: string; color?: string; size?: "sm" | "md" | "lg" }) {
-  const sizes = { sm: "size-9 text-lg", md: "size-12 text-2xl", lg: "size-16 text-4xl" };
-  return (
-    <span className={cx("flex shrink-0 items-center justify-center rounded-full", sizes[size])} style={{ background: color ?? "var(--secondary)" }} aria-hidden="true">
-      {emoji}
-    </span>
-  );
+export function Avatar({ avatarKey, size = "md" }: { avatarKey?: string | null; size?: "sm" | "md" | "lg" }) {
+  const px = { sm: 36, md: 48, lg: 64 }[size];
+  return <KidAvatar avatarKey={avatarKey} size={px} />;
 }

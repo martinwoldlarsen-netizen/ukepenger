@@ -1,5 +1,6 @@
 "use client";
 
+import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { Check, ChevronDown, Receipt, Trash2, Wallet } from "lucide-react";
@@ -223,7 +224,7 @@ export default function AdminPaymentsPage() {
               )}
               style={{ background: c.color.bg, color: c.color.ink }}
             >
-              <span className="flex size-11 items-center justify-center rounded-full bg-white/80 text-2xl">{c.emoji}</span>
+              <KidAvatar avatarKey={c.avatar_key} size={44} />
               <span className="min-w-0">
                 <span className="block truncate font-bold">{c.name}</span>
                 <span className="font-num block text-sm font-bold">{formatKr(dueByChild[c.id] ?? 0)}</span>
@@ -236,7 +237,7 @@ export default function AdminPaymentsPage() {
       {child && (
         <Card className="space-y-5">
           <div className="flex items-center gap-3">
-            <Avatar emoji={child.emoji} color={child.color.bg} />
+            <Avatar avatarKey={child.avatar_key} />
             <div>
               <p className="text-sm font-semibold text-muted-foreground">{child.name} har til gode</p>
               <p className="font-num text-3xl font-bold tracking-tight">{formatKr(dueByChild[child.id] ?? 0)}</p>
@@ -330,7 +331,7 @@ export default function AdminPaymentsPage() {
                 <li key={payment.id}>
                   <details className="group rounded-3xl border border-border bg-card shadow-sm">
                     <summary className={cx("flex min-h-16 cursor-pointer list-none items-center gap-3 rounded-3xl px-4 py-3", focusRing)}>
-                      <Avatar emoji={c.emoji} color={c.color.bg} size="sm" />
+                      <Avatar avatarKey={c.avatar_key} size="sm" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">
                           {c.name}

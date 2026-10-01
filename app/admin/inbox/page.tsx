@@ -202,7 +202,7 @@ export default function AdminInboxPage() {
             return (
               <Card key={wish.id} className="border-amber-200 bg-amber-50/70">
                 <div className="flex items-start gap-3">
-                  <Avatar emoji={child.emoji} color={child.color.bg} />
+                  <Avatar avatarKey={child.avatar_key} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-muted-foreground">
                       {child.name} ønsker seg · {formatWhen(wish.created_at)}
@@ -271,7 +271,7 @@ export default function AdminInboxPage() {
               const title = taskTitleOf(claim);
               return (
                 <li key={claim.id} className="animate-pop flex items-center gap-3 rounded-3xl border border-border bg-card p-4 shadow-sm sm:gap-4 sm:p-5">
-                  <Avatar emoji={child.emoji} color={child.color.bg} />
+                  <Avatar avatarKey={child.avatar_key} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-muted-foreground">
                       {child.name} · {formatWhen(claim.created_at)}

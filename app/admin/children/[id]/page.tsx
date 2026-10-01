@@ -1,5 +1,6 @@
 "use client";
 
+import { KidAvatar } from "@/components/avatars/KidAvatar";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -123,7 +124,7 @@ export default function AdminChildDetailPage() {
       </Link>
 
       <div className="flex items-center gap-4 rounded-3xl p-5" style={{ background: child.color.bg, color: child.color.ink }}>
-        <span className="flex size-16 items-center justify-center rounded-full bg-white/85 text-4xl">{child.emoji}</span>
+        <KidAvatar avatarKey={child.avatar_key} size={64} />
         <p className="text-3xl font-extrabold tracking-tight">{child.name}</p>
       </div>
 

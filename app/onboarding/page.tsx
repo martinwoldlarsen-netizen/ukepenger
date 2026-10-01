@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AVATAR_OPTIONS, DEFAULT_AVATAR_KEY, getAvatarByKey } from "@/lib/avatars";
+import { DEFAULT_AVATAR_KEY } from "@/lib/avatars";
+import { FigurePicker } from "@/components/avatars/FigurePicker";
+import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { ensureFamilyForUser, getAdminSetupStatus, getCurrentSessionUser, type ApprovalMode } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -339,27 +341,16 @@ export default function OnboardingPage() {
               </button>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {AVATAR_OPTIONS.map((avatar) => (
-                <button
-                  key={avatar.key}
-                  type="button"
-                  onClick={() => setChildAvatar(avatar.key)}
-                  className={`rounded-xl border px-3 py-2 text-lg ${
-                    childAvatar === avatar.key ? "border-primary bg-secondary" : "border-border bg-card"
-                  }`}
-                  title={avatar.label}
-                >
-                  {avatar.emoji}
-                </button>
-              ))}
+            <div className="mt-4">
+              <p className="mb-2 text-sm font-semibold text-foreground/85">Velg figur (barnet kan bytte selv senere)</p>
+              <FigurePicker value={childAvatar} onChange={setChildAvatar} />
             </div>
 
             <div className="mt-5 space-y-2">
               {childrenDrafts.map((child, index) => (
                 <div key={`${child.name}-${index}`} className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-lg">{getAvatarByKey(child.avatarKey).emoji}</span>
+                    <KidAvatar avatarKey={child.avatarKey} size={32} />
                     <span>{child.name}</span>
                   </div>
                   <button type="button" onClick={() => removeChildDraft(index)} className="text-xs text-red-700 hover:text-red-800">

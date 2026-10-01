@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { ArrowLeft, Check, Clock, Gift, PartyPopper, Send, Sparkles } from "lucide-react";
-import { getAvatarByKey } from "@/lib/avatars";
+import { ArrowLeft, Check, Clock, Gift, PartyPopper, Pencil, Send, Sparkles, X } from "lucide-react";
+import { FigurePicker } from "@/components/avatars/FigurePicker";
+import { KidAvatar } from "@/components/avatars/KidAvatar";
+import { getFigure } from "@/components/avatars/figures";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { kidColor } from "../_lib/palette";
 
@@ -49,6 +51,24 @@ type TasksPayload = {
   savings_percent?: number;
 };
 
+// Litt moro: nivå etter hvor mye barnet har tjent totalt.
+const LEVELS = [
+  { fromOre: 0, title: "Nybegynner", emoji: "🌱" },
+  { fromOre: 5_000, title: "Hjelper", emoji: "⭐" },
+  { fromOre: 20_000, title: "Superhjelper", emoji: "🚀" },
+  { fromOre: 50_000, title: "Mester", emoji: "🏆" },
+  { fromOre: 100_000, title: "Legende", emoji: "👑" },
+];
+
+function levelFor(earnedOre: number) {
+  let index = 0;
+  for (let i = 0; i < LEVELS.length; i++) if (earnedOre >= LEVELS[i].fromOre) index = i;
+  const current = LEVELS[index];
+  const next = LEVELS[index + 1];
+  const progress = next ? Math.round(((earnedOre - current.fromOre) / (next.fromOre - current.fromOre)) * 100) : 100;
+  return { ...current, nextOre: next ? next.fromOre : null, progress };
+}
+
 type KidPageData = { tasks: TasksPayload; wishlist: WishlistItem[] | null };
 
 async function fetchKidPage(childId: string): Promise<KidPageData> {
@@ -86,6 +106,9 @@ export default function KidTaskPage() {
   const [savedOre, setSavedOre] = useState<number | null>(null);
   const [savingsPercent, setSavingsPercent] = useState(0);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [avatarSaving, setAvatarSaving] = useState(false);
 
   const [wishTitle, setWishTitle] = useState("");
   const [wishPrice, setWishPrice] = useState("");
@@ -244,7 +267,28 @@ export default function KidTaskPage() {
     setWishNotice({ kind: "ok", text: "Sendt! En voksen ser på ønsket ditt." });
   };
 
-  const avatar = getAvatarByKey(child?.avatar_key);
+  const profileBg = getFigure(child?.avatar_key)?.bg ?? "var(--secondary)";
+  const level = levelFor(earnedOre);
+
+  const chooseFigure = async (avatarKey: string) => {
+    if (!child || avatarSaving) return;
+    const previous = child.avatar_key;
+    setAvatarSaving(true);
+    setChild({ ...child, avatar_key: avatarKey });
+    const res = await fetch("/api/kids/avatar", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ childId, avatarKey }),
+    });
+    setAvatarSaving(false);
+    if (!res.ok) {
+      setChild((current) => (current ? { ...current, avatar_key: previous } : current));
+      setNotice({ kind: "error", text: "Klarte ikke å bytte figur. Prøv igjen." });
+      return;
+    }
+    setPickerOpen(false);
+  };
 
   if (loadError) {
     return (
@@ -262,23 +306,74 @@ export default function KidTaskPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-10">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex size-14 items-center justify-center rounded-full bg-card text-4xl shadow-sm ring-1 ring-border">
-            {avatar.emoji}
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-muted-foreground">Hei,</p>
-            <h1 className="text-3xl font-extrabold leading-tight tracking-tight">{child ? `${child.name}!` : "…"}</h1>
-          </div>
-        </div>
+      <div className="flex justify-end">
         <Link
           href="/kids"
           className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition hover:bg-secondary"
         >
           <ArrowLeft className="size-4" /> Bytt profil
         </Link>
+      </div>
+
+      {/* Profil: figuren barnet har valgt, navn og nivå */}
+      <header
+        className="mt-4 flex items-center gap-4 rounded-[2rem] p-5 shadow-sm ring-1 ring-black/5 sm:gap-6 sm:p-6"
+        style={{ background: profileBg }}
+      >
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          aria-label="Bytt figur"
+          className="group relative shrink-0 rounded-full bg-white/70 p-1.5 shadow-sm transition hover:-rotate-3 hover:scale-105 active:scale-95"
+        >
+          <KidAvatar avatarKey={child?.avatar_key} size={96} />
+          <span className="absolute -bottom-1 -right-1 flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow ring-4 ring-white/70">
+            <Pencil className="size-4" />
+          </span>
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold opacity-70">Hei,</p>
+          <h1 className="truncate text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{child ? `${child.name}!` : "…"}</h1>
+          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-sm font-bold">
+            <span aria-hidden="true">{level.emoji}</span> {level.title}
+          </p>
+          {level.nextOre !== null && (
+            <div className="mt-2 max-w-56">
+              <div className="h-2 overflow-hidden rounded-full bg-white/60">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${level.progress}%` }} />
+              </div>
+              <p className="mt-1 text-xs font-semibold opacity-70">{formatKr(level.nextOre - earnedOre)} til neste nivå</p>
+            </div>
+          )}
+        </div>
       </header>
+
+      {pickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-3 backdrop-blur-sm sm:items-center" onClick={() => setPickerOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="figur-title"
+            className="animate-pop max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-card p-5 shadow-2xl sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 id="figur-title" className="text-2xl font-extrabold tracking-tight">
+                Velg figuren din
+              </h2>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(false)}
+                aria-label="Lukk"
+                className="flex size-11 items-center justify-center rounded-xl border border-border transition hover:bg-secondary"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <FigurePicker size="lg" value={child?.avatar_key} disabled={avatarSaving} onChange={(key) => void chooseFigure(key)} />
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
