@@ -68,14 +68,16 @@ export default function OnboardingPage() {
 
       const ensured = await ensureFamilyForUser({ id: session.user.id, email: session.user.email });
       if (ensured.error) {
-        setStatus(`Feil: ${ensured.error}`);
+        console.error(ensured.error);
+        setStatus("Feil: Klarte ikke å gjøre klar familien. Last inn siden på nytt.");
         setLoading(false);
         return;
       }
 
       const setup = await getAdminSetupStatus();
       if (setup.error) {
-        setStatus(`Feil: ${setup.error}`);
+        console.error(setup.error);
+        setStatus("Feil: Klarte ikke å hente oppsettet. Last inn siden på nytt.");
         setLoading(false);
         return;
       }
@@ -173,7 +175,7 @@ export default function OnboardingPage() {
   // den med en gang, og en iPad som lander paa /kids uten profiler er en blindvei.
   const persistSetup = async (): Promise<boolean> => {
     if (!familyId) {
-      setStatus("Feil: Mangler familyId.");
+      setStatus("Feil: Noe gikk galt. Last inn siden på nytt.");
       return false;
     }
 
@@ -184,7 +186,8 @@ export default function OnboardingPage() {
       const familyUpdate = await supabase.from("families").update({ name: familyName.trim() }).eq("id", familyId);
       if (familyUpdate.error) {
         setSaving(false);
-        setStatus(`Feil: ${familyUpdate.error.message}`);
+        console.error(familyUpdate.error.message);
+        setStatus("Feil: Noe gikk galt under lagringen. Prøv igjen.");
         return false;
       }
     }
@@ -199,7 +202,8 @@ export default function OnboardingPage() {
       const childInsert = await supabase.from("children").insert(childRows);
       if (childInsert.error) {
         setSaving(false);
-        setStatus(`Feil: ${childInsert.error.message}`);
+        console.error(childInsert.error.message);
+        setStatus("Feil: Noe gikk galt under lagringen. Prøv igjen.");
         return false;
       }
     }
@@ -218,7 +222,8 @@ export default function OnboardingPage() {
         const taskInsert = await supabase.from("tasks").insert(taskRows);
         if (taskInsert.error) {
           setSaving(false);
-          setStatus(`Feil: ${taskInsert.error.message}`);
+          console.error(taskInsert.error.message);
+          setStatus("Feil: Noe gikk galt under lagringen. Prøv igjen.");
           return false;
         }
       }
@@ -228,7 +233,8 @@ export default function OnboardingPage() {
       .eq("id", familyId);
     if (settingsUpdate.error) {
       setSaving(false);
-      setStatus(`Feil: ${settingsUpdate.error.message}`);
+      console.error(settingsUpdate.error.message);
+      setStatus("Feil: Noe gikk galt under lagringen. Prøv igjen.");
       return false;
     }
 
@@ -253,7 +259,11 @@ export default function OnboardingPage() {
   };
 
   if (loading) {
-    return <main className="min-h-screen bg-background p-6 text-foreground">Laster onboarding...</main>;
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background" role="status" aria-label="Laster">
+        <span className="size-10 animate-spin rounded-full border-4 border-secondary border-t-primary" />
+      </main>
+    );
   }
 
   const isError = status.startsWith("Feil:");
@@ -261,14 +271,19 @@ export default function OnboardingPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-8 text-foreground md:px-8">
       <section className="mx-auto max-w-3xl space-y-5">
-        <header className="rounded-2xl border border-border bg-card p-6">
-          <h1 className="text-2xl font-semibold tracking-tight">Setup wizard</h1>
-          <p className="mt-2 text-sm text-foreground/80">Steg {step} av 5. Sett opp familie, barn, oppgaver og barnemodus.</p>
+        <header className="px-1 pt-2">
+          <p className="text-sm font-semibold text-muted-foreground">Steg {step} av 5</p>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Kom i gang</h1>
+          <div className="mt-4 grid grid-cols-5 gap-1.5" aria-hidden="true">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <span key={n} className={`h-2 rounded-full transition ${n <= step ? "bg-primary" : "bg-border"}`} />
+            ))}
+          </div>
         </header>
 
         {step === 1 && (
           <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold">Steg 1: Familie</h2>
+            <h2 className="text-xl font-bold tracking-tight">Familie</h2>
             <label className="mt-4 block space-y-1.5 text-sm">
               <span className="text-foreground/80">Familienavn (valgfritt)</span>
               <input
@@ -285,7 +300,7 @@ export default function OnboardingPage() {
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
                 className="mt-0.5 h-4 w-4"
               />
-              <span>Jeg godtar en enkel bruksvilkar-light for test av tjenesten.</span>
+              <span>Jeg godtar <a href="/personvern" className="font-semibold underline underline-offset-4">vilkår og personvern</a> for å teste tjenesten.</span>
             </label>
             <div className="mt-5 flex justify-end">
               <button
@@ -302,7 +317,7 @@ export default function OnboardingPage() {
 
         {step === 2 && (
           <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold">Steg 2: Legg til barn</h2>
+            <h2 className="text-xl font-bold tracking-tight">Legg til barn</h2>
             {hasChildrenAlready && (
               <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                 Familien har allerede barn registrert. Du kan likevel legge til flere.
@@ -372,7 +387,7 @@ export default function OnboardingPage() {
 
         {step === 3 && (
           <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold">Steg 3: Standard-oppgaver</h2>
+            <h2 className="text-xl font-bold tracking-tight">Oppgaver</h2>
             {hasTasksAlready && (
               <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                 Familien har allerede oppgaver. Du kan hoppe videre eller legge til flere.
@@ -412,7 +427,7 @@ export default function OnboardingPage() {
 
         {step === 4 && (
           <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold">Steg 4: Godkjenning og sparing</h2>
+            <h2 className="text-xl font-bold tracking-tight">Godkjenning og sparing</h2>
             <div className="mt-4 space-y-3">
               <label className="flex items-start gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm">
                 <input
@@ -488,7 +503,7 @@ export default function OnboardingPage() {
 
         {step === 5 && (
           <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold">Steg 5: Aktiver barnemodus</h2>
+            <h2 className="text-xl font-bold tracking-tight">Koble til iPaden</h2>
             <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               Barn og oppgaver er lagret. Na gjenstar bare enheten barna skal bruke.
             </p>

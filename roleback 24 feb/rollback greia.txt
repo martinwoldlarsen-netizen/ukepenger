@@ -1,2 +1,0 @@
-C:\Users\adminn\spareapp>git rev-parse HEAD
-1d455b7918eb6092c1468279fa1c3f026b5f3745

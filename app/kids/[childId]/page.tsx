@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import useSWR from "swr";
 import { ArrowLeft, Check, Clock, Gift, PartyPopper, Send, Sparkles } from "lucide-react";
 import { getAvatarByKey } from "@/lib/avatars";
 import { formatKr, parseKrToOre } from "@/lib/money";
@@ -35,6 +36,32 @@ type Notice = { kind: "ok" | "error"; text: string } | null;
 
 const MAX_WISH_LENGTH = 80;
 
+type TasksPayload = {
+  error?: string;
+  child?: ChildRow;
+  tasks?: TaskRow[];
+  cooldowns?: Record<string, number>;
+  pending_ore?: number;
+  approved_ore?: number;
+  paid_ore?: number;
+  earned_ore?: number;
+  saved_ore?: number | null;
+  savings_percent?: number;
+};
+
+type KidPageData = { tasks: TasksPayload; wishlist: WishlistItem[] | null };
+
+async function fetchKidPage(childId: string): Promise<KidPageData> {
+  const [tasksRes, wishlistRes] = await Promise.all([
+    fetch(`/api/kids/tasks?childId=${encodeURIComponent(childId)}`, { credentials: "include" }),
+    fetch(`/api/kids/wishlist?childId=${encodeURIComponent(childId)}`, { credentials: "include" }),
+  ]);
+  const tasks = (await tasksRes.json().catch(() => ({}))) as TasksPayload;
+  if (!tasksRes.ok || tasks.error || !tasks.child) throw new Error(tasks.error ?? "Klarte ikke laste oppgavene.");
+  const wishlist = (await wishlistRes.json().catch(() => ({}))) as { error?: string; items?: WishlistItem[] };
+  return { tasks, wishlist: wishlistRes.ok && !wishlist.error ? (wishlist.items ?? []) : null };
+}
+
 export default function KidTaskPage() {
   const params = useParams<{ childId: string }>();
   const childId = params.childId;
@@ -44,9 +71,13 @@ export default function KidTaskPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
-  const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
-  const [confirmations, setConfirmations] = useState<Record<string, number>>({});
-  const [nowTs, setNowTs] = useState<number>(() => Date.now());
+  // Pause etter et trykk: tidspunkt den slutter og hvor lang den er (for
+  // CSS-animasjonen). Fjernes med en timeout i stedet for en timer som tegner
+  // hele siden på nytt hvert halve sekund.
+  const [cooldowns, setCooldowns] = useState<Record<string, { until: number; duration: number }>>({});
+  // Kort bekreftelse inne i oppgavekortet barnet nettopp trykket på.
+  const [cardMessages, setCardMessages] = useState<Record<string, Notice>>({});
+  const timers = useRef<number[]>([]);
   const [pendingOre, setPendingOre] = useState(0);
   const [approvedOre, setApprovedOre] = useState(0);
   const [paidOre, setPaidOre] = useState(0);
@@ -61,83 +92,78 @@ export default function KidTaskPage() {
   const [wishSending, setWishSending] = useState(false);
   const [wishNotice, setWishNotice] = useState<Notice>(null);
 
+  // Enten et kjent sluttidspunkt (fra serveren) eller en varighet fra nå.
+  const startCooldown = useCallback((taskId: string, end: { until: number } | { ms: number }) => {
+    const until = "until" in end ? end.until : Date.now() + end.ms;
+    const duration = Math.max(0, until - Date.now());
+    if (duration <= 0) return;
+    setCooldowns((prev) => ({ ...prev, [taskId]: { until, duration } }));
+    timers.current.push(
+      window.setTimeout(() => {
+        setCooldowns((prev) => {
+          if (prev[taskId]?.until !== until) return prev;
+          const next = { ...prev };
+          delete next[taskId];
+          return next;
+        });
+      }, duration)
+    );
+  }, []);
+
+  const showCardMessage = useCallback((taskId: string, message: Notice) => {
+    setCardMessages((prev) => ({ ...prev, [taskId]: message }));
+    timers.current.push(
+      window.setTimeout(() => {
+        setCardMessages((prev) => {
+          if (prev[taskId] !== message) return prev;
+          const next = { ...prev };
+          delete next[taskId];
+          return next;
+        });
+      }, 3_000)
+    );
+  }, []);
+
   useEffect(() => {
-    const run = async () => {
-      const [tasksRes, wishlistRes] = await Promise.all([
-        fetch(`/api/kids/tasks?childId=${encodeURIComponent(childId)}`, {
-          method: "GET",
-          credentials: "include",
-        }),
-        fetch(`/api/kids/wishlist?childId=${encodeURIComponent(childId)}`, {
-          method: "GET",
-          credentials: "include",
-        }),
-      ]);
+    const pending = timers.current;
+    return () => pending.forEach((id) => window.clearTimeout(id));
+  }, []);
 
-      const tasksPayload = (await tasksRes.json().catch(() => ({}))) as {
-        error?: string;
-        child?: ChildRow;
-        tasks?: TaskRow[];
-        cooldowns?: Record<string, number>;
-        pending_ore?: number;
-        approved_ore?: number;
-        paid_ore?: number;
-        earned_ore?: number;
-        saved_ore?: number | null;
-        savings_percent?: number;
-      };
-
-      if (!tasksRes.ok || tasksPayload.error || !tasksPayload.child) {
-        setLoadError(tasksPayload.error ?? "Klarte ikke laste oppgavene.");
-        setLoading(false);
-        return;
-      }
-
-      setChild(tasksPayload.child);
-      setTasks(tasksPayload.tasks ?? []);
-      setCooldowns(tasksPayload.cooldowns ?? {});
-      setPendingOre(tasksPayload.pending_ore ?? 0);
-      setApprovedOre(tasksPayload.approved_ore ?? 0);
-      setPaidOre(tasksPayload.paid_ore ?? 0);
-      setEarnedOre(tasksPayload.earned_ore ?? 0);
-      setSavedOre(tasksPayload.saved_ore ?? null);
-      setSavingsPercent(tasksPayload.savings_percent ?? 0);
-
-      const wishlistPayload = (await wishlistRes.json().catch(() => ({}))) as {
-        error?: string;
-        items?: WishlistItem[];
-      };
-      setWishlistItems(wishlistRes.ok && !wishlistPayload.error ? (wishlistPayload.items ?? []) : []);
+  // Henter oppgaver, saldo og ønsker ved start og når siden får fokus igjen
+  // (SWR), så saldoen er oppdatert etter at en voksen har godkjent.
+  const applyData = useCallback(
+    (data: KidPageData) => {
+      const p = data.tasks;
+      setLoadError("");
+      setChild(p.child ?? null);
+      setTasks(p.tasks ?? []);
+      for (const [taskId, until] of Object.entries(p.cooldowns ?? {})) startCooldown(taskId, { until });
+      setPendingOre(p.pending_ore ?? 0);
+      setApprovedOre(p.approved_ore ?? 0);
+      setPaidOre(p.paid_ore ?? 0);
+      setEarnedOre(p.earned_ore ?? 0);
+      setSavedOre(p.saved_ore ?? null);
+      setSavingsPercent(p.savings_percent ?? 0);
+      // Feiler bare ønskelisten, beholder vi den vi har.
+      if (data.wishlist) setWishlistItems(data.wishlist);
       setLoading(false);
-    };
+    },
+    [startCooldown]
+  );
 
-    void run();
-  }, [childId]);
+  useSWR(["kid-page", childId], () => fetchKidPage(childId), {
+    revalidateOnFocus: true,
+    dedupingInterval: 2_000,
+    shouldRetryOnError: false,
+    onSuccess: applyData,
+    onError: (error: Error) => {
+      // En bakgrunnsoppdatering som feiler skal ikke ta bort siden.
+      if (!child) setLoadError(error.message || "Klarte ikke laste oppgavene.");
+      setLoading(false);
+    },
+  });
 
   const visibleTasks = useMemo(() => tasks.filter((task) => task.active), [tasks]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const currentNow = Date.now();
-      setNowTs(currentNow);
-      setCooldowns((prev) => {
-        const next: Record<string, number> = {};
-        for (const [taskId, until] of Object.entries(prev)) {
-          if (until > currentNow) next[taskId] = until;
-        }
-        return next;
-      });
-      setConfirmations((prev) => {
-        const next: Record<string, number> = {};
-        for (const [taskId, until] of Object.entries(prev)) {
-          if (until > currentNow) next[taskId] = until;
-        }
-        return next;
-      });
-    }, 500);
-
-    return () => clearInterval(timer);
-  }, []);
 
   const submitClaim = async (taskId: string) => {
     const task = tasks.find((entry) => entry.id === taskId);
@@ -147,8 +173,7 @@ export default function KidTaskPage() {
     }
 
     setNotice(null);
-    const currentTs = nowTs;
-    setCooldowns((prev) => ({ ...prev, [taskId]: currentTs + 10_000 }));
+    startCooldown(taskId, { ms: 10_000 });
     setPendingOre((prev) => prev + task.amount_ore);
 
     const res = await fetch("/api/kids/claim", {
@@ -161,11 +186,15 @@ export default function KidTaskPage() {
     const payload = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean; status?: string };
     if (!res.ok || payload.error) {
       setPendingOre((prev) => prev - task.amount_ore);
-      setNotice({ kind: "error", text: payload.error ?? "Kunne ikke sende. Prøv igjen." });
+      setCooldowns((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+      showCardMessage(taskId, { kind: "error", text: payload.error ?? "Det gikk ikke. Prøv igjen!" });
       return;
     }
 
-    setConfirmations((prev) => ({ ...prev, [taskId]: nowTs + 2_500 }));
     if (payload.status === "APPROVED") {
       // Samme regel som databasen: sparedelen rundes ned og trekkes fra beløpet.
       const savedPart = Math.floor((task.amount_ore * savingsPercent) / 100);
@@ -173,10 +202,10 @@ export default function KidTaskPage() {
       setApprovedOre((prev) => prev + task.amount_ore - savedPart);
       setSavedOre((prev) => (prev === null ? null : prev + savedPart));
       setEarnedOre((prev) => prev + task.amount_ore);
-      setNotice({ kind: "ok", text: `Bra jobba! ${formatKr(task.amount_ore)} er lagt til.` });
+      showCardMessage(taskId, { kind: "ok", text: `Bra jobba! +${formatKr(task.amount_ore)}` });
       return;
     }
-    setNotice({ kind: "ok", text: "Bra jobba! En voksen må godkjenne før pengene kommer." });
+    showCardMessage(taskId, { kind: "ok", text: "Bra jobba! En voksen sjekker snart." });
   };
 
   const submitWish = async (event: React.FormEvent) => {
@@ -324,43 +353,45 @@ export default function KidTaskPage() {
             ) : (
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleTasks.map((task, index) => {
-                  const disabled = (cooldowns[task.id] ?? 0) > nowTs;
-                  const secondsLeft = disabled ? Math.ceil(((cooldowns[task.id] ?? 0) - nowTs) / 1000) : 0;
-                  const justSubmitted = (confirmations[task.id] ?? 0) > nowTs;
+                  const cooldown = cooldowns[task.id];
+                  const message = cardMessages[task.id];
                   const color = kidColor(index);
 
                   return (
                     <button
                       key={task.id}
                       type="button"
-                      disabled={disabled}
+                      disabled={Boolean(cooldown)}
                       onClick={() => void submitClaim(task.id)}
-                      className="flex min-h-32 flex-col justify-between rounded-[1.75rem] p-5 sm:min-h-40 text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                      className="flex min-h-32 flex-col justify-between rounded-[1.75rem] p-5 text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:translate-y-0 sm:min-h-40"
                       style={{ background: color.bg, color: color.ink }}
                     >
-                      <span className="flex items-start justify-between gap-3">
-                        <span className="text-2xl font-extrabold leading-tight tracking-tight">{task.title}</span>
+                      <span className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                        <span className="min-w-0 flex-1 text-2xl font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{task.title}</span>
                         <span className="font-num shrink-0 rounded-full bg-white/80 px-3 py-1 text-base font-bold">
                           +{formatKr(task.amount_ore)}
                         </span>
                       </span>
 
-                      {justSubmitted ? (
-                        <span className="animate-pop mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white/85 px-4 py-2 text-sm font-bold">
-                          <PartyPopper className="size-4" /> Sendt!
+                      {message ? (
+                        <span
+                          role="status"
+                          className={`animate-pop mt-4 inline-flex items-center gap-2 self-start rounded-full px-4 py-2 text-sm font-bold ${
+                            message.kind === "error" ? "bg-red-50 text-red-800" : "bg-white/90"
+                          }`}
+                        >
+                          {message.kind === "ok" && <PartyPopper className="size-4" />} {message.text}
                         </span>
-                      ) : disabled ? (
+                      ) : cooldown ? (
                         <span className="mt-4 block">
                           <span className="inline-flex items-center gap-1.5 text-sm font-bold">
-                            <Clock className="size-4" /> Vent {secondsLeft} s
+                            <Clock className="size-4" /> Vent litt …
                           </span>
                           <span className="mt-2 block h-2 overflow-hidden rounded-full bg-white/60">
                             <span
-                              className="block h-full rounded-full transition-all"
-                              style={{
-                                width: `${Math.max(0, Math.min(100, (secondsLeft / 10) * 100))}%`,
-                                background: color.ink,
-                              }}
+                              key={cooldown.until}
+                              className="cooldown-bar block h-full rounded-full"
+                              style={{ animationDuration: `${cooldown.duration}ms`, background: color.ink }}
                             />
                           </span>
                         </span>

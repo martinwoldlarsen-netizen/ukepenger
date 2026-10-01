@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { DM_Sans, Space_Mono } from "next/font/google";
 import {
   ArrowRight,
   Check,
@@ -18,11 +17,7 @@ import {
 } from "lucide-react";
 import styles from "./LandingClient.module.css";
 
-// Skjermet til forsiden: resten av appen (admin/kids/login) bruker Geist,
-// lastet i app/layout.tsx. next/font er trygt å kalle fra en "use client"-fil
-// så lenge kallet ligger på modul-nivå, ikke inne i komponentfunksjonen.
-const landingSans = DM_Sans({ subsets: ["latin"], variable: "--font-landing-sans" });
-const landingMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-landing-mono" });
+// Skriftene (DM Sans og Space Mono) lastes én gang i app/layout.tsx.
 
 const menyLenker = [
   { href: "#slik-fungerer-det", label: "Slik fungerer det", nummer: "01" },
@@ -351,7 +346,7 @@ export default function LandingClient() {
   const heroBarn = barn[0];
 
   return (
-    <main id="top" className={`${landingSans.variable} ${landingMono.variable} ${styles.landingPage} min-h-screen`}>
+    <main id="top" className={`${styles.landingPage} min-h-screen`}>
       {/* Ligger over menyflaten, sa logo og knapp blir staende i ro nar
           menyen apnes i stedet for a bli dekket til. */}
       <nav className="relative z-[60] mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">

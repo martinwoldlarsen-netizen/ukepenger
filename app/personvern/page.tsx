@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DM_Sans, Space_Mono } from "next/font/google";
 import { ArrowLeft, Coins } from "lucide-react";
 import styles from "../_components/LandingClient.module.css";
-
-const landingSans = DM_Sans({ subsets: ["latin"], variable: "--font-landing-sans" });
-const landingMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-landing-mono" });
 
 export const metadata: Metadata = {
   title: "Personvern | Ukepenger",
@@ -28,7 +24,7 @@ function Avsnitt({ tittel, children }: { tittel: string; children: React.ReactNo
 
 export default function PersonvernPage() {
   return (
-    <main className={`${landingSans.variable} ${landingMono.variable} ${styles.landingPage} min-h-screen`}>
+    <main className={`${styles.landingPage} min-h-screen`}>
       <nav className="mx-auto flex max-w-3xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">
         <Link href="/" className="flex items-center gap-2.5" aria-label="Ukepenger forside">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
