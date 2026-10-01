@@ -137,11 +137,22 @@ export async function GET(request: Request) {
     );
   }
 
+  // E-post ligger i auth-tabellen, ikke i profiles.
+  const members = await Promise.all(
+    (membersRes.data ?? []).map(async (m) => {
+      const userRes = await auth.serviceClient.auth.admin.getUserById(m.user_id as string);
+      return { user_id: m.user_id, role: m.role, created_at: m.created_at, email: userRes.data.user?.email ?? null, isMe: m.user_id === auth.userId };
+    })
+  );
+  const siteUrl = getSiteUrl();
+
   return NextResponse.json({
     ok: true,
-    siteUrl: getSiteUrl(),
-    members: membersRes.data ?? [],
-    invites: (invitesRes.data ?? []) as InviteRow[],
+    siteUrl,
+    members,
+    invites: ((invitesRes.data ?? []) as InviteRow[])
+      .filter((i) => !i.accepted_at && !i.revoked_at)
+      .map(({ token, ...rest }) => ({ ...rest, link: `${siteUrl}/invite/${token}` })),
   });
 }
 
@@ -158,7 +169,7 @@ export async function POST(request: Request) {
 
   const email = body.email?.trim().toLowerCase() ?? "";
   if (!email || !email.includes("@")) {
-    return NextResponse.json({ error: "Ugyldig e-post." }, { status: 400 });
+    return NextResponse.json({ error: "Skriv en gyldig e-postadresse." }, { status: 400 });
   }
 
   const token = createInviteToken();
@@ -182,23 +193,45 @@ export async function POST(request: Request) {
     .single();
 
   if (inviteUpsert.error || !inviteUpsert.data) {
-    return NextResponse.json(
-      { error: inviteUpsert.error?.message ?? "Kunne ikke opprette invitasjon." },
-      { status: 400 }
-    );
+    console.error("[invite]", inviteUpsert.error?.message);
+    return NextResponse.json({ error: "Klarte ikke å lage invitasjonen." }, { status: 400 });
   }
 
   const inviteToken = inviteUpsert.data.token as string;
   const inviteLink = `${getSiteUrl()}/invite/${inviteToken}`;
 
+  // E-post er en bonus: lenken returneres uansett, så den kan deles på SMS
+  // eller Messenger hvis e-posttjenesten ikke er satt opp.
+  let emailed = false;
   try {
     await sendInviteEmail(email, inviteLink);
+    emailed = true;
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Kunne ikke sende e-post." },
-      { status: 500 }
-    );
+    console.error("[invite] e-post ble ikke sendt:", error instanceof Error ? error.message : error);
   }
 
+  return NextResponse.json({ ok: true, inviteLink, emailed });
+}
+
+// Trekk tilbake en invitasjon som ikke er brukt.
+export async function DELETE(request: Request) {
+  const auth = await requireAdmin(request);
+  if (auth.error) return auth.error;
+
+  const body = (await request.json().catch(() => ({}))) as { id?: string };
+  if (!body.id) {
+    return NextResponse.json({ error: "Mangler invitasjon." }, { status: 400 });
+  }
+
+  const res = await auth.serviceClient
+    .from("family_invites")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", body.id)
+    .eq("family_id", auth.familyId)
+    .is("accepted_at", null);
+
+  if (res.error) {
+    return NextResponse.json({ error: "Klarte ikke å trekke tilbake invitasjonen." }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { QrImage } from "@/components/QrCode";
 import useSWR from "swr";
 import { Copy, QrCode, RefreshCw, Tablet } from "lucide-react";
 import { Badge, Button, Card, CardHeader, EmptyState, ListSkeleton } from "@/components/ui";
@@ -88,12 +89,6 @@ export default function AdminDevicesPage() {
     await devices.mutate();
   };
 
-  // QR-bildet lages av en ekstern tjeneste fra lenken.
-  const qrImageUrl = useMemo(
-    () => (claimUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(claimUrl)}` : null),
-    [claimUrl]
-  );
-
   if (!familyId || (devices.isLoading && !devices.data)) return <ListSkeleton rows={2} />;
 
   return (
@@ -113,11 +108,10 @@ export default function AdminDevicesPage() {
           </Button>
         </div>
 
-        {claimUrl && qrImageUrl && (
+        {claimUrl && (
           <div className="animate-pop flex flex-col items-center gap-3 rounded-3xl bg-secondary p-5 text-center">
             <p className="font-semibold">Skann med kameraet på iPaden</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrImageUrl} alt="QR-kode for å koble til iPaden" className="size-60 rounded-2xl bg-white p-3 shadow-sm" />
+            <QrImage value={claimUrl} size={240} className="rounded-2xl bg-white p-3 shadow-sm" />
             <Button
               variant="ghost"
               size="sm"

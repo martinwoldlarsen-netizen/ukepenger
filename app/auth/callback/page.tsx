@@ -4,6 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { peekPendingInvitePath } from "@/lib/pending-invite";
 import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -49,6 +50,13 @@ export default function AuthCallbackPage() {
     const finish = async (user: User) => {
       if (handled || !mounted) return;
       handled = true;
+
+      // Kom brukeren fra en invitasjon, skal de tilbake dit, ikke få ny familie.
+      const invitePath = peekPendingInvitePath();
+      if (invitePath) {
+        router.replace(invitePath);
+        return;
+      }
 
       const ensure = await ensureFamilyForUser({ id: user.id, email: user.email });
       if (ensure.error) {
