@@ -106,23 +106,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="min-w-0 pb-24 md:pb-0">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/85 px-4 py-3.5 backdrop-blur md:px-8 md:py-5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground md:hidden">
-              <Coins className="size-[18px]" strokeWidth={2.5} />
-            </span>
-            <h2 className="text-xl font-bold tracking-tight md:text-2xl">{currentPageTitle}</h2>
-          </div>
-          <button
-            type="button"
-            disabled={signingOut}
-            onClick={() => void signOut()}
-            className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60 md:hidden"
-          >
-            {signingOut ? "Logger ut…" : "Logg ut"}
-          </button>
+        {/* Ingen fast topplinje: bare en stor sidetittel som ruller med innholdet.
+            Menyen ligger nederst på mobil og til venstre på PC; Logg ut ligger i
+            Innstillinger og i sidemenyen. */}
+        <header className="mx-auto max-w-5xl px-4 pb-1 pt-6 md:px-8 md:pt-10">
+          <h2 className="text-[2rem] font-extrabold leading-tight tracking-tight md:text-4xl">{currentPageTitle}</h2>
         </header>
-        <div className="mx-auto max-w-5xl p-4 md:p-8">{children}</div>
+        <div className="mx-auto max-w-5xl px-4 pb-6 pt-3 md:px-8 md:pb-10 md:pt-5">{children}</div>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-card/95 px-1 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1 backdrop-blur md:hidden">

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
@@ -219,15 +218,7 @@ export default function AdminInboxPage() {
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">Ventende krav</h2>
-        <Link
-          href="/admin/payments"
-          className="rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-secondary"
-        >
-          Gå til utbetalinger
-        </Link>
-      </div>
+      <p className="-mt-2 text-muted-foreground">Det barna har gjort og venter på at du godkjenner.</p>
 
       {status && (
         <p

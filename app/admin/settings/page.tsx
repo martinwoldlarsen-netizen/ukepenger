@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCheck, PiggyBank } from "lucide-react";
+import { CheckCheck, LogOut, PiggyBank } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { formatKr } from "@/lib/money";
-import { type ApprovalMode, getCurrentAdminContext } from "@/lib/family-client";
+import { type ApprovalMode, clearAdminIdentityCache, getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
 const SAVINGS_OPTIONS = [0, 5, 10, 15, 20, 25];
 
 export default function AdminSettingsPage() {
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>("REQUIRE_APPROVAL");
   const [savingsPercent, setSavingsPercent] = useState(0);
@@ -166,6 +169,21 @@ export default function AdminSettingsPage() {
           />
         </label>
       </div>
+
+      <button
+        type="button"
+        disabled={signingOut}
+        onClick={async () => {
+          setSigningOut(true);
+          await supabase.auth.signOut();
+          clearAdminIdentityCache();
+          router.replace("/login");
+        }}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3.5 text-sm font-semibold text-foreground transition hover:bg-secondary disabled:opacity-60 md:hidden"
+      >
+        <LogOut className="size-4" />
+        {signingOut ? "Logger ut…" : "Logg ut"}
+      </button>
 
       {status && (
         <p
