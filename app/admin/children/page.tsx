@@ -10,22 +10,27 @@ import { type AdminChild, friendlyError, swrDefaults, useAdminIdentity, useChild
 import { DEFAULT_AVATAR_KEY } from "@/lib/avatars";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
-import { formatKr } from "@/lib/money";
+import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
-type ChildStats = { dueOre: number; paidOre: number; savedOre: number; pendingCount: number };
-const EMPTY_STATS: ChildStats = { dueOre: 0, paidOre: 0, savedOre: 0, pendingCount: 0 };
+type ChildStats = { dueOre: number; paidOre: number; savedOre: number; pendingCount: number; weekOre: number };
+const EMPTY_STATS: ChildStats = { dueOre: 0, paidOre: 0, savedOre: 0, pendingCount: 0, weekOre: 0 };
+const BONUS_AMOUNTS = [10, 20, 50, 100];
 
 async function loadStats(familyId: string) {
-  const res = await supabase.from("claims").select("child_id, status, amount_ore, saved_ore").eq("family_id", familyId);
+  const res = await supabase.from("claims").select("child_id, status, amount_ore, saved_ore, decided_at, created_at").eq("family_id", familyId);
   if (res.error) throw new Error(res.error.message);
   const stats: Record<string, ChildStats> = {};
-  for (const claim of (res.data ?? []) as Array<{ child_id: string; status: string; amount_ore: number; saved_ore: number | null }>) {
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  for (const claim of (res.data ?? []) as Array<{ child_id: string; status: string; amount_ore: number; saved_ore: number | null; decided_at: string | null; created_at: string }>) {
     const s = (stats[claim.child_id] ??= { ...EMPTY_STATS });
     if (claim.status === "SENT") s.pendingCount += 1;
     if (claim.status === "APPROVED") s.dueOre += claim.amount_ore;
     if (claim.status === "PAID") s.paidOre += claim.amount_ore;
-    if (claim.status === "APPROVED" || claim.status === "PAID") s.savedOre += claim.saved_ore ?? 0;
+    if (claim.status === "APPROVED" || claim.status === "PAID") {
+      s.savedOre += claim.saved_ore ?? 0;
+      if (new Date(claim.decided_at ?? claim.created_at).getTime() >= weekAgo) s.weekOre += claim.amount_ore + (claim.saved_ore ?? 0);
+    }
   }
   return stats;
 }
@@ -43,6 +48,44 @@ export default function AdminChildrenPage() {
   const [saving, setSaving] = useState(false);
   const [editingAvatarFor, setEditingAvatarFor] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [bonusFor, setBonusFor] = useState<string | null>(null);
+  const [bonusAmount, setBonusAmount] = useState("");
+  const [bonusText, setBonusText] = useState("");
+  const [bonusSaving, setBonusSaving] = useState(false);
+  const { userId } = useAdminIdentity();
+
+  // Bonus lagres som et godkjent krav uten oppgave, med teksten i note.
+  // Sparing trekkes som for andre godkjente krav.
+  const giveBonus = async (child: AdminChild) => {
+    const amountOre = parseKrToOre(bonusAmount);
+    if (typeof amountOre !== "number" || amountOre <= 0) {
+      toast({ kind: "error", text: "Velg eller skriv et beløp." });
+      return;
+    }
+    if (!familyId || bonusSaving) return;
+    setBonusSaving(true);
+    const now = new Date().toISOString();
+    const res = await supabase.from("claims").insert({
+      family_id: familyId,
+      child_id: child.id,
+      task_id: null,
+      amount_ore: amountOre,
+      status: "APPROVED",
+      note: bonusText.trim().slice(0, 120) || "Bonus",
+      decided_at: now,
+      decided_by: userId,
+    });
+    setBonusSaving(false);
+    if (res.error) {
+      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å gi bonus.") });
+      return;
+    }
+    toast({ text: `🎁 ${formatKr(amountOre)} i bonus til ${child.name}` });
+    setBonusFor(null);
+    setBonusAmount("");
+    setBonusText("");
+    await stats.mutate();
+  };
 
   const all = children.data ?? [];
   const active = all.filter((c) => c.active);
@@ -136,6 +179,25 @@ export default function AdminChildrenPage() {
         </EmptyState>
       )}
 
+      {active.length > 0 && stats.data && (
+        <div className="rounded-[2rem] bg-primary p-5 text-primary-foreground shadow-lg sm:p-6">
+          <p className="text-sm font-semibold opacity-80">Hele familien</p>
+          <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ["Til gode", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.dueOre ?? 0), 0)],
+              ["Spart", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.savedOre ?? 0), 0)],
+              ["Utbetalt", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.paidOre ?? 0), 0)],
+              ["Tjent siste 7 dager", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.weekOre ?? 0), 0)],
+            ].map(([label, ore]) => (
+              <div key={label as string} className="rounded-2xl bg-primary-foreground/12 px-3 py-2.5">
+                <dt className="text-xs font-semibold opacity-80">{label}</dt>
+                <dd className="font-num mt-0.5 text-lg font-bold">{formatKr(ore as number)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+
       <ul className="grid gap-4 sm:grid-cols-2">
         {active.map((child) => {
           const s = stats.data?.[child.id] ?? EMPTY_STATS;
@@ -175,12 +237,61 @@ export default function AdminChildrenPage() {
                 ))}
               </dl>
 
+              {bonusFor === child.id ? (
+                <form
+                  className="animate-pop mx-4 mb-4 space-y-3 rounded-2xl bg-amber-50 p-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void giveBonus(child);
+                  }}
+                >
+                  <p className="font-bold">🎁 Bonus til {child.name}</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {BONUS_AMOUNTS.map((kr) => (
+                      <button
+                        key={kr}
+                        type="button"
+                        aria-pressed={bonusAmount === String(kr)}
+                        onClick={() => setBonusAmount(String(kr))}
+                        className={cx(
+                          "font-num min-h-11 rounded-xl border text-sm font-bold transition",
+                          focusRing,
+                          bonusAmount === String(kr) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-secondary"
+                        )}
+                      >
+                        {kr} kr
+                      </button>
+                    ))}
+                  </div>
+                  <Input value={bonusAmount} onChange={(e) => setBonusAmount(e.target.value)} inputMode="decimal" placeholder="Annet beløp (kr)" />
+                  <Input value={bonusText} onChange={(e) => setBonusText(e.target.value)} maxLength={120} placeholder="Hvorfor? F.eks. hjalp til ekstra" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="secondary" onClick={() => setBonusFor(null)}>
+                      Avbryt
+                    </Button>
+                    <Button type="submit" loading={bonusSaving} disabled={!bonusAmount.trim()}>
+                      Gi bonus
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+
               <div className="flex gap-2 px-4 pb-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setBonusFor(bonusFor === child.id ? null : child.id);
+                    setBonusAmount("");
+                    setBonusText("");
+                  }}
+                >
+                  🎁 Bonus
+                </Button>
                 <Link
                   href={`/admin/children/${child.id}`}
                   className={cx("inline-flex min-h-11 flex-1 items-center justify-between gap-2 rounded-2xl border border-border px-4 text-[15px] font-semibold transition hover:bg-secondary", focusRing)}
                 >
-                  Oppgaver og ønsker <ChevronRight className="size-4" />
+                  Detaljer <ChevronRight className="size-4" />
                 </Link>
                 <Button variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" onClick={() => void setActive(child, false)}>
                   Fjern

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Coins } from "lucide-react";
 import { Button, Field, Input, cx, focusRing } from "@/components/ui";
+import { peekPendingInvitePath } from "@/lib/pending-invite";
 import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -51,6 +52,13 @@ export default function LoginPage() {
       return;
     }
 
+    // Kom brukeren fra en invitasjon, skal de inn i den familien, ikke få en ny.
+    const invitePath = peekPendingInvitePath();
+    if (invitePath) {
+      router.push(invitePath);
+      return;
+    }
+
     const ensure = await ensureFamilyForUser({
       id: result.data.user.id,
       email: result.data.user.email,
@@ -82,6 +90,12 @@ export default function LoginPage() {
     if (!result.data.user) {
       setAction(null);
       setStatus("Feil: Noe gikk galt. Prøv igjen.");
+      return;
+    }
+
+    const invitePath = peekPendingInvitePath();
+    if (invitePath) {
+      router.push(invitePath);
       return;
     }
 

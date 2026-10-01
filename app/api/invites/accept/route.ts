@@ -73,7 +73,7 @@ export async function POST(request: Request) {
   }
 
   if (!inviteRes.data) {
-    return NextResponse.json({ error: "Invitasjon ikke funnet." }, { status: 404 });
+    return NextResponse.json({ error: "Fant ikke invitasjonen." }, { status: 404 });
   }
 
   const invite = inviteRes.data as InviteRow;
@@ -84,10 +84,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invitasjonen er allerede akseptert." }, { status: 400 });
   }
   if (new Date(invite.expires_at).getTime() <= Date.now()) {
-    return NextResponse.json({ error: "Invitasjonen er utlopet." }, { status: 400 });
+    return NextResponse.json({ error: "Invitasjonen er utløpt. Be om en ny lenke." }, { status: 400 });
   }
   if (invite.email.toLowerCase() !== user.email.toLowerCase()) {
-    return NextResponse.json({ error: "Invitasjonen matcher ikke innlogget e-post." }, { status: 403 });
+    return NextResponse.json({ error: "Invitasjonen ble sendt til en annen e-post enn den du er logget inn med." }, { status: 403 });
   }
 
   const profileRes = await serviceClient
@@ -119,7 +119,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: updateProfile.error.message }, { status: 400 });
     }
   } else if ((profileRes.data.family_id as string) !== invite.family_id) {
-    return NextResponse.json({ error: "Brukeren er allerede koblet til en annen familie." }, { status: 409 });
+    // Brukeren kan ha fått en tom familie automatisk ved første innlogging.
+    // Er den tom (ingen barn, ingen andre voksne), flytter vi brukeren over.
+    const oldFamilyId = profileRes.data.family_id as string;
+    const [childrenRes, membersRes] = await Promise.all([
+      serviceClient.from("children").select("id", { count: "exact", head: true }).eq("family_id", oldFamilyId),
+      serviceClient.from("profiles").select("user_id", { count: "exact", head: true }).eq("family_id", oldFamilyId),
+    ]);
+    const emptyFamily = (childrenRes.count ?? 0) === 0 && (membersRes.count ?? 0) <= 1;
+    if (!emptyFamily) {
+      return NextResponse.json(
+        { error: "Du er allerede med i en annen familie med barn. Logg inn med en annen e-post for å bli med her." },
+        { status: 409 }
+      );
+    }
+    const moveRes = await serviceClient
+      .from("profiles")
+      .update({ family_id: invite.family_id, role: "ADMIN" })
+      .eq("user_id", user.id);
+    if (moveRes.error) {
+      return NextResponse.json({ error: "Klarte ikke å bli med i familien." }, { status: 400 });
+    }
   }
 
   const acceptRes = await serviceClient

@@ -8,14 +8,9 @@ import { type AdminTask, friendlyError, useAdminIdentity, useTasks } from "@/lib
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { kidColor } from "@/app/kids/_lib/palette";
+import { TASK_PACKS, type TaskPack } from "@/lib/task-packs";
 
-const SUGGESTIONS = [
-  { title: "Rydde rommet", kr: 25 },
-  { title: "Ta oppvasken", kr: 20 },
-  { title: "Ta ut søppel", kr: 15 },
-  { title: "Støvsuge", kr: 30 },
-  { title: "Dekke bordet", kr: 10 },
-];
+const SUGGESTIONS = TASK_PACKS.flatMap((p) => p.tasks).slice(0, 8);
 
 export default function AdminTasksPage() {
   const toast = useToast();
@@ -53,6 +48,26 @@ export default function AdminTasksPage() {
     setTitle("");
     setAmount("");
     setFormOpen(false);
+    await tasks.mutate();
+  };
+
+  const [addingPack, setAddingPack] = useState<string | null>(null);
+
+  // Legger til oppgavene i pakken som familien ikke allerede har.
+  const addPack = async (pack: TaskPack) => {
+    if (!familyId || addingPack) return;
+    const missing = pack.tasks.filter((t) => !existingTitles.has(t.title.toLowerCase()));
+    if (missing.length === 0) return;
+    setAddingPack(pack.key);
+    const res = await supabase
+      .from("tasks")
+      .insert(missing.map((t) => ({ family_id: familyId, title: t.title, amount_ore: t.kr * 100, active: true })));
+    setAddingPack(null);
+    if (res.error) {
+      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å legge til pakken.") });
+      return;
+    }
+    toast({ text: `${pack.emoji} ${missing.length} oppgaver lagt til` });
     await tasks.mutate();
   };
 
@@ -173,6 +188,34 @@ export default function AdminTasksPage() {
           })}
         </ul>
       )}
+      <div>
+        <h2 className="mb-2 text-lg font-bold tracking-tight">Oppgavepakker</h2>
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0">
+          {TASK_PACKS.map((pack) => {
+            const missing = pack.tasks.filter((t) => !existingTitles.has(t.title.toLowerCase()));
+            return (
+              <div key={pack.key} className="flex w-64 shrink-0 flex-col rounded-3xl border border-border bg-card p-4 shadow-sm md:w-auto">
+                <p className="text-lg font-bold">
+                  <span aria-hidden="true">{pack.emoji}</span> {pack.title}
+                </p>
+                <p className="mt-1 flex-1 text-sm text-muted-foreground">{pack.tasks.map((t) => t.title).join(" · ")}</p>
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  variant={missing.length ? "secondary" : "ghost"}
+                  disabled={missing.length === 0}
+                  loading={addingPack === pack.key}
+                  icon={missing.length ? <Plus className="size-4" /> : undefined}
+                  onClick={() => void addPack(pack)}
+                >
+                  {missing.length === 0 ? "Alle er lagt til" : missing.length === pack.tasks.length ? "Legg til alle" : `Legg til ${missing.length} nye`}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
     </section>
   );
 }

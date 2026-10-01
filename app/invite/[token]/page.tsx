@@ -1,117 +1,135 @@
+"use client";
+
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { getServiceSupabaseClient } from "@/lib/server-supabase";
-import { AcceptInviteButton } from "./accept-invite-button";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Coins } from "lucide-react";
+import { Button } from "@/components/ui";
+import { clearAdminIdentityCache } from "@/lib/family-client";
+import { clearPendingInvite, rememberPendingInvite } from "@/lib/pending-invite";
+import { supabase } from "@/lib/supabaseClient";
 
-type InviteRow = {
-  email: string;
-  accepted_at: string | null;
-  expires_at: string;
-  revoked_at: string | null;
-};
+type InviteInfo = { status: "pending" | "accepted" | "revoked" | "expired" | "not_found"; email?: string; familyName?: string | null };
 
-type PageProps = {
-  params: Promise<{ token: string }>;
-};
+// Kjører i nettleseren fordi innloggingen ligger i nettleseren (localStorage),
+// ikke i cookies som en serverside kunne lest.
+export default function InvitePage() {
+  const { token } = useParams<{ token: string }>();
+  const router = useRouter();
+  const [info, setInfo] = useState<InviteInfo | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null | undefined>(undefined);
+  const [accepting, setAccepting] = useState(false);
+  const [error, setError] = useState("");
 
-export default async function InvitePage({ params }: PageProps) {
-  const { token } = await params;
-  const siteUrl = process.env.SITE_URL?.trim() || "https://www.ukepenger.no";
-  const cookieStore = await cookies();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const [infoRes, sessionRes] = await Promise.all([
+        fetch(`/api/invites/info?token=${encodeURIComponent(token)}`).then((r) => r.json()).catch(() => ({ status: "not_found" })),
+        supabase.auth.getSession(),
+      ]);
+      if (!alive) return;
+      setInfo(infoRes as InviteInfo);
+      setUserEmail(sessionRes.data.session?.user.email ?? null);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [token]);
 
-  if (!url || !anonKey) {
-    return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
-        <p>Feil: Supabase env mangler.</p>
-      </main>
+  const accept = async () => {
+    setError("");
+    setAccepting(true);
+    const sessionRes = await supabase.auth.getSession();
+    const accessToken = sessionRes.data.session?.access_token;
+    if (!accessToken) {
+      setAccepting(false);
+      setUserEmail(null);
+      return;
+    }
+    const res = await fetch("/api/invites/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ token }),
+    });
+    const payload = (await res.json().catch(() => ({}))) as { error?: string };
+    setAccepting(false);
+    if (!res.ok) {
+      setError(payload.error ?? "Klarte ikke å bli med. Prøv igjen.");
+      return;
+    }
+    clearPendingInvite();
+    clearAdminIdentityCache();
+    router.replace("/admin/inbox");
+  };
+
+  const familyLabel = info?.familyName ? `familien ${info.familyName.replace(/^familien\s+/i, "")}` : "en familie";
+
+  let body: React.ReactNode;
+  if (!info || userEmail === undefined) {
+    body = <div className="mx-auto size-10 animate-spin rounded-full border-4 border-secondary border-t-primary" role="status" aria-label="Laster" />;
+  } else if (info.status !== "pending") {
+    const text = {
+      accepted: "Denne invitasjonen er allerede brukt.",
+      revoked: "Invitasjonen er trukket tilbake.",
+      expired: "Invitasjonen er utløpt. Be den som inviterte deg om en ny lenke.",
+      not_found: "Fant ikke invitasjonen. Sjekk at du har hele lenken.",
+    }[info.status];
+    body = (
+      <>
+        <div className="text-5xl" aria-hidden="true">✉️</div>
+        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">{text}</h1>
+        <Link href="/login" className="mt-6 inline-flex font-semibold text-primary underline underline-offset-4">
+          Til innlogging
+        </Link>
+      </>
     );
-  }
+  } else {
+    body = (
+      <>
+        <div className="text-5xl" aria-hidden="true">👨‍👩‍👧</div>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight">Du er invitert!</h1>
+        <p className="mt-2 text-muted-foreground">
+          Bli med i {familyLabel} på Ukepenger, så kan dere begge godkjenne oppgaver og betale ut.
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Invitasjonen er sendt til {info.email}.</p>
 
-  const supabase = createServerClient(url, anonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll() {},
-    },
-  });
-
-  const userRes = await supabase.auth.getUser();
-  const user = userRes.data.user;
-
-  if (!user) {
-    return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
-        <section className="space-y-4 rounded-2xl border border-border bg-card p-6">
-          <h1 className="text-xl font-semibold">Invitasjon</h1>
-          <p>Logg inn for å akseptere invitasjonen.</p>
-          <Link
-            href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}
-            className="inline-flex rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-secondary"
-          >
-            Gå til login
-          </Link>
-        </section>
-      </main>
+        {userEmail ? (
+          <div className="mt-6 space-y-3">
+            <Button size="lg" block loading={accepting} onClick={() => void accept()}>
+              Bli med i familien
+            </Button>
+            <p className="text-sm text-muted-foreground">Logget inn som {userEmail}</p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-3">
+            <Button
+              size="lg"
+              block
+              onClick={() => {
+                rememberPendingInvite(token);
+                router.push("/login");
+              }}
+            >
+              Logg inn eller lag konto
+            </Button>
+            <p className="text-sm text-muted-foreground">Bruk e-posten invitasjonen ble sendt til.</p>
+          </div>
+        )}
+        {error && <p role="alert" className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-800">{error}</p>}
+      </>
     );
-  }
-
-  const serviceClient = getServiceSupabaseClient();
-  if (!serviceClient) {
-    return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
-        <p>Feil: Server mangler service role key.</p>
-      </main>
-    );
-  }
-
-  const inviteRes = await serviceClient
-    .from("family_invites")
-    .select("email, accepted_at, expires_at, revoked_at")
-    .eq("token", token)
-    .maybeSingle();
-
-  if (inviteRes.error || !inviteRes.data) {
-    return (
-      <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
-        <p>Invitasjonen finnes ikke.</p>
-      </main>
-    );
-  }
-
-  const invite = inviteRes.data as InviteRow;
-  const inviteEmail = invite.email.toLowerCase();
-  const userEmail = (user.email ?? "").toLowerCase();
-
-  // Serverkomponent som rendres én gang per forespørsel, så "nå" er stabilt.
-  // eslint-disable-next-line react-hooks/purity
-  const isExpired = new Date(invite.expires_at).getTime() <= Date.now();
-
-  let message: string | null = null;
-  if (invite.revoked_at) {
-    message = "Invitasjonen er trukket tilbake.";
-  } else if (invite.accepted_at) {
-    message = "Invitasjonen er allerede akseptert.";
-  } else if (isExpired) {
-    message = "Invitasjonen er utløpt.";
-  } else if (!userEmail || userEmail !== inviteEmail) {
-    message = `Du er logget inn som ${user.email ?? "ukjent"}, men invitasjonen er for ${invite.email}.`;
   }
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-10 text-foreground">
-      <section className="space-y-4 rounded-2xl border border-border bg-card p-6">
-        <h1 className="text-xl font-semibold">Invitasjon til Ukepenger</h1>
-        <p className="text-sm text-foreground/80">Link: {`${siteUrl}/invite/${token}`}</p>
-        {message ? (
-          <p>{message}</p>
-        ) : (
-          <AcceptInviteButton token={token} />
-        )}
-      </section>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10 text-foreground">
+      <Link href="/" className="mb-8 flex items-center gap-2.5">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          <Coins className="size-5" strokeWidth={2.5} />
+        </span>
+        <span className="font-num text-lg font-bold tracking-[-0.06em]">ukepenger</span>
+      </Link>
+      <section className="w-full max-w-md rounded-[2rem] border border-border bg-card p-8 text-center shadow-xl shadow-black/5">{body}</section>
     </main>
   );
 }

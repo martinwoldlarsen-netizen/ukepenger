@@ -26,6 +26,7 @@ type ApprovedClaim = {
   task_id: string | null;
   amount_ore: number;
   created_at: string;
+  note?: string | null;
   tasks: { title: string } | { title: string }[] | null;
 };
 
@@ -64,7 +65,7 @@ async function loadPayments(familyId: string) {
   const approved = check(
     await supabase
       .from("claims")
-      .select("id, child_id, task_id, amount_ore, created_at, tasks(title)")
+      .select("id, child_id, task_id, amount_ore, created_at, note, tasks(title)")
       .eq("family_id", familyId)
       .eq("status", "APPROVED")
       .order("created_at", { ascending: false })
@@ -91,9 +92,9 @@ async function loadPayments(familyId: string) {
     const rows = check(
       await supabase
         .from("payment_claims")
-        .select("payment_id, claims(id, amount_ore, task_id, tasks(title))")
+        .select("payment_id, claims(id, amount_ore, task_id, note, tasks(title))")
         .in("payment_id", payments.map((p) => p.id))
-    ) as Array<{ payment_id: string; claims: { id: string; amount_ore: number; task_id: string | null; tasks: ApprovedClaim["tasks"] } | Array<{ id: string; amount_ore: number; task_id: string | null; tasks: ApprovedClaim["tasks"] }> | null }>;
+    ) as Array<{ payment_id: string; claims: { id: string; amount_ore: number; task_id: string | null; note?: string | null; tasks: ApprovedClaim["tasks"] } | Array<{ id: string; amount_ore: number; task_id: string | null; note?: string | null; tasks: ApprovedClaim["tasks"] }> | null }>;
     for (const row of rows) {
       const claim = Array.isArray(row.claims) ? row.claims[0] : row.claims;
       if (!claim) continue;

@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_AVATAR_KEY } from "@/lib/avatars";
+import { formatKr } from "@/lib/money";
+import { TASK_PACKS } from "@/lib/task-packs";
+import { QrImage } from "@/components/QrCode";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { ensureFamilyForUser, getAdminSetupStatus, getCurrentSessionUser, type ApprovalMode } from "@/lib/family-client";
@@ -20,17 +23,11 @@ type ChildDraft = {
   avatarKey: string;
 };
 
-const defaultTasks: TaskTemplate[] = [
-  { key: "rydde", title: "Rydde rommet", amountOre: 2500, enabled: true },
-  { key: "oppvask", title: "Ta oppvask", amountOre: 2000, enabled: true },
-  { key: "soppel", title: "Ta ut soppel", amountOre: 1500, enabled: true },
-  { key: "lekser", title: "Lekser uten mas", amountOre: 3000, enabled: false },
-  { key: "hund", title: "Lufte hund", amountOre: 2500, enabled: false },
-];
-
-function formatKr(ore: number) {
-  return `${(ore / 100).toFixed(2)} kr`;
-}
+// Forslagene kommer fra oppgavepakkene. De vanligste er slått på fra start.
+const ON_BY_DEFAULT = new Set(["Rydde rommet", "Ta oppvasken", "Ta ut søppel", "Dekke bordet"]);
+const defaultTasks: TaskTemplate[] = TASK_PACKS.flatMap((pack) =>
+  pack.tasks.map((t) => ({ key: `${pack.key}-${t.title}`, title: t.title, amountOre: t.kr * 100, enabled: ON_BY_DEFAULT.has(t.title) }))
+);
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -134,11 +131,6 @@ export default function OnboardingPage() {
     const amountOre = Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) : 0;
     setTaskTemplates((prev) => prev.map((task) => (task.key === key ? { ...task, amountOre } : task)));
   };
-
-  const qrImageUrl = useMemo(() => {
-    if (!claimUrl) return null;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(claimUrl)}`;
-  }, [claimUrl]);
 
   const openQr = async (regenerate: boolean) => {
     setQrBusy(true);
@@ -513,13 +505,7 @@ export default function OnboardingPage() {
               {claimUrl && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   <div className="mb-3 text-sm font-semibold text-amber-800">Skann QR med iPad</div>
-                  {qrImageUrl && (
-                    <img
-                      src={qrImageUrl}
-                      alt="Kiosk QR"
-                      className="h-[260px] w-[260px] rounded-xl border border-amber-200 bg-card p-2"
-                    />
-                  )}
+                  <QrImage value={claimUrl} size={240} className="rounded-xl border border-amber-200 bg-white p-2" />
                   <div className="mt-3 break-all rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs">{claimUrl}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button

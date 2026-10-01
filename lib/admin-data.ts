@@ -140,11 +140,13 @@ export type PendingClaim = {
   amount_ore: number;
   child_id: string;
   task_id: string | null;
+  note?: string | null;
   tasks: { title: string } | { title: string }[] | null;
 };
 
-export function taskTitleOf(claim: { task_id: string | null; tasks: PendingClaim["tasks"] }) {
-  if (!claim.task_id) return "Butikksalg";
+// Krav uten oppgave er enten en bonus (har tekst) eller et butikksalg.
+export function taskTitleOf(claim: { task_id: string | null; tasks: PendingClaim["tasks"]; note?: string | null }) {
+  if (!claim.task_id) return claim.note ? `Bonus: ${claim.note}` : "Butikksalg";
   const t = Array.isArray(claim.tasks) ? claim.tasks[0] : claim.tasks;
   return t?.title ?? "Oppgave";
 }
@@ -156,7 +158,7 @@ export function usePendingClaims(familyId: string | null) {
       check(
         await supabase
           .from("claims")
-          .select("id, created_at, amount_ore, child_id, task_id, tasks(title)")
+          .select("id, created_at, amount_ore, child_id, task_id, note, tasks(title)")
           .eq("family_id", familyId as string)
           .eq("status", "SENT")
           .order("created_at", { ascending: false })

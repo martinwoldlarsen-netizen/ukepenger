@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
+import { KidHistory, kidHistoryKey } from "../_components/KidHistory";
 import { ArrowLeft, Check, Clock, Gift, PartyPopper, Pencil, Send, Sparkles, X } from "lucide-react";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
@@ -107,6 +108,7 @@ export default function KidTaskPage() {
   const [savingsPercent, setSavingsPercent] = useState(0);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
+  const { mutate: mutateGlobal } = useSWRConfig();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
 
@@ -218,6 +220,7 @@ export default function KidTaskPage() {
       return;
     }
 
+    void mutateGlobal(kidHistoryKey(childId));
     if (payload.status === "APPROVED") {
       // Samme regel som databasen: sparedelen rundes ned og trekkes fra beløpet.
       const savedPart = Math.floor((task.amount_ore * savingsPercent) / 100);
@@ -501,6 +504,8 @@ export default function KidTaskPage() {
               </div>
             )}
           </section>
+
+          <KidHistory childId={childId} />
         </div>
 
         {/* Ønsker */}
