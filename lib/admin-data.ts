@@ -175,6 +175,8 @@ export type PendingWish = {
   target_ore: number | null;
   suggested_ore: number | null;
   balance_ore: number;
+  emoji?: string | null;
+  purchase_requested_at?: string | null;
   created_at: string;
 };
 

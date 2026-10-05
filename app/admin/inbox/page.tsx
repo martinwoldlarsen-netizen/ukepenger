@@ -205,11 +205,22 @@ export default function AdminInboxPage() {
                   <Avatar avatarKey={child.avatar_key} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-muted-foreground">
-                      {child.name} ønsker seg · {formatWhen(wish.created_at)}
+                      {wish.purchase_requested_at
+                        ? `${child.name} vil kjøpe · ${formatWhen(wish.purchase_requested_at)}`
+                        : `${child.name} ønsker seg · ${formatWhen(wish.created_at)}`}
                     </p>
-                    <p className="mt-0.5 text-xl font-bold leading-snug tracking-tight">{wish.title}</p>
+                    <p className="mt-0.5 text-xl font-bold leading-snug tracking-tight">
+                      {wish.emoji && <span aria-hidden="true">{wish.emoji} </span>}
+                      {wish.title}
+                    </p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      {wish.status === "ACTIVE" ? <Badge tone="success">Har spart nok</Badge> : <Badge tone="warning">Nytt ønske</Badge>}
+                      {wish.purchase_requested_at ? (
+                        <Badge tone="primary">🛒 Vil kjøpe nå!</Badge>
+                      ) : wish.status === "ACTIVE" ? (
+                        <Badge tone="success">Har spart nok</Badge>
+                      ) : (
+                        <Badge tone="warning">Nytt ønske</Badge>
+                      )}
                       <Badge>Til gode {formatKr(wish.balance_ore)}</Badge>
                     </div>
                   </div>

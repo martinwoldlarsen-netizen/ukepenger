@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
   const itemsRes = await loaded.supabase
     .from("wishlist_items")
-    .select("id, title, target_ore, suggested_ore, status, created_by, note, created_at, paid_at")
+    .select("id, title, emoji, target_ore, suggested_ore, status, created_by, note, created_at, paid_at, purchase_requested_at")
     .eq("family_id", auth.familyId)
     .eq("child_id", childId)
     .eq("active", true)
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Kiosk-session mangler eller er ugyldig." }, { status: 401 });
   }
 
-  let body: { childId?: unknown; title?: unknown; suggestedOre?: unknown } = {};
+  let body: { childId?: unknown; title?: unknown; suggestedOre?: unknown; emoji?: unknown } = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -93,6 +93,9 @@ export async function POST(request: Request) {
   if (title.length > MAX_TITLE_LENGTH) {
     return NextResponse.json({ error: `Ønsket kan være maks ${MAX_TITLE_LENGTH} tegn.` }, { status: 400 });
   }
+
+  // Emoji fra katalogen i Ønskebutikken (valgfri, kort).
+  const emoji = typeof body.emoji === "string" && body.emoji.trim() && body.emoji.length <= 16 ? body.emoji.trim() : null;
 
   let suggestedOre: number | null = null;
   if (body.suggestedOre !== undefined && body.suggestedOre !== null) {
@@ -133,11 +136,12 @@ export async function POST(request: Request) {
       title,
       target_ore: null,
       suggested_ore: suggestedOre,
+      emoji,
       status: "PROPOSED",
       created_by: "CHILD",
       active: true,
     })
-    .select("id, title, target_ore, suggested_ore, status, created_by, note, created_at")
+    .select("id, title, emoji, target_ore, suggested_ore, status, created_by, note, created_at, paid_at, purchase_requested_at")
     .single();
 
   if (insertRes.error || !insertRes.data) {
