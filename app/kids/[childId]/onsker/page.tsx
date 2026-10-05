@@ -8,6 +8,7 @@ import { ArrowLeft, Check, ChevronLeft, Clock, PartyPopper, Pencil, Plus, Shoppi
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { DEFAULT_WISH_EMOJI, PRICE_CHIPS, WISH_CATEGORIES, type WishCategory } from "@/lib/wish-catalog";
 import { kidColor } from "../../_lib/palette";
+import { taskEmoji } from "@/lib/task-emoji";
 
 type Wish = {
   id: string;
@@ -165,8 +166,8 @@ export default function WishShopPage() {
                       <>
                         <ProgressBar pct={pct} color={color.ink} />
                         <span className="mt-1.5 flex items-center justify-between text-sm font-bold">
-                          <span>{enough ? "Klar! 🎉" : `${pct} %`}</span>
-                          <span className="font-num">{formatKr(price)}</span>
+                          <span>{enough && wish.status === "ACTIVE" ? "Klar! 🎉" : `${pct} %`}</span>
+                          <span className="font-num">{wish.status === "PROPOSED" ? "ca. " : ""}{formatKr(price)}</span>
                         </span>
                       </>
                     ) : (
@@ -174,7 +175,7 @@ export default function WishShopPage() {
                         <Clock className="size-3.5" /> En voksen setter pris
                       </span>
                     )}
-                    {wish.purchase_requested_at && (
+                    {wish.purchase_requested_at && enough && (
                       <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-bold">
                         <ShoppingCart className="size-3.5" /> Kjøpt – venter på en voksen
                       </span>
@@ -261,7 +262,9 @@ function WishDetailSheet({
   const missing = price ? Math.max(0, price - data.balanceOre) : 0;
   const enough = price !== null && missing === 0;
   const [buying, setBuying] = useState(false);
-  const [bought, setBought] = useState(Boolean(wish.purchase_requested_at));
+  // Et gammelt kjøp teller bare hvis barnet fortsatt har nok (pengene kan ha
+  // blitt brukt på noe annet i mellomtiden).
+  const [bought, setBought] = useState(Boolean(wish.purchase_requested_at) && enough);
   const [error, setError] = useState("");
 
   // Hvor mange ganger må barnet gjøre hver oppgave for å nå målet? Regnet med
@@ -271,7 +274,7 @@ function WishDetailSheet({
     return data.tasks
       .map((t) => {
         const net = t.amount_ore - Math.floor((t.amount_ore * data.savingsPercent) / 100);
-        return { title: t.title, times: net > 0 ? Math.ceil(missing / net) : Infinity };
+        return { title: t.title, emoji: taskEmoji(t.title), times: net > 0 ? Math.ceil(missing / net) : Infinity };
       })
       .filter((p) => Number.isFinite(p.times))
       .sort((a, b) => a.times - b.times)
@@ -334,6 +337,7 @@ function WishDetailSheet({
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {plan.map((p, i) => (
               <li key={p.title} className="flex items-center gap-3 rounded-2xl px-4 py-3 font-semibold" style={{ background: kidColor(i).bg, color: kidColor(i).ink }}>
+                <span className="text-2xl" aria-hidden="true">{p.emoji}</span>
                 <span className="font-num text-2xl font-bold">{p.times}×</span>
                 <span className="min-w-0 flex-1 leading-tight">{p.title}</span>
               </li>

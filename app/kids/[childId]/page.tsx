@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { KidHistory, kidHistoryKey } from "../_components/KidHistory";
-import { ArrowLeft, ArrowRight, Check, Clock, PartyPopper, Pencil, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, PartyPopper, Pencil, Volume2, X } from "lucide-react";
+import { taskEmoji } from "@/lib/task-emoji";
+import { readAloud } from "../_lib/read-aloud";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
@@ -225,9 +227,11 @@ export default function KidTaskPage() {
       setSavedOre((prev) => (prev === null ? null : prev + savedPart));
       setEarnedOre((prev) => prev + task.amount_ore);
       showCardMessage(taskId, { kind: "ok", text: `Bra jobba! +${formatKr(task.amount_ore)}` });
+      readAloud("Bra jobba!");
       return;
     }
     showCardMessage(taskId, { kind: "ok", text: "Bra jobba! En voksen sjekker snart." });
+    readAloud("Bra jobba!");
   };
 
   // Ønsket barnet er nærmest å ha råd til, vist på gave-knappen.
@@ -355,10 +359,10 @@ export default function KidTaskPage() {
             <p className="font-num mt-1 text-5xl font-bold tracking-tight sm:text-6xl">
               {loading ? "…" : formatKr(approvedOre)}
             </p>
-            <p className="mt-1 text-sm opacity-75">Godkjent, og venter på å bli utbetalt</p>
+            <p className="mt-1 text-sm opacity-75">Penger du har tjent, men ikke fått ennå</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-primary-foreground/12 px-4 py-3">
-                <p className="text-xs font-semibold opacity-75">Venter på godkjenning</p>
+                <p className="text-xs font-semibold opacity-75">Venter på en voksen</p>
                 <p className="font-num mt-0.5 text-xl font-bold">{formatKr(pendingOre)}</p>
               </div>
               <div className="rounded-2xl bg-primary-foreground/12 px-4 py-3">
@@ -444,18 +448,26 @@ export default function KidTaskPage() {
                   const color = kidColor(index);
 
                   return (
+                    <div key={task.id} className="relative">
                     <button
-                      key={task.id}
                       type="button"
                       disabled={Boolean(cooldown)}
                       onClick={() => void submitClaim(task.id)}
-                      className="flex min-h-32 flex-col justify-between rounded-[1.75rem] p-5 text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:translate-y-0 sm:min-h-40"
+                      className="flex h-full min-h-32 w-full flex-col justify-between rounded-[1.75rem] p-5 text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:translate-y-0 sm:min-h-40"
                       style={{ background: color.bg, color: color.ink }}
                     >
-                      <span className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-                        <span className="min-w-0 flex-1 text-2xl font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{task.title}</span>
-                        <span className="font-num shrink-0 rounded-full bg-white/80 px-3 py-1 text-base font-bold">
-                          +{formatKr(task.amount_ore)}
+                      <span className="flex items-start gap-3">
+                        {/* Bilde så barn som ikke kan lese ennå kjenner igjen oppgaven. */}
+                        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-3xl shadow-sm" aria-hidden="true">
+                          {taskEmoji(task.title)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-2xl font-extrabold leading-tight tracking-tight [hyphens:auto] [overflow-wrap:break-word]" lang="nb">
+                            {task.title}
+                          </span>
+                          <span className="font-num mt-1.5 inline-block rounded-full bg-white/80 px-3 py-1 text-base font-bold">
+                            +{formatKr(task.amount_ore)}
+                          </span>
                         </span>
                       </span>
 
@@ -469,7 +481,7 @@ export default function KidTaskPage() {
                           {message.kind === "ok" && <PartyPopper className="size-4" />} {message.text}
                         </span>
                       ) : cooldown ? (
-                        <span className="mt-4 block">
+                        <span className="mt-4 block pr-14">
                           <span className="inline-flex items-center gap-1.5 text-sm font-bold">
                             <Clock className="size-4" /> Vent litt …
                           </span>
@@ -487,6 +499,16 @@ export default function KidTaskPage() {
                         </span>
                       )}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => readAloud(`${task.title}. Du får ${formatKr(task.amount_ore).replace(" kr", " kroner")}.`)}
+                      aria-label={`Les opp: ${task.title}`}
+                      className="absolute bottom-4 right-4 flex size-11 items-center justify-center rounded-full bg-white/85 shadow-sm transition active:scale-90"
+                      style={{ color: color.ink }}
+                    >
+                      <Volume2 className="size-5" />
+                    </button>
+                    </div>
                   );
                 })}
               </div>
