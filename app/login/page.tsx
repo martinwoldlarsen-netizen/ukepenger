@@ -9,6 +9,8 @@ import { peekPendingInvitePath } from "@/lib/pending-invite";
 import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
+const MIN_PASSWORD = 10;
+
 type AuthAction = "login" | "signup" | "google" | "apple" | null;
 
 export default function LoginPage() {
@@ -44,6 +46,12 @@ export default function LoginPage() {
 
   const handleSignUp = async () => {
     setStatus("");
+    // Lange passord/passfraser er tryggest. Gjelder nye kontoer; eksisterende
+    // passord fungerer som før.
+    if (password.length < MIN_PASSWORD) {
+      setStatus(`Feil: Velg et passord på minst ${MIN_PASSWORD} tegn. Tips: bruk en setning, f.eks. «blå sykkel i hagen».`);
+      return;
+    }
     setAction("signup");
     const result = await supabase.auth.signUp({ email, password });
 
@@ -190,7 +198,7 @@ export default function LoginPage() {
             <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="navn@epost.no" />
           </Field>
           <Field label="Passord">
-            <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minst 6 tegn" />
+            <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Passord eller passfrase" />
           </Field>
 
           {status && (
@@ -216,7 +224,8 @@ function authErrorText(message: string) {
   if (/invalid login credentials/i.test(message)) return "Feil e-post eller passord.";
   if (/email not confirmed/i.test(message)) return "Bekreft e-posten din først. Sjekk innboksen.";
   if (/already registered|already exists/i.test(message)) return "Det finnes allerede en konto med denne e-posten. Prøv å logge inn.";
-  if (/password should be at least|weak password/i.test(message)) return "Passordet må ha minst 6 tegn.";
+  if (/password should be at least|weak password/i.test(message)) return `Passordet må ha minst ${MIN_PASSWORD} tegn.`;
+  if (/pwned|leaked|compromised/i.test(message)) return "Dette passordet har vært med i en kjent datalekkasje. Velg et annet.";
   if (/invalid email|unable to validate email/i.test(message)) return "Sjekk at e-postadressen er riktig.";
   if (/rate limit|too many/i.test(message)) return "For mange forsøk. Vent litt og prøv igjen.";
   if (/fetch|network/i.test(message)) return "Fikk ikke kontakt med serveren. Sjekk nettet.";

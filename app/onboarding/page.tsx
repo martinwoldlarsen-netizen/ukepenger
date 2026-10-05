@@ -293,7 +293,7 @@ export default function OnboardingPage() {
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
                 className="mt-0.5 h-4 w-4"
               />
-              <span>Jeg godtar <a href="/personvern" className="font-semibold underline underline-offset-4">vilkår og personvern</a> for å teste tjenesten.</span>
+              <span>Jeg godtar <a href="/vilkar" className="font-semibold underline underline-offset-4">brukervilkårene</a> og har lest <a href="/personvern" className="font-semibold underline underline-offset-4">personvernerklæringen</a>.</span>
             </label>
             <div className="mt-5 flex justify-end">
               <button
@@ -503,7 +503,8 @@ export default function OnboardingPage() {
 
               {claimUrl && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  <div className="mb-3 text-sm font-semibold text-amber-800">Skann QR med iPad</div>
+                  <div className="mb-1 text-sm font-semibold text-amber-800">Skann QR med iPad</div>
+                  <div className="mb-3 text-xs">Koden virker i 10 minutter og kan brukes én gang. Trykk «Ny QR-kode» hvis den har gått ut.</div>
                   <QrImage value={claimUrl} size={240} className="rounded-xl border border-amber-200 bg-white p-2" />
                   <div className="mt-3 break-all rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs">{claimUrl}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -523,7 +524,7 @@ export default function OnboardingPage() {
                       disabled={qrBusy}
                       className="rounded-xl border border-amber-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:opacity-50"
                     >
-                      Regenerer QR
+                      Ny QR-kode
                     </button>
                   </div>
                 </div>
@@ -541,7 +542,7 @@ export default function OnboardingPage() {
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground">
-              Du finner alltid QR-koden igjen under Admin - Enheter.
+              Du kan alltid koble til flere enheter under Mer → Enheter.
             </p>
 
             <div className="mt-5 flex justify-between">
