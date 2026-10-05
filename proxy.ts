@@ -29,13 +29,21 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (pathname !== "/") {
+  if (pathname !== "/" && pathname !== "/login" && !pathname.startsWith("/admin")) {
     return NextResponse.next();
   }
 
   // Besteforeldre som har lagt Ukepenger på hjemskjermen starter på "/"
   // (manifestets start_url). Send dem rett til sin egen side.
-  if (req.cookies.get("uk_guest")?.value && !kioskCookie) {
+  // Innloggingslenker (e-postbekreftelse/OAuth) som lander på forsiden med en
+  // kode, sendes videre til callback-siden som fullfører innloggingen.
+  if (pathname === "/" && req.nextUrl.searchParams.has("code")) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
+  if (pathname === "/" && req.cookies.get("uk_guest")?.value && !kioskCookie) {
     const url = req.nextUrl.clone();
     url.pathname = "/besteforeldre";
     return NextResponse.redirect(url);
@@ -60,17 +68,23 @@ export async function proxy(req: NextRequest) {
     }
   );
 
+  // Leser (og fornyer ved behov) innloggingen. Fornyede cookies settes av
+  // serveren, så Safari lar dem leve lenge i stedet for 7 dager.
   const { data } = await supabase.auth.getSession();
 
-  if (data.session) {
+  // Allerede innlogget forelder på forsiden eller /login: rett inn i appen.
+  if (data.session && (pathname === "/" || pathname === "/login")) {
     const url = req.nextUrl.clone();
     url.pathname = "/admin/inbox";
-    return NextResponse.redirect(url);
+    url.search = "";
+    const redirect = NextResponse.redirect(url);
+    res.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
   }
 
   return res;
 }
 
 export const config = {
-  matcher: ["/", "/kids/:path*", "/kiosk", "/kiosk/claim", "/api/kids/:path*", "/admin/beta/:path*"],
+  matcher: ["/", "/login", "/admin/:path*", "/kids/:path*", "/kiosk", "/kiosk/claim", "/api/kids/:path*", "/admin/beta/:path*"],
 };

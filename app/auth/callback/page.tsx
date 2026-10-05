@@ -113,6 +113,12 @@ export default function AuthCallbackPage() {
         return;
       }
 
+      // PKCE: åpnes e-postlenken i en annen nettleser enn den kontoen ble laget
+      // i, er e-posten bekreftet, men innloggingen må gjøres på nytt.
+      if (new URLSearchParams(window.location.search).has("code")) {
+        fail("E-posten din er bekreftet. Logg inn med e-post og passord for å fortsette.");
+        return;
+      }
       fail("Fant ikke aktiv sesjon etter OAuth. Prøv igjen fra login.");
     };
 
