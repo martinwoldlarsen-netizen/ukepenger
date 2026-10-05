@@ -2,12 +2,12 @@
 // krav og ønsker, så ingenting lagres og ingenting kan «mistes».
 // Bevisst uten tap, tilfeldighet og sammenligning med søsken.
 
-// Merkene som kan gi bonus, og hvor mange oppgaver de krever.
-export const BONUS_MILESTONES = [
-  { key: "ten", tasks: 10 },
-  { key: "fifty", tasks: 50 },
-  { key: "hundred", tasks: 100 },
-] as const;
+import { TOTAL_MILESTONES, type TaskTrophy } from "@/lib/trophies";
+
+// Nøkkel for totalmerket (de tre første beholder gamle nøkler, så barn som
+// alt har sett dem ikke får feiring på nytt).
+export const totalBadgeKey = (n: number) => ({ 10: "ten", 50: "fifty", 100: "hundred" })[n] ?? `tasks${n}`;
+const TOTAL_EMOJI: Record<number, string> = { 10: "💪", 25: "⚡", 50: "🏅", 100: "🏆", 250: "🚀", 500: "🌈", 1000: "👑" };
 
 export type Badge = { key: string; emoji: string; title: string; hint: string; earned: boolean; progress?: number; bonusOre?: number };
 export type Progress = {
@@ -15,6 +15,8 @@ export type Progress = {
   streakWeeks: number;
   streakDoneThisWeek: boolean;
   month: { label: string; earnedOre: number; tasks: number; topTask: string | null };
+  trophies?: TaskTrophy[];
+  trophiesPay?: boolean;
 };
 
 type ClaimLike = { task_id: string | null; status: string; amount_ore: number; saved_ore: number | null; created_at: string; decided_at: string | null; tasks?: { title: string } | { title: string }[] | null };
@@ -81,12 +83,10 @@ export function computeProgress(claims: ClaimLike[], wishesBought: number, at = 
 
   const badges: Badge[] = [
     badge("first", "🌟", "Første oppgave", "Gjør din første oppgave", nTasks, 1),
-    badge("ten", "💪", "10 oppgaver", "Gjør 10 oppgaver", nTasks, 10),
-    badge("fifty", "🏅", "50 oppgaver", "Gjør 50 oppgaver", nTasks, 50),
-    badge("hundred", "🏆", "100 oppgaver", "Gjør 100 oppgaver", nTasks, 100),
+    ...TOTAL_MILESTONES.map((n) => badge(totalBadgeKey(n), TOTAL_EMOJI[n] ?? "🏅", `${n} oppgaver`, `Gjør ${n} oppgaver`, nTasks, n)),
     badge("kr100", "💰", "Tjent 100 kr", "Tjen 100 kr", earned, 10_000),
     badge("kr500", "💎", "Tjent 500 kr", "Tjen 500 kr", earned, 50_000),
-    badge("kr1000", "👑", "Tjent 1000 kr", "Tjen 1000 kr", earned, 100_000),
+    badge("kr1000", "💸", "Tjent 1000 kr", "Tjen 1000 kr", earned, 100_000),
     badge("saver", "🐷", "Sparegris", "Spar 100 kr i sparegrisen", saved, 10_000),
     badge("wish", "🎁", "Ønske oppfylt", "Kjøp ditt første ønske", wishesBought, 1),
     badge("streak4", "🔥", "4 uker på rad", "Gjør oppgaver 4 uker på rad", streak, 4),

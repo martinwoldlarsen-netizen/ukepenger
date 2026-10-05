@@ -1,14 +1,14 @@
 "use client";
 
 import useSWR from "swr";
-import { CheckCheck, PiggyBank } from "lucide-react";
+import { CheckCheck, ChevronRight, PiggyBank, Trophy } from "lucide-react";
 import { Card, CardHeader, ListSkeleton, Switch, cx, focusRing } from "@/components/ui";
 import { useToast } from "@/components/ui/feedback";
 import { friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
 import type { ApprovalMode } from "@/lib/family-client";
 import { formatKr } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
-import { MilestoneBonusCard } from "./MilestoneBonusCard";
+import Link from "next/link";
 import { NotificationsCard } from "./NotificationsCard";
 
 const SAVINGS_OPTIONS = [0, 5, 10, 15, 20, 25];
@@ -117,7 +117,16 @@ export default function AdminSettingsPage() {
           />
         </div>
       </Card>
-      {familyId && <MilestoneBonusCard familyId={familyId} />}
+      <Link href="/admin/trophies" className={cx("flex items-center gap-4 rounded-3xl border border-border bg-card p-5 shadow-sm transition hover:bg-secondary", focusRing)}>
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+          <Trophy className="size-5" />
+        </span>
+        <span className="flex-1">
+          <span className="block font-bold">Trofeer og bonus</span>
+          <span className="block text-sm text-muted-foreground">Nivåer per oppgave og bonus som går automatisk til barna</span>
+        </span>
+        <ChevronRight className="size-5 text-muted-foreground" />
+      </Link>
     </section>
   );
 }
