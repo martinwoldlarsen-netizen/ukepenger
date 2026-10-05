@@ -146,7 +146,8 @@ export type PendingClaim = {
 
 // Krav uten oppgave er enten en bonus (har tekst) eller et butikksalg.
 export function taskTitleOf(claim: { task_id: string | null; tasks: PendingClaim["tasks"]; note?: string | null }) {
-  if (!claim.task_id) return claim.note ? `Bonus: ${claim.note}` : "Butikksalg";
+  // Gaver fra besteforeldre har allerede «🎁 Gave fra …» i teksten.
+  if (!claim.task_id) return claim.note ? (claim.note.startsWith("🎁") ? claim.note : `Bonus: ${claim.note}`) : "Butikksalg";
   const t = Array.isArray(claim.tasks) ? claim.tasks[0] : claim.tasks;
   return t?.title ?? "Oppgave";
 }
