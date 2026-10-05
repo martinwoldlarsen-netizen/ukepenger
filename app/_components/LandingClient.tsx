@@ -47,7 +47,7 @@ const sporsmal = [
   },
   {
     sporsmal: "Hva lagrer dere om barnet mitt?",
-    svar: "Bare fornavnet du selv skriver inn, og en avatar barnet velger. Vi spør aldri om fødselsdato, personnummer, e-post, telefon eller adresse. Vi bruker heller ingen sporing eller analyseverktøy. Alt lagres i EU.",
+    svar: "Fornavnet du skriver inn, avataren barnet velger, og det barnet gjør i appen: oppgaver, krav, beløp, sparing, utbetalinger, ønsker og trofeer. Vi spør aldri om fødselsdato, fødselsnummer, e-post, telefon eller adresse, og vi bruker ingen sporing eller analyseverktøy. Databasen ligger i Irland (EU). Les mer i personvernerklæringen.",
   },
   {
     sporsmal: "Hvor mange barn kan vi ha?",
@@ -605,6 +605,7 @@ export default function LandingClient() {
             <Link href="/login" className={styles.navLink}>Logg inn</Link>
             <a href="mailto:hei@ukepenger.no" className={styles.navLink}>Kontakt oss</a>
             <Link href="/personvern" className={styles.navLink}>Personvern</Link>
+            <Link href="/vilkar" className={styles.navLink}>Vilkår</Link>
           </div>
           <span>© 2026 Ukepenger.no · Laget for familielivet</span>
         </div>

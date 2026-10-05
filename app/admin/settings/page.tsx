@@ -9,6 +9,7 @@ import type { ApprovalMode } from "@/lib/family-client";
 import { formatKr } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { DeleteAccountCard } from "./DeleteAccountCard";
 import { NotificationsCard } from "./NotificationsCard";
 
 const SAVINGS_OPTIONS = [0, 5, 10, 15, 20, 25];
@@ -127,6 +128,7 @@ export default function AdminSettingsPage() {
         </span>
         <ChevronRight className="size-5 text-muted-foreground" />
       </Link>
+      <DeleteAccountCard />
     </section>
   );
 }

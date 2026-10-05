@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QrImage } from "@/components/QrCode";
 import useSWR from "swr";
-import { Copy, QrCode, RefreshCw, Tablet } from "lucide-react";
+import { Copy, QrCode, Tablet, X } from "lucide-react";
 import { Badge, Button, Card, CardHeader, EmptyState, ListSkeleton } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
 import { adminFetch, friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
@@ -42,27 +42,48 @@ export default function AdminDevicesPage() {
 
   const [busy, setBusy] = useState(false);
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [knownIds, setKnownIds] = useState<string[]>([]);
   const [showOld, setShowOld] = useState(false);
 
   const list = devices.data ?? [];
   const active = list.filter(isActive);
   const old = list.filter((d) => !isActive(d));
 
-  const openQr = async (regenerate: boolean) => {
-    if (regenerate) {
-      const ok = await confirm({
-        title: "Lage ny QR-kode?",
-        text: "Den nyeste iPaden logges ut og må skanne den nye koden.",
-        confirmLabel: "Lag ny",
-      });
-      if (!ok) return;
-    }
+  // Mens QR-koden vises: tell ned og se etter nye enheter, så koden lukkes
+  // av seg selv når iPaden er koblet til.
+  useEffect(() => {
+    if (!claimUrl) return;
+    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    const poll = window.setInterval(() => void devices.mutate(), 4000);
+    return () => {
+      window.clearInterval(tick);
+      window.clearInterval(poll);
+    };
+  }, [claimUrl, devices]);
+
+  const newDevice = claimUrl ? active.find((d) => !knownIds.includes(d.id)) : undefined;
+  useEffect(() => {
+    if (!newDevice) return;
+    const id = window.setTimeout(() => {
+      setClaimUrl(null);
+      toast({ text: `${newDevice.name} er koblet til` });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [newDevice, toast]);
+
+  const secondsLeft = expiresAt ? Math.max(0, Math.round((expiresAt - now) / 1000)) : 0;
+
+  const openQr = async () => {
     setBusy(true);
     try {
-      const payload = await adminFetch<{ claimUrl?: string }>("/api/admin/devices/qr", { method: "POST", body: JSON.stringify({ regenerate }) });
+      const payload = await adminFetch<{ claimUrl?: string; expiresAt?: string }>("/api/admin/devices/qr", { method: "POST", body: "{}" });
       if (!payload.claimUrl) throw new Error("Mangler lenke");
+      setKnownIds(active.map((d) => d.id));
       setClaimUrl(payload.claimUrl);
-      await devices.mutate();
+      setExpiresAt(payload.expiresAt ? new Date(payload.expiresAt).getTime() : Date.now() + 600_000);
+      setNow(Date.now());
     } catch (error) {
       toast({ kind: "error", text: friendlyError(error, "Klarte ikke å lage QR-kode.") });
     } finally {
@@ -73,8 +94,8 @@ export default function AdminDevicesPage() {
   const revoke = async (ids: string[], label: string) => {
     const ok = await confirm({
       title: label,
-      text: "iPaden logges ut av barnesiden og må skanne en ny QR-kode for å komme inn igjen.",
-      confirmLabel: "Deaktiver",
+      text: "Enheten mister tilgangen med en gang og må skanne en ny QR-kode for å komme inn igjen.",
+      confirmLabel: "Fjern",
       danger: true,
     });
     if (!ok) return;
@@ -84,8 +105,7 @@ export default function AdminDevicesPage() {
       toast({ kind: "error", text: friendlyError(res.error.message) });
       return;
     }
-    toast({ text: ids.length === 1 ? "Enheten er deaktivert" : `${ids.length} enheter er deaktivert` });
-    setClaimUrl(null);
+    toast({ text: ids.length === 1 ? "Enheten er fjernet" : `${ids.length} enheter er fjernet` });
     await devices.mutate();
   };
 
@@ -97,21 +117,33 @@ export default function AdminDevicesPage() {
         <CardHeader
           icon={<QrCode className="size-5" />}
           title="Koble til en iPad"
-          description="Vis QR-koden her, og skann den med iPaden barna bruker. Da åpnes barnesiden rett på den."
+          description="Vis QR-koden her, og skann den med iPaden barna bruker. Koden virker i 10 minutter og kan bare brukes én gang."
         />
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button size="lg" loading={busy} onClick={() => void openQr(false)} icon={<QrCode className="size-5" />}>
+        {!claimUrl && (
+          <Button size="lg" block loading={busy} onClick={() => void openQr()} icon={<QrCode className="size-5" />}>
             Vis QR-kode
           </Button>
-          <Button size="lg" variant="secondary" disabled={busy} onClick={() => void openQr(true)} icon={<RefreshCw className="size-4" />}>
-            Lag ny QR-kode
-          </Button>
-        </div>
+        )}
 
-        {claimUrl && (
+        {claimUrl && secondsLeft === 0 && (
           <div className="animate-pop flex flex-col items-center gap-3 rounded-3xl bg-secondary p-5 text-center">
+            <p className="font-semibold">QR-koden er utløpt</p>
+            <Button loading={busy} onClick={() => void openQr()} icon={<QrCode className="size-4" />}>
+              Lag en ny
+            </Button>
+          </div>
+        )}
+
+        {claimUrl && secondsLeft > 0 && (
+          <div className="animate-pop relative flex flex-col items-center gap-3 rounded-3xl bg-secondary p-5 text-center">
+            <button type="button" aria-label="Lukk" onClick={() => setClaimUrl(null)} className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full hover:bg-white/70">
+              <X className="size-5" />
+            </button>
             <p className="font-semibold">Skann med kameraet på iPaden</p>
             <QrImage value={claimUrl} size={240} className="rounded-2xl bg-white p-3 shadow-sm" />
+            <p className="font-num text-sm text-muted-foreground">
+              Virker i {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} · kan brukes én gang
+            </p>
             <Button
               variant="ghost"
               size="sm"
@@ -129,10 +161,10 @@ export default function AdminDevicesPage() {
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold tracking-tight">Tilkoblede iPader</h2>
+          <h2 className="text-lg font-bold tracking-tight">Tilkoblede enheter</h2>
           {active.length > 1 && (
-            <Button variant="dangerSoft" size="sm" onClick={() => void revoke(active.map((d) => d.id), `Deaktivere alle ${active.length}?`)}>
-              Deaktiver alle
+            <Button variant="dangerSoft" size="sm" onClick={() => void revoke(active.map((d) => d.id), `Fjerne alle ${active.length}?`)}>
+              Fjern alle
             </Button>
           )}
         </div>
@@ -153,8 +185,8 @@ export default function AdminDevicesPage() {
                   </p>
                   <p className="text-sm text-muted-foreground">Koblet til {formatWhen(device.created_at)}</p>
                 </div>
-                <Button variant="ghost" size="sm" className="text-red-700 hover:bg-red-50" onClick={() => void revoke([device.id], "Deaktivere iPaden?")}>
-                  Deaktiver
+                <Button variant="dangerSoft" size="sm" className="min-h-11" onClick={() => void revoke([device.id], `Fjerne ${device.name}?`)}>
+                  Fjern
                 </Button>
               </li>
             ))}
@@ -170,7 +202,7 @@ export default function AdminDevicesPage() {
             {old.map((device) => (
               <li key={device.id} className="flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground">
                 <span>{device.name}</span>
-                <span>Deaktivert {formatWhen(device.revoked_at ?? device.updated_at ?? device.created_at)}</span>
+                <span>Fjernet {formatWhen(device.revoked_at ?? device.updated_at ?? device.created_at)}</span>
               </li>
             ))}
           </ul>

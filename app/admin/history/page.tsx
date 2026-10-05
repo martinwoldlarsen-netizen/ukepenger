@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Avatar, EmptyState, ListSkeleton, cx, focusRing } from "@/components/ui";
-import { childLookup, swrDefaults, useAdminIdentity, useChildren } from "@/lib/admin-data";
+import { Download } from "lucide-react";
+import { Avatar, Button, EmptyState, ListSkeleton, cx, focusRing } from "@/components/ui";
+import { useToast } from "@/components/ui/feedback";
+import { childLookup, friendlyError, swrDefaults, useAdminIdentity, useChildren } from "@/lib/admin-data";
 import { formatWhen } from "@/lib/dates";
 import { HISTORY_CLAIM_SELECT, HISTORY_PAYMENT_SELECT, type HistoryEvent, buildHistory } from "@/lib/history";
 import { formatKr } from "@/lib/money";
@@ -22,6 +24,41 @@ export default function AdminHistoryPage() {
   const children = useChildren(familyId);
   const childOf = childLookup(children.data);
   const [filter, setFilter] = useState<string | null>(null);
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  // Hele historikken som CSV (semikolon + BOM, så Excel/Numbers på norsk åpner den riktig).
+  const exportCsv = async () => {
+    if (!familyId) return;
+    setExporting(true);
+    try {
+      const [claims, payments] = await Promise.all([
+        supabase.from("claims").select(HISTORY_CLAIM_SELECT).eq("family_id", familyId).order("created_at", { ascending: false }).limit(20000),
+        supabase.from("payments").select(HISTORY_PAYMENT_SELECT).eq("family_id", familyId).order("created_at", { ascending: false }).limit(20000),
+      ]);
+      if (claims.error || payments.error) throw new Error(claims.error?.message ?? payments.error?.message);
+      const all = buildHistory(claims.data ?? [], payments.data ?? []);
+      const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const kr = (ore: number) => (ore / 100).toFixed(2).replace(".", ",");
+      const rows = [
+        ["Dato", "Barn", "Hva", "Status", "Beløp (kr)", "Til sparing (kr)"].map(cell).join(";"),
+        ...all.map((e) =>
+          [new Date(e.at).toLocaleString("nb-NO"), childOf(e.childId).name, e.title, LABEL[e.kind].text, kr(e.amountOre), kr(e.savedOre)].map(cell).join(";")
+        ),
+      ];
+      const blob = new Blob(["\ufeff" + rows.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `ukepenger-historikk-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast({ text: `Lastet ned ${all.length} rader` });
+    } catch (error) {
+      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å laste ned.") });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const history = useSWR(
     familyId ? ["history", familyId] : null,
@@ -43,6 +80,9 @@ export default function AdminHistoryPage() {
 
   return (
     <section className="space-y-5">
+      <Button variant="secondary" block icon={<Download className="size-4" />} loading={exporting} onClick={() => void exportCsv()}>
+        Last ned all historikk (Excel/CSV)
+      </Button>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Velg barn">
         {[{ id: null as string | null, name: "Alle" }, ...kids].map((c) => (
           <button

@@ -2,12 +2,12 @@
 
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
-import { ArrowLeft, CalendarDays, Gift, ListChecks, Plus, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Gift, ListChecks, Plus, Trash2, X } from "lucide-react";
 import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
-import { useToast } from "@/components/ui/feedback";
+import { useConfirm, useToast } from "@/components/ui/feedback";
 import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
@@ -27,6 +27,8 @@ export default function AdminChildDetailPage() {
   const params = useParams<{ id: string }>();
   const childId = params.id;
   const toast = useToast();
+  const confirm = useConfirm();
+  const router = useRouter();
   const { familyId } = useAdminIdentity();
   const children = useChildren(familyId);
   const tasks = useTasks(familyId);
@@ -103,6 +105,26 @@ export default function AdminChildDetailPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Sletter barnet og alt som hører til (krav, utbetalinger, ønsker, trofeer).
+  const deleteChild = async () => {
+    if (!child) return;
+    const ok = await confirm({
+      title: `Slette ${child.name} for godt?`,
+      text: `All historikk, saldo, ønsker og trofeer for ${child.name} slettes og kan ikke hentes tilbake. Vil du bare skjule barnet, kan du gjøre det under Barn.`,
+      confirmLabel: "Slett for godt",
+      danger: true,
+    });
+    if (!ok) return;
+    const res = await supabase.from("children").delete().eq("id", child.id);
+    if (res.error) {
+      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å slette.") });
+      return;
+    }
+    await children.mutate();
+    toast({ text: `${child.name} er slettet` });
+    router.push("/admin/children");
   };
 
   if (!familyId || (children.isLoading && !children.data)) return <ListSkeleton rows={3} />;
@@ -217,6 +239,9 @@ export default function AdminChildDetailPage() {
           </Button>
         )}
       </Card>
+      <Button variant="dangerSoft" block size="lg" icon={<Trash2 className="size-4" />} onClick={() => void deleteChild()}>
+        Slett {child.name}
+      </Button>
     </section>
   );
 }

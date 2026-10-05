@@ -1,56 +1,67 @@
 import { NextResponse } from "next/server";
-import { getKioskCookieValue } from "@/lib/device-session";
+import { KIOSK_COOKIE_NAME, getKioskCookieValue } from "@/lib/device-session";
+import { generateDeviceCode, generateDeviceSecret, hashToken } from "@/lib/device-session.node";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
-  try {
-    const url = new URL(request.url);
-    const code = (url.searchParams.get("code") ?? "").trim();
-    const secret = (url.searchParams.get("secret") ?? "").trim();
+// Gjetter et forståelig navn på enheten, så foreldre kjenner den igjen under Enheter.
+function deviceName(ua: string) {
+  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && /Mobile/i.test(ua))) return "iPad";
+  if (/iPhone/i.test(ua)) return "iPhone";
+  if (/Android/i.test(ua)) return /Mobile/i.test(ua) ? "Android-telefon" : "Android-nettbrett";
+  if (/Macintosh/i.test(ua)) return "Mac";
+  if (/Windows/i.test(ua)) return "PC";
+  return "Barneenhet";
+}
 
-    if (!code || !secret) {
-      return NextResponse.redirect(`${url.origin}/kiosk?claim_error=missing_params`, { status: 303 });
-    }
+// Engangs-QR: tokenet virker i 10 minutter og bare én gang. Hver enhet får sin
+// egen tilfeldige hemmelighet i en httpOnly-cookie; databasen har bare hashen.
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const fail = (reason: string) => NextResponse.redirect(`${url.origin}/kiosk?claim_error=${reason}`, { status: 303 });
+  try {
+    const token = (url.searchParams.get("pair") ?? "").trim();
+    // Gamle QR-koder (code + secret) kunne brukes om igjen og er slått av.
+    if (!token) return fail(url.searchParams.get("code") ? "old_qr" : "missing_params");
 
     const supabase = getServiceSupabaseClient();
-    if (!supabase) {
-      return NextResponse.redirect(`${url.origin}/kiosk?claim_error=server_error`, { status: 303 });
-    }
+    if (!supabase) return fail("server_error");
 
-    const result = await supabase
-      .from("devices")
-      .select("id, device_secret, active, revoked_at")
-      .eq("device_code", code)
-      .eq("active", true)
-      .is("revoked_at", null)
-      .order("updated_at", { ascending: false })
-      .limit(1)
+    const now = new Date().toISOString();
+    // Atomisk: bare én forespørsel kan bruke tokenet.
+    const pairRes = await supabase
+      .from("device_pairings")
+      .update({ used_at: now })
+      .eq("token_hash", await hashToken(token))
+      .is("used_at", null)
+      .gt("expires_at", now)
+      .select("id, family_id")
       .maybeSingle();
+    if (pairRes.error || !pairRes.data) return fail("expired_qr");
 
-    if (result.error || !result.data) {
-      return NextResponse.redirect(`${url.origin}/kiosk?claim_error=invalid_device`, { status: 303 });
-    }
-
-    const row = result.data as {
-      id: string;
-      device_secret: string | null;
-      active: boolean;
-      revoked_at: string | null;
-    };
-    if (!row.active || row.revoked_at || !row.device_secret) {
-      return NextResponse.redirect(`${url.origin}/kiosk?claim_error=invalid_device`, { status: 303 });
-    }
-
-    if (row.device_secret !== secret) {
-      return NextResponse.redirect(`${url.origin}/kiosk?claim_error=invalid_secret`, { status: 303 });
-    }
+    const secret = await generateDeviceSecret(48);
+    const deviceRes = await supabase
+      .from("devices")
+      .insert({
+        family_id: pairRes.data.family_id,
+        name: deviceName(request.headers.get("user-agent") ?? ""),
+        token_hash: await hashToken(secret),
+        device_code: await generateDeviceCode(10),
+        device_secret: null,
+        active: true,
+        revoked_at: null,
+        updated_at: now,
+      })
+      .select("id")
+      .single();
+    if (deviceRes.error || !deviceRes.data) return fail("server_error");
+    await supabase.from("device_pairings").update({ device_id: deviceRes.data.id }).eq("id", pairRes.data.id);
 
     const response = NextResponse.redirect(`${url.origin}/kids`, { status: 303 });
     response.cookies.set({
-      name: "uk_kiosk",
-      value: getKioskCookieValue(row.id, row.device_secret),
+      name: KIOSK_COOKIE_NAME,
+      value: getKioskCookieValue(deviceRes.data.id, secret),
       httpOnly: true,
       secure: true,
       sameSite: "lax",
@@ -59,6 +70,6 @@ export async function GET(request: Request) {
     });
     return response;
   } catch {
-    return NextResponse.redirect(`${new URL(request.url).origin}/kiosk?claim_error=server_error`, { status: 303 });
+    return fail("server_error");
   }
 }
