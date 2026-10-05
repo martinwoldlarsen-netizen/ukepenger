@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { formatKr } from "@/lib/money";
+import { notifyParents } from "@/lib/push";
 import { verifyGuestRequest } from "@/lib/guest-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
   const supabase = getServiceSupabaseClient();
   if (!supabase) return NextResponse.json({ error: "Serverfeil." }, { status: 500 });
 
-  const childRes = await supabase.from("children").select("id, family_id, active").eq("id", body.childId ?? "").maybeSingle();
+  const childRes = await supabase.from("children").select("id, family_id, active, name").eq("id", body.childId ?? "").maybeSingle();
   if (childRes.error || !childRes.data || childRes.data.family_id !== guest.familyId || !childRes.data.active) {
     return NextResponse.json({ error: "Fant ikke barnet." }, { status: 404 });
   }
@@ -60,5 +62,13 @@ export async function POST(request: Request) {
     console.error("[guest gift]", insert.error.message);
     return NextResponse.json({ error: "Klarte ikke å sende gaven." }, { status: 400 });
   }
+  const childName = childRes.data.name as string;
+  after(() =>
+    notifyParents(supabase, guest.familyId, {
+      title: `${guest.name} vil gi ${childName} ${formatKr(amount)} 🎁`,
+      body: "Godkjenn når du har fått pengene.",
+      tag: "claims",
+    })
+  );
   return NextResponse.json({ ok: true });
 }

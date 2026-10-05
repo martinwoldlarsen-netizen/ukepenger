@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { formatKr } from "@/lib/money";
+import { notifyParents } from "@/lib/push";
 import { verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
@@ -25,7 +27,7 @@ export async function POST(request: Request) {
 
   const wishRes = await supabase
     .from("wishlist_items")
-    .select("id, family_id, child_id, status, active, target_ore, purchase_requested_at")
+    .select("id, family_id, child_id, status, active, target_ore, purchase_requested_at, title, children(name)")
     .eq("id", wishId)
     .maybeSingle();
   const wish = wishRes.data;
@@ -57,6 +59,15 @@ export async function POST(request: Request) {
   if (update.error) {
     return NextResponse.json({ error: "Klarte ikke å sende kjøpet." }, { status: 400 });
   }
+
+  const kid = Array.isArray(wish.children) ? wish.children[0] : wish.children;
+  after(() =>
+    notifyParents(supabase, auth.familyId, {
+      title: `${(kid as { name?: string } | null)?.name ?? "Barnet"} vil kjøpe noe 🛍️`,
+      body: `${wish.title} · ${formatKr(wish.target_ore as number)}. Trykk for å se.`,
+      tag: "wishes",
+    })
+  );
 
   return NextResponse.json({ ok: true });
 }

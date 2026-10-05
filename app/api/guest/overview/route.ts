@@ -10,6 +10,8 @@ export async function GET(request: Request) {
   const supabase = getServiceSupabaseClient();
   if (!supabase) return NextResponse.json({ error: "Serverfeil." }, { status: 500 });
 
+  await supabase.rpc("ensure_weekly_allowances", { p_family_id: guest.familyId });
+
   const [familyRes, childrenRes, claimsRes, wishesRes] = await Promise.all([
     supabase.from("families").select("name, show_savings_to_kids").eq("id", guest.familyId).maybeSingle(),
     supabase.from("children").select("id, name, avatar_key").eq("family_id", guest.familyId).eq("active", true).order("name"),

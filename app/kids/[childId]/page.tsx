@@ -5,9 +5,12 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { KidHistory, kidHistoryKey } from "../_components/KidHistory";
+import { KidProgress, kidProgressKey } from "../_components/KidProgress";
 import { ArrowLeft, ArrowRight, Check, Clock, PartyPopper, Pencil, Volume2, X } from "lucide-react";
 import { taskEmoji } from "@/lib/task-emoji";
 import { readAloud } from "../_lib/read-aloud";
+import { celebrate } from "../_lib/celebrate";
+import { SoundToggle } from "../_components/SoundToggle";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
@@ -52,6 +55,7 @@ type TasksPayload = {
   earned_ore?: number;
   saved_ore?: number | null;
   savings_percent?: number;
+  allowance?: { amount_ore: number; weekday: number } | null;
 };
 
 // Litt moro: nivå etter hvor mye barnet har tjent totalt.
@@ -108,6 +112,7 @@ export default function KidTaskPage() {
   // null = sparegrisen er skjult for barnet (eller sparing er av).
   const [savedOre, setSavedOre] = useState<number | null>(null);
   const [savingsPercent, setSavingsPercent] = useState(0);
+  const [allowance, setAllowance] = useState<{ amount_ore: number; weekday: number } | null>(null);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
   const { mutate: mutateGlobal } = useSWRConfig();
@@ -167,6 +172,7 @@ export default function KidTaskPage() {
       setEarnedOre(p.earned_ore ?? 0);
       setSavedOre(p.saved_ore ?? null);
       setSavingsPercent(p.savings_percent ?? 0);
+      setAllowance(p.allowance ?? null);
       // Feiler bare ønskelisten, beholder vi den vi har.
       if (data.wishlist) setWishlistItems(data.wishlist);
       setLoading(false);
@@ -219,6 +225,7 @@ export default function KidTaskPage() {
     }
 
     void mutateGlobal(kidHistoryKey(childId));
+    void mutateGlobal(kidProgressKey(childId));
     if (payload.status === "APPROVED") {
       // Samme regel som databasen: sparedelen rundes ned og trekkes fra beløpet.
       const savedPart = Math.floor((task.amount_ore * savingsPercent) / 100);
@@ -227,10 +234,12 @@ export default function KidTaskPage() {
       setSavedOre((prev) => (prev === null ? null : prev + savedPart));
       setEarnedOre((prev) => prev + task.amount_ore);
       showCardMessage(taskId, { kind: "ok", text: `Bra jobba! +${formatKr(task.amount_ore)}` });
+      celebrate();
       readAloud("Bra jobba!");
       return;
     }
     showCardMessage(taskId, { kind: "ok", text: "Bra jobba! En voksen sjekker snart." });
+    celebrate();
     readAloud("Bra jobba!");
   };
 
@@ -282,7 +291,8 @@ export default function KidTaskPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-10">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <SoundToggle />
         <Link
           href="/kids"
           className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition hover:bg-secondary"
@@ -373,6 +383,12 @@ export default function KidTaskPage() {
             <p className="mt-4 text-sm opacity-75">
               Tjent totalt: <span className="font-num font-bold opacity-100">{formatKr(earnedOre)}</span>
             </p>
+            {allowance && (
+              <p className="mt-1 text-sm opacity-75">
+                📅 Ukepenger: <span className="font-num font-bold opacity-100">{formatKr(allowance.amount_ore)}</span> hver{" "}
+                {["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"][allowance.weekday - 1]}
+              </p>
+            )}
           </section>
 
           {savedOre !== null && (savedOre > 0 || savingsPercent > 0) && (
@@ -514,6 +530,8 @@ export default function KidTaskPage() {
               </div>
             )}
           </section>
+
+          <KidProgress childId={childId} />
 
           <KidHistory childId={childId} />
         </div>

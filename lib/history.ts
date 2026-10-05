@@ -30,8 +30,8 @@ type PaymentLike = { id: string; child_id: string; method: string; amount_ore: n
 export const METHOD_LABEL: Record<string, string> = { VIPPS: "Vipps", CASH: "Kontanter", BANK: "Bank", OTHER: "Annet", WISH: "Ønske" };
 
 function claimTitle(c: ClaimLike) {
-  // Gaver fra besteforeldre har allerede «🎁 Gave fra …» i teksten.
-  if (!c.task_id) return c.note ? (c.note.startsWith("🎁") ? c.note : `Bonus: ${c.note}`) : "Butikksalg";
+  // Gaver («🎁 Gave fra …») og ukepenger («📅 Ukepenger») har allerede egen tekst.
+  if (!c.task_id) return c.note ? (/^\p{Extended_Pictographic}/u.test(c.note) ? c.note : `Bonus: ${c.note}`) : "Butikksalg";
   const t = Array.isArray(c.tasks) ? c.tasks[0] : c.tasks;
   return t?.title ?? "Oppgave";
 }

@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
-import { ArrowLeft, Gift, ListChecks, Plus, X } from "lucide-react";
-import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, ListSkeleton, Switch, cx, focusRing } from "@/components/ui";
+import { ArrowLeft, CalendarDays, Gift, ListChecks, Plus, X } from "lucide-react";
+import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useToast } from "@/components/ui/feedback";
-import { adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
+import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -128,6 +128,8 @@ export default function AdminChildDetailPage() {
         <p className="text-3xl font-extrabold tracking-tight">{child.name}</p>
       </div>
 
+      <AllowanceCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />
+
       <Card className="space-y-4">
         <CardHeader icon={<ListChecks className="size-5" />} title="Oppgaver" description={`Velg hvilke oppgaver ${child.name} ser på barnesiden.`} />
         {tasks.isLoading && !tasks.data ? (
@@ -216,5 +218,81 @@ export default function AdminChildDetailPage() {
         )}
       </Card>
     </section>
+  );
+}
+
+const WEEKDAYS = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"];
+
+// Faste ukepenger: et fast beløp som legges til automatisk én gang i uka.
+function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; familyId: string; onSaved: () => void }) {
+  const toast = useToast();
+  const current = child.weekly_allowance_ore ?? 0;
+  const [amount, setAmount] = useState(current ? String(current / 100) : "");
+  const [weekday, setWeekday] = useState(child.allowance_weekday ?? 6);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (nextOre: number) => {
+    setSaving(true);
+    const patch: Record<string, unknown> = { weekly_allowance_ore: nextOre, allowance_weekday: weekday };
+    // Slått på på nytt: start fra nå, ikke betal for ukene det var av.
+    if (current === 0 || nextOre === 0) patch.allowance_paid_through = null;
+    const res = await supabase.from("children").update(patch).eq("id", child.id);
+    if (!res.error && nextOre > 0) await supabase.rpc("ensure_weekly_allowances", { p_family_id: familyId });
+    setSaving(false);
+    if (res.error) {
+      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å lagre.") });
+      return;
+    }
+    toast({ text: nextOre > 0 ? `${child.name} får ${formatKr(nextOre)} hver ${WEEKDAYS[weekday - 1]}` : "Faste ukepenger er slått av" });
+    onSaved();
+  };
+
+  return (
+    <Card className="space-y-4">
+      <CardHeader
+        icon={<CalendarDays className="size-5" />}
+        title="Faste ukepenger"
+        description={`Et fast beløp som legges til det ${child.name} har til gode, automatisk hver uke. Kommer i tillegg til oppgavene.`}
+      />
+      <form
+        className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const ore = parseKrToOre(amount);
+          if (ore === "invalid" || (typeof ore === "number" && ore > 100000)) {
+            toast({ kind: "error", text: "Skriv et beløp mellom 0 og 1 000 kr." });
+            return;
+          }
+          void save(ore ?? 0);
+        }}
+      >
+        <Field label="Beløp per uke">
+          <span className="relative block">
+            <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" className="pr-12" />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">kr</span>
+          </span>
+        </Field>
+        <Field label="Dag">
+          <Select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
+            {WEEKDAYS.map((d, i) => (
+              <option key={d} value={i + 1}>
+                {d[0].toUpperCase() + d.slice(1)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Button type="submit" size="lg" loading={saving}>
+          Lagre
+        </Button>
+      </form>
+      {current > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Nå: {formatKr(current)} hver {WEEKDAYS[(child.allowance_weekday ?? 6) - 1]}.{" "}
+          <button type="button" className="font-semibold text-red-700 underline-offset-4 hover:underline" onClick={() => void save(0)}>
+            Slå av
+          </button>
+        </p>
+      )}
+    </Card>
   );
 }
