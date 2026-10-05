@@ -99,7 +99,7 @@ export default function PersonvernPage() {
         <Tabell
           head={["Navn", "Hva den gjør", "Satt av", "Varighet"]}
           rows={[
-            [<Code key="a">sb-…-auth-token</Code>, "Holder deg innlogget (lagres i nettleserens lokale lager)", "Ukepenger/Supabase", "Til du logger ut"],
+            [<Code key="a">sb-…-auth-token</Code>, "Holder deg innlogget, så du kommer rett inn i appen", "Ukepenger/Supabase", "Til du logger ut (fornyes når du bruker appen)"],
             [<Code key="b">uk_kiosk</Code>, "Husker at enheten er koblet til familien som barneenhet", "Ukepenger", "1 år, eller til den kobles fra"],
             [<Code key="c">uk_guest</Code>, "Husker at enheten tilhører en besteforelder/gjest", "Ukepenger", "Omtrent 13 måneder, eller til lenken stenges"],
             [<Code key="d">uk_sound</Code>, "Om lyd er slått av på barnesiden", "Ukepenger", "Til den slettes i nettleseren"],
