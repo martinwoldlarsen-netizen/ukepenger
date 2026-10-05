@@ -8,6 +8,7 @@ import { friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
 import type { ApprovalMode } from "@/lib/family-client";
 import { formatKr } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { MilestoneBonusCard } from "./MilestoneBonusCard";
 import { NotificationsCard } from "./NotificationsCard";
 
 const SAVINGS_OPTIONS = [0, 5, 10, 15, 20, 25];
@@ -116,6 +117,7 @@ export default function AdminSettingsPage() {
           />
         </div>
       </Card>
+      {familyId && <MilestoneBonusCard familyId={familyId} />}
     </section>
   );
 }
