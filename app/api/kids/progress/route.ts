@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyKioskRequest } from "@/lib/kiosk-auth";
-import { BONUS_MILESTONES, computeProgress } from "@/lib/progress";
+import { computeProgress, totalBadgeKey } from "@/lib/progress";
+import { TOTAL_MILESTONES, taskTrophy, type TrophySettings } from "@/lib/trophies";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
 export async function GET(request: Request) {
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   }
 
-  const [claimsRes, wishesRes, familyRes] = await Promise.all([
+  const [claimsRes, wishesRes, familyRes, tasksRes] = await Promise.all([
     supabase
       .from("claims")
       .select("task_id, status, amount_ore, saved_ore, created_at, decided_at, tasks(title)")
@@ -23,17 +24,31 @@ export async function GET(request: Request) {
       .in("status", ["APPROVED", "PAID"])
       .limit(5000),
     supabase.from("wishlist_items").select("id", { count: "exact", head: true }).eq("child_id", childId).eq("status", "PAID"),
-    supabase.from("families").select("milestone_bonus_ore").eq("id", auth.familyId).maybeSingle(),
+    supabase.from("families").select("trophy_settings").eq("id", auth.familyId).maybeSingle(),
+    supabase.from("tasks").select("id, title, active").eq("family_id", auth.familyId).is("archived_at", null),
   ]);
   if (claimsRes.error) return NextResponse.json({ error: "Klarte ikke å hente." }, { status: 400 });
 
-  const progress = computeProgress(claimsRes.data ?? [], wishesRes.count ?? 0);
-  // Bonus foreldrene har lovet for milepæler vises på merket, så barnet vet hva som kommer.
-  const bonuses = (familyRes.data?.milestone_bonus_ore ?? {}) as Record<string, number>;
-  for (const m of BONUS_MILESTONES) {
-    const amount = Number(bonuses[String(m.tasks)] ?? 0);
-    const b = progress.badges.find((x) => x.key === m.key);
-    if (b && amount > 0) b.bonusOre = amount;
+  const claims = claimsRes.data ?? [];
+  const progress = computeProgress(claims, wishesRes.count ?? 0);
+  const settings = (familyRes.data?.trophy_settings ?? {}) as TrophySettings;
+
+  // Bonus foreldrene har lovet for totalmilepæler vises på merket.
+  if (settings.enabled) {
+    for (const n of TOTAL_MILESTONES) {
+      const amount = Number(settings.totals?.[String(n)] ?? 0);
+      const b = progress.badges.find((x) => x.key === totalBadgeKey(n));
+      if (b && amount > 0) b.bonusOre = amount;
+    }
   }
+
+  // Ett trofé per oppgave (aktive, og skjulte som barnet allerede har gjort).
+  const counts: Record<string, number> = {};
+  for (const c of claims) if (c.task_id) counts[c.task_id] = (counts[c.task_id] ?? 0) + 1;
+  progress.trophies = (tasksRes.data ?? [])
+    .filter((t) => t.active || counts[t.id])
+    .map((t) => taskTrophy(t.id, t.title, counts[t.id] ?? 0, settings))
+    .sort((a, b) => b.level - a.level || b.count - a.count || a.name.localeCompare(b.name, "nb"));
+  progress.trophiesPay = Boolean(settings.enabled);
   return NextResponse.json(progress);
 }

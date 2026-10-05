@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useSWRConfig } from "swr";
-import { CheckCheck, Coins, ListChecks, LogOut, MoreHorizontal, Heart, History, Settings, Smartphone, Users, Wallet, X } from "lucide-react";
+import { CheckCheck, Coins, ListChecks, LogOut, MoreHorizontal, Heart, History, Settings, Smartphone, Users, Wallet, X, Trophy } from "lucide-react";
 import { cx, focusRing, Skeleton } from "@/components/ui";
 import { FeedbackProvider } from "@/components/ui/feedback";
 import { useAdminIdentity, usePendingClaims, usePendingWishes } from "@/lib/admin-data";
@@ -23,6 +23,7 @@ const primaryNav: NavItem[] = [
 ];
 
 const secondaryNav: NavItem[] = [
+  { href: "/admin/trophies", label: "Trofeer", icon: Trophy },
   { href: "/admin/history", label: "Historikk", icon: History },
   { href: "/admin/family", label: "Familie", icon: Heart },
   { href: "/admin/devices", label: "Enheter", icon: Smartphone },
