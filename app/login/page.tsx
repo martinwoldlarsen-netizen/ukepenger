@@ -44,6 +44,28 @@ export default function LoginPage() {
     router.push("/admin/inbox");
   };
 
+  // Allerede innlogget (også en eldre innlogging som nettopp ble flyttet fra
+  // lokal lagring): rett inn i appen i stedet for å vise skjemaet.
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!alive) return;
+        if (data.session) {
+          const setup = await getAdminSetupStatus();
+          router.replace(setup.needsOnboarding ? "/onboarding" : "/admin/inbox");
+          return;
+        }
+        setChecking(false);
+      })
+      .catch(() => alive && setChecking(false));
+    return () => {
+      alive = false;
+    };
+  }, [router]);
+
   const handleSignUp = async () => {
     setStatus("");
     // Lange passord/passfraser er tryggest. Gjelder nye kontoer; eksisterende
@@ -156,6 +178,14 @@ export default function LoginPage() {
 
   const isError = status.startsWith("Feil:");
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
+
+  if (checking) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background text-muted-foreground" role="status">
+        Et øyeblikk …
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10 text-foreground">
