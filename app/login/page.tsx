@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Coins } from "lucide-react";
@@ -19,6 +19,19 @@ export default function LoginPage() {
   const [action, setAction] = useState<AuthAction>(null);
 
   const isLoading = action !== null;
+
+  // Apple-knappen vises bare når Apple er slått på i Supabase, så den aldri
+  // gir feil. Den dukker opp av seg selv når oppsettet er gjort.
+  const [appleOn, setAppleOn] = useState(false);
+  useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return;
+    fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((settings: { external?: { apple?: boolean } } | null) => setAppleOn(Boolean(settings?.external?.apple)))
+      .catch(() => {});
+  }, []);
 
   const goAfterAuth = async () => {
     const setup = await getAdminSetupStatus();
@@ -153,9 +166,11 @@ export default function LoginPage() {
           <Button variant="secondary" size="lg" block loading={action === "google"} disabled={isLoading} onClick={() => void handleOAuth("google")}>
             Fortsett med Google
           </Button>
-          <Button variant="secondary" size="lg" block loading={action === "apple"} disabled={isLoading} onClick={() => void handleOAuth("apple")}>
-            Fortsett med Apple
-          </Button>
+          {appleOn && (
+            <Button variant="secondary" size="lg" block loading={action === "apple"} disabled={isLoading} onClick={() => void handleOAuth("apple")}>
+              Fortsett med Apple
+            </Button>
+          )}
         </div>
 
         <div className="my-6 flex items-center gap-3 text-sm text-muted-foreground">
