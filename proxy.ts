@@ -43,6 +43,15 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Åpnet fra hjemskjermen (manifestets start_url): rett til riktig sted.
+  const fromApp = pathname === "/" && req.nextUrl.searchParams.get("app") === "1";
+  if (fromApp && kioskCookie) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/kids";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   if (pathname === "/" && req.cookies.get("uk_guest")?.value && !kioskCookie) {
     const url = req.nextUrl.clone();
     url.pathname = "/besteforeldre";
@@ -72,14 +81,22 @@ export async function proxy(req: NextRequest) {
   // serveren, så Safari lar dem leve lenge i stedet for 7 dager.
   const { data } = await supabase.auth.getSession();
 
-  // Allerede innlogget forelder på forsiden eller /login: rett inn i appen.
-  if (data.session && (pathname === "/" || pathname === "/login")) {
+  // Innlogget forelder som åpner appen eller /login: rett inn. Forsiden
+  // (ukepenger.no) vises ellers alltid, med «Gå til appen» i menyen.
+  if (data.session && (fromApp || pathname === "/login")) {
     const url = req.nextUrl.clone();
     url.pathname = "/admin/inbox";
     url.search = "";
     const redirect = NextResponse.redirect(url);
     res.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
+  }
+
+  if (fromApp) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
   return res;
