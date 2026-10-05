@@ -24,7 +24,7 @@ type ChildDraft = {
 
 // Forslagene kommer fra oppgavepakkene. De vanligste er slått på fra start.
 const ON_BY_DEFAULT = new Set(["Rydde rommet", "Ta oppvasken", "Ta ut søppel", "Dekke bordet"]);
-const defaultTasks: TaskTemplate[] = TASK_PACKS.flatMap((pack) =>
+const defaultTasks: TaskTemplate[] = TASK_PACKS.filter((pack) => !pack.extra).flatMap((pack) =>
   pack.tasks.map((t) => ({ key: `${pack.key}-${t.title}`, title: t.title, amountOre: t.kr * 100, enabled: ON_BY_DEFAULT.has(t.title) }))
 );
 

@@ -128,6 +128,7 @@ export function useTasks(familyId: string | null) {
           .from("tasks")
           .select("id, title, amount_ore, active, created_at")
           .eq("family_id", familyId as string)
+          .is("archived_at", null)
           .order("created_at", { ascending: false })
       ) as AdminTask[],
     swrDefaults

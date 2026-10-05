@@ -80,6 +80,7 @@ export async function GET(request: Request) {
       .select("id, title, amount_ore, active")
       .eq("family_id", auth.familyId)
       .eq("active", true)
+      .is("archived_at", null)
       .order("title", { ascending: true }),
     supabase.from("child_task_settings").select("task_id, enabled").eq("child_id", childId),
     supabase
