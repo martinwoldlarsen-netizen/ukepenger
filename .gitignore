@@ -45,3 +45,4 @@ next-env.d.ts
 cookies.txt
 *.cookies
 cookies*.txt
+.claude/settings.local.json

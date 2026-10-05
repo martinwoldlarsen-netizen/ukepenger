@@ -56,13 +56,13 @@ self.addEventListener("notificationclick", (event) => {
   const url = new URL(event.notification.data?.url || "/admin/inbox", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      for (const c of list) {
-        if (c.url.startsWith(self.location.origin) && "focus" in c) {
-          c.navigate(url);
-          return c.focus();
-        }
-      }
-      return self.clients.openWindow(url);
+      const open = list.find((c) => c.url.startsWith(self.location.origin) && "focus" in c);
+      if (!open) return self.clients.openWindow(url);
+      // navigate() virker bare på vinduer denne service workeren styrer.
+      return open
+        .focus()
+        .then((c) => (c.url === url ? c : c.navigate(url)))
+        .catch(() => self.clients.openWindow(url));
     })
   );
 });

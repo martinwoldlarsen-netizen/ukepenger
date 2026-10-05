@@ -21,11 +21,19 @@ type ClaimLike = { task_id: string | null; status: string; amount_ore: number; s
 
 const MONTHS = ["januar", "februar", "mars", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "desember"];
 
-// Mandag i uka (lokal tid) som nøkkel.
+// Serveren går i UTC; uker og måneder skal følge norsk tid. Gir et Date-objekt
+// der klokkeslett/dato (lest med getX) er det som står på klokka i Oslo.
+function oslo(d: Date) {
+  return new Date(d.toLocaleString("en-US", { timeZone: "Europe/Oslo" }));
+}
+
+const dateOf = (c: ClaimLike) => oslo(new Date(c.decided_at ?? c.created_at));
+
+// Mandag i uka (norsk tid) som nøkkel.
 function weekKey(d: Date) {
   const day = (d.getDay() + 6) % 7;
   const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
-  return monday.toISOString().slice(0, 10);
+  return `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`;
 }
 
 function titleOf(c: ClaimLike) {
@@ -33,7 +41,8 @@ function titleOf(c: ClaimLike) {
   return t?.title ?? null;
 }
 
-export function computeProgress(claims: ClaimLike[], wishesBought: number, now = new Date()): Progress {
+export function computeProgress(claims: ClaimLike[], wishesBought: number, at = new Date()): Progress {
+  const now = oslo(at);
   const done = claims.filter((c) => c.status === "APPROVED" || c.status === "PAID");
   const taskDone = done.filter((c) => c.task_id);
   const earned = done.reduce((s, c) => s + c.amount_ore + (c.saved_ore ?? 0), 0);
@@ -49,7 +58,7 @@ export function computeProgress(claims: ClaimLike[], wishesBought: number, now =
 
   // Uker på rad med minst én godkjent oppgave. Denne uka teller med hvis den
   // er gjort, men bryter ikke streaken hvis den ikke er gjort ennå.
-  const weeks = new Set(taskDone.map((c) => weekKey(new Date(c.decided_at ?? c.created_at))));
+  const weeks = new Set(taskDone.map((c) => weekKey(dateOf(c))));
   const thisWeek = weekKey(now);
   const doneThisWeek = weeks.has(thisWeek);
   let streak = 0;
@@ -87,7 +96,7 @@ export function computeProgress(claims: ClaimLike[], wishesBought: number, now =
   ];
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const inMonth = done.filter((c) => new Date(c.decided_at ?? c.created_at) >= monthStart);
+  const inMonth = done.filter((c) => dateOf(c) >= monthStart);
   const monthPer: Record<string, number> = {};
   for (const c of inMonth) {
     const t = c.task_id ? titleOf(c) : null;

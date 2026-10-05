@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit -p .)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx eslint app lib --quiet)",
+      "Bash(npx eslint app components lib --quiet)",
+      "mcp__github__pull_request_read",
+      "mcp__github__list_branches",
+      "mcp__Vercel__list_teams",
+      "mcp__Vercel__list_deployments",
+      "mcp__Vercel__list_projects",
+      "mcp__Vercel__get_deployment",
+      "mcp__Vercel__get_git_deployment_context",
+      "mcp__Supabase__get_project",
+      "mcp__Claude_Code_Remote__list_repos"
+    ]
+  }
+}
