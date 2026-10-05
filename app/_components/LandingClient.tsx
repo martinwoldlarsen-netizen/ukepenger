@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import styles from "./LandingClient.module.css";
+import { supabase } from "@/lib/supabaseClient";
 
 // Skriftene (DM Sans og Space Mono) lastes én gang i app/layout.tsx.
 
@@ -345,6 +346,21 @@ export default function LandingClient() {
 
   const heroBarn = barn[0];
 
+  // Innlogget forelder ser «Gå til appen» i stedet for «Logg inn».
+  const [loggedIn, setLoggedIn] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => alive && setLoggedIn(Boolean(data.session)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const appHref = loggedIn ? "/admin/inbox" : "/login";
+  const appLabel = loggedIn ? "Gå til appen" : "Logg inn";
+
   return (
     <main id="top" className={`${styles.landingPage} min-h-screen`}>
       {/* Ligger over menyflaten, sa logo og knapp blir staende i ro nar
@@ -355,9 +371,9 @@ export default function LandingClient() {
           <a href="#slik-fungerer-det" className={styles.navLink}>Slik fungerer det</a>
           <a href="#hva-koster-det" className={styles.navLink}>Hva koster det</a>
           <a href="#sporsmal" className={styles.navLink}>Spørsmål</a>
-          <Link href="/login" className={styles.navLink}>Logg inn</Link>
-          <Link href="/login" className={styles.buttonPrimary}>
-            Kom i gang <ArrowRight className="size-4" />
+          {!loggedIn && <Link href="/login" className={styles.navLink}>Logg inn</Link>}
+          <Link href={appHref} className={styles.buttonPrimary}>
+            {loggedIn ? "Gå til appen" : "Kom i gang"} <ArrowRight className="size-4" />
           </Link>
         </div>
         <button
@@ -396,8 +412,8 @@ export default function LandingClient() {
         <div className={`${styles.menuFooter} mt-auto flex flex-wrap gap-x-6 gap-y-2 px-5 pb-6`}>
           {hjelpeLenker.map((lenke) =>
             lenke.intern ? (
-              <Link key={lenke.href} href={lenke.href} className={styles.menuHelpLink} onClick={() => setMenuOpen(false)}>
-                {lenke.label}
+              <Link key={lenke.href} href={lenke.href === "/login" ? appHref : lenke.href} className={styles.menuHelpLink} onClick={() => setMenuOpen(false)}>
+                {lenke.href === "/login" ? appLabel : lenke.label}
               </Link>
             ) : (
               <a key={lenke.href} href={lenke.href} className={styles.menuHelpLink} onClick={() => setMenuOpen(false)}>
@@ -408,8 +424,8 @@ export default function LandingClient() {
         </div>
 
         <div className={`${styles.menuFooter} border-t border-border px-5 pb-10 pt-6`}>
-          <Link href="/login" className={`${styles.buttonPrimary} w-full justify-center`} onClick={() => setMenuOpen(false)}>
-            Kom i gang <ArrowRight className="size-4" />
+          <Link href={appHref} className={`${styles.buttonPrimary} w-full justify-center`} onClick={() => setMenuOpen(false)}>
+            {loggedIn ? "Gå til appen" : "Kom i gang"} <ArrowRight className="size-4" />
           </Link>
           <p className="mt-3 text-center text-sm text-muted-foreground">Gratis å bruke. Ingen kredittkort nødvendig.</p>
         </div>
@@ -602,7 +618,7 @@ export default function LandingClient() {
         <Logo />
         <div className="flex flex-col gap-3 sm:items-end">
           <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Link href="/login" className={styles.navLink}>Logg inn</Link>
+            <Link href={appHref} className={styles.navLink}>{appLabel}</Link>
             <a href="mailto:hei@ukepenger.no" className={styles.navLink}>Kontakt oss</a>
             <Link href="/personvern" className={styles.navLink}>Personvern</Link>
             <Link href="/vilkar" className={styles.navLink}>Vilkår</Link>

@@ -1,14 +1,15 @@
 import type { MetadataRoute } from "next";
 
-// start_url er "/" fordi proxy.ts allerede sender innloggede foreldre
-// videre til /admin/inbox derfra.
+// start_url har ?app=1: når appen åpnes fra hjemskjermen sender proxy.ts
+// foreldre til Krav, barneenheter til barnesiden og besteforeldre til sin
+// side. Nettsiden ukepenger.no viser alltid forsiden.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Ukepenger",
     short_name: "Ukepenger",
     description: "Barnet ser oppgavene sine og sender krav. Du godkjenner og betaler.",
     lang: "nb-NO",
-    start_url: "/",
+    start_url: "/?app=1",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
