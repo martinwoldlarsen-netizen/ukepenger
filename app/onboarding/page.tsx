@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_AVATAR_KEY } from "@/lib/avatars";
-import { formatKr } from "@/lib/money";
 import { TASK_PACKS } from "@/lib/task-packs";
 import { QrImage } from "@/components/QrCode";
 import { FigurePicker } from "@/components/avatars/FigurePicker";

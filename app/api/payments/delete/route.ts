@@ -113,7 +113,7 @@ export async function POST(request: Request) {
   // Var dette et ønske som ble betalt ut, blir ønsket et sparemål igjen.
   const wishRes = await serviceClient
     .from("wishlist_items")
-    .update({ status: "ACTIVE", paid_at: null })
+    .update({ status: "ACTIVE", paid_at: null, purchase_requested_at: null })
     .eq("payment_id", paymentId)
     .eq("status", "PAID");
 

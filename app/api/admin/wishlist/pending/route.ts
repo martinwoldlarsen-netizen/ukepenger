@@ -8,6 +8,8 @@ type WishRow = {
   status: "PROPOSED" | "ACTIVE";
   target_ore: number | null;
   suggested_ore: number | null;
+  emoji: string | null;
+  purchase_requested_at: string | null;
   created_at: string;
 };
 
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
   const [wishRes, claimsRes] = await Promise.all([
     serviceClient
       .from("wishlist_items")
-      .select("id, child_id, title, status, target_ore, suggested_ore, created_at")
+      .select("id, child_id, title, emoji, status, target_ore, suggested_ore, purchase_requested_at, created_at")
       .eq("family_id", familyId)
       .eq("active", true)
       .in("status", ["PROPOSED", "ACTIVE"])
@@ -41,7 +43,9 @@ export async function GET(request: Request) {
 
   const items = ((wishRes.data ?? []) as WishRow[])
     .map((wish) => ({ ...wish, balance_ore: balanceByChild[wish.child_id] ?? 0 }))
-    .filter((wish) => wish.status === "PROPOSED" || (wish.target_ore !== null && wish.balance_ore >= wish.target_ore));
+    .filter((wish) => wish.status === "PROPOSED" || (wish.target_ore !== null && wish.balance_ore >= wish.target_ore))
+    // Ønsker barnet har trykket «Kjøp» på kommer først.
+    .sort((a, b) => Number(Boolean(b.purchase_requested_at)) - Number(Boolean(a.purchase_requested_at)));
 
   return NextResponse.json({ items });
 }

@@ -5,11 +5,13 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { KidHistory, kidHistoryKey } from "../_components/KidHistory";
-import { ArrowLeft, Check, Clock, Gift, PartyPopper, Pencil, Send, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, PartyPopper, Pencil, Volume2, X } from "lucide-react";
+import { taskEmoji } from "@/lib/task-emoji";
+import { readAloud } from "../_lib/read-aloud";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
-import { formatKr, parseKrToOre } from "@/lib/money";
+import { formatKr } from "@/lib/money";
 import { kidColor } from "../_lib/palette";
 
 type ChildRow = {
@@ -30,6 +32,7 @@ type WishlistItem = {
   title: string;
   target_ore: number | null;
   suggested_ore: number | null;
+  emoji?: string | null;
   status: "PROPOSED" | "ACTIVE" | "PAID";
   created_by: "PARENT" | "CHILD";
   note: string | null;
@@ -37,7 +40,6 @@ type WishlistItem = {
 
 type Notice = { kind: "ok" | "error"; text: string } | null;
 
-const MAX_WISH_LENGTH = 80;
 
 type TasksPayload = {
   error?: string;
@@ -112,10 +114,6 @@ export default function KidTaskPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
 
-  const [wishTitle, setWishTitle] = useState("");
-  const [wishPrice, setWishPrice] = useState("");
-  const [wishSending, setWishSending] = useState(false);
-  const [wishNotice, setWishNotice] = useState<Notice>(null);
 
   // Enten et kjent sluttidspunkt (fra serveren) eller en varighet fra nå.
   const startCooldown = useCallback((taskId: string, end: { until: number } | { ms: number }) => {
@@ -229,46 +227,21 @@ export default function KidTaskPage() {
       setSavedOre((prev) => (prev === null ? null : prev + savedPart));
       setEarnedOre((prev) => prev + task.amount_ore);
       showCardMessage(taskId, { kind: "ok", text: `Bra jobba! +${formatKr(task.amount_ore)}` });
+      readAloud("Bra jobba!");
       return;
     }
     showCardMessage(taskId, { kind: "ok", text: "Bra jobba! En voksen sjekker snart." });
+    readAloud("Bra jobba!");
   };
 
-  const submitWish = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setWishNotice(null);
-
-    const title = wishTitle.trim();
-    if (!title) {
-      setWishNotice({ kind: "error", text: "Skriv hva du ønsker deg." });
-      return;
-    }
-    const suggestedOre = parseKrToOre(wishPrice);
-    if (suggestedOre === "invalid") {
-      setWishNotice({ kind: "error", text: "Skriv prisen som et tall, f.eks. 49." });
-      return;
-    }
-
-    setWishSending(true);
-    const res = await fetch("/api/kids/wishlist", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ childId, title, suggestedOre }),
-    });
-    const payload = (await res.json().catch(() => ({}))) as { error?: string; item?: WishlistItem };
-    setWishSending(false);
-
-    if (!res.ok || payload.error || !payload.item) {
-      setWishNotice({ kind: "error", text: payload.error ?? "Kunne ikke sende ønsket. Prøv igjen." });
-      return;
-    }
-
-    setWishlistItems((prev) => [payload.item as WishlistItem, ...prev]);
-    setWishTitle("");
-    setWishPrice("");
-    setWishNotice({ kind: "ok", text: "Sendt! En voksen ser på ønsket ditt." });
-  };
+  // Ønsket barnet er nærmest å ha råd til, vist på gave-knappen.
+  const openWishes = wishlistItems.filter((w) => w.status !== "PAID");
+  const openWishCount = openWishes.length;
+  const nextWish =
+    openWishes
+      .map((w) => ({ title: w.title, emoji: w.emoji ?? "🎁", price: w.target_ore ?? w.suggested_ore ?? null }))
+      .filter((w) => w.price !== null && w.price > 0)
+      .sort((a, b) => approvedOre / (b.price as number) - approvedOre / (a.price as number))[0] ?? null;
 
   const profileBg = getFigure(child?.avatar_key)?.bg ?? "var(--secondary)";
   const level = levelFor(earnedOre);
@@ -386,10 +359,10 @@ export default function KidTaskPage() {
             <p className="font-num mt-1 text-5xl font-bold tracking-tight sm:text-6xl">
               {loading ? "…" : formatKr(approvedOre)}
             </p>
-            <p className="mt-1 text-sm opacity-75">Godkjent, og venter på å bli utbetalt</p>
+            <p className="mt-1 text-sm opacity-75">Penger du har tjent, men ikke fått ennå</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-primary-foreground/12 px-4 py-3">
-                <p className="text-xs font-semibold opacity-75">Venter på godkjenning</p>
+                <p className="text-xs font-semibold opacity-75">Venter på en voksen</p>
                 <p className="font-num mt-0.5 text-xl font-bold">{formatKr(pendingOre)}</p>
               </div>
               <div className="rounded-2xl bg-primary-foreground/12 px-4 py-3">
@@ -431,6 +404,25 @@ export default function KidTaskPage() {
             </p>
           )}
 
+          {/* Snarvei til Ønskebutikken på mobil; på store skjermer ligger den i sidekolonnen. */}
+          <Link
+            href={`/kids/${childId}/onsker`}
+            className="flex items-center gap-4 rounded-[1.75rem] bg-accent p-4 text-accent-foreground shadow-sm ring-1 ring-black/5 transition active:scale-[0.98] lg:hidden"
+          >
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-4xl" aria-hidden="true">
+              🎁
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xl font-extrabold leading-tight">Ønskebutikken</span>
+              <span className="block truncate text-sm font-semibold opacity-80">
+                {nextWish && nextWish.price !== null
+                  ? `${nextWish.title}: ${Math.min(100, Math.round((approvedOre / nextWish.price) * 100))} %`
+                  : "Finn noe du ønsker deg"}
+              </span>
+            </span>
+            <ArrowRight className="size-6 shrink-0" />
+          </Link>
+
           {/* Oppgaver */}
           <section aria-labelledby="oppgaver-title">
             <h2 id="oppgaver-title" className="text-2xl font-extrabold tracking-tight">
@@ -456,18 +448,26 @@ export default function KidTaskPage() {
                   const color = kidColor(index);
 
                   return (
+                    <div key={task.id} className="relative">
                     <button
-                      key={task.id}
                       type="button"
                       disabled={Boolean(cooldown)}
                       onClick={() => void submitClaim(task.id)}
-                      className="flex min-h-32 flex-col justify-between rounded-[1.75rem] p-5 text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:translate-y-0 sm:min-h-40"
+                      className="flex h-full min-h-32 w-full flex-col justify-between rounded-[1.75rem] p-5 text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:translate-y-0 sm:min-h-40"
                       style={{ background: color.bg, color: color.ink }}
                     >
-                      <span className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-                        <span className="min-w-0 flex-1 text-2xl font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{task.title}</span>
-                        <span className="font-num shrink-0 rounded-full bg-white/80 px-3 py-1 text-base font-bold">
-                          +{formatKr(task.amount_ore)}
+                      <span className="flex items-start gap-3">
+                        {/* Bilde så barn som ikke kan lese ennå kjenner igjen oppgaven. */}
+                        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-3xl shadow-sm" aria-hidden="true">
+                          {taskEmoji(task.title)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-2xl font-extrabold leading-tight tracking-tight [hyphens:auto] [overflow-wrap:break-word]" lang="nb">
+                            {task.title}
+                          </span>
+                          <span className="font-num mt-1.5 inline-block rounded-full bg-white/80 px-3 py-1 text-base font-bold">
+                            +{formatKr(task.amount_ore)}
+                          </span>
                         </span>
                       </span>
 
@@ -481,7 +481,7 @@ export default function KidTaskPage() {
                           {message.kind === "ok" && <PartyPopper className="size-4" />} {message.text}
                         </span>
                       ) : cooldown ? (
-                        <span className="mt-4 block">
+                        <span className="mt-4 block pr-14">
                           <span className="inline-flex items-center gap-1.5 text-sm font-bold">
                             <Clock className="size-4" /> Vent litt …
                           </span>
@@ -499,6 +499,16 @@ export default function KidTaskPage() {
                         </span>
                       )}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => readAloud(`${task.title}. Du får ${formatKr(task.amount_ore).replace(" kr", " kroner")}.`)}
+                      aria-label={`Les opp: ${task.title}`}
+                      className="absolute bottom-4 right-4 flex size-11 items-center justify-center rounded-full bg-white/85 shadow-sm transition active:scale-90"
+                      style={{ color: color.ink }}
+                    >
+                      <Volume2 className="size-5" />
+                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -508,129 +518,46 @@ export default function KidTaskPage() {
           <KidHistory childId={childId} />
         </div>
 
-        {/* Ønsker */}
-        <aside className="h-fit rounded-[2rem] border border-border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="onsker-title">
-          <h2 id="onsker-title" className="flex items-center gap-2 text-2xl font-extrabold tracking-tight">
-            <Gift className="size-6 text-primary" /> Ønskene mine
-          </h2>
-
-          <form onSubmit={(e) => void submitWish(e)} className="mt-4 space-y-3">
-            <label className="block">
-              <span className="text-sm font-bold">Jeg ønsker meg …</span>
-              <input
-                value={wishTitle}
-                onChange={(e) => setWishTitle(e.target.value)}
-                maxLength={MAX_WISH_LENGTH}
-                placeholder="f.eks. hus i Toca Boca"
-                className="mt-1.5 w-full rounded-2xl border border-border bg-background px-4 py-3.5 text-lg outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-bold">Hva tror du det koster?</span>{" "}
-              <span className="text-sm text-muted-foreground">(kan stå tomt)</span>
-              <span className="mt-1.5 flex items-center rounded-2xl border border-border bg-background pr-4 transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-                <input
-                  value={wishPrice}
-                  onChange={(e) => setWishPrice(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="49"
-                  className="font-num w-full rounded-2xl bg-transparent px-4 py-3.5 text-lg outline-none placeholder:text-muted-foreground/70"
-                />
-                <span className="font-bold text-muted-foreground">kr</span>
+        {/* Ønskebutikken */}
+        <aside className="hidden h-fit space-y-3 lg:block">
+          <Link
+            href={`/kids/${childId}/onsker`}
+            className="group relative block overflow-hidden rounded-[2rem] bg-accent p-6 text-accent-foreground shadow-lg ring-1 ring-black/5 transition hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]"
+          >
+            <span className="absolute -right-4 -top-4 text-[7rem] leading-none opacity-90 transition group-hover:rotate-6 group-hover:scale-110" aria-hidden="true">
+              🎁
+            </span>
+            <span className="relative block max-w-[65%]">
+              <span className="block text-3xl font-extrabold leading-tight tracking-tight">Ønskebutikken</span>
+              <span className="mt-1 block font-semibold opacity-80">Kjøp det du ønsker deg med pengene dine</span>
+            </span>
+            {nextWish && nextWish.price !== null && (
+              <span className="relative mt-5 block rounded-2xl bg-white/70 p-3">
+                <span className="flex items-center justify-between gap-2 text-sm font-bold">
+                  <span className="truncate">
+                    {nextWish.emoji} {nextWish.title}
+                  </span>
+                  <span className="font-num shrink-0">{Math.min(100, Math.round((approvedOre / nextWish.price) * 100))} %</span>
+                </span>
+                <span className="mt-2 block h-3 overflow-hidden rounded-full bg-white">
+                  <span
+                    className="block h-full rounded-full bg-primary"
+                    style={{ width: `${Math.min(100, Math.round((approvedOre / nextWish.price) * 100))}%` }}
+                  />
+                </span>
               </span>
-            </label>
-            <button
-              type="submit"
-              disabled={wishSending || !wishTitle.trim()}
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-base font-bold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-            >
-              <Send className="size-4" /> {wishSending ? "Sender…" : "Send ønske"}
-            </button>
-            <p className="text-xs text-muted-foreground">Sier en voksen ja, betaler du med pengene du har til gode.</p>
-            {wishNotice && (
-              <p
-                role="status"
-                className={`rounded-xl px-4 py-3 text-sm font-semibold ${
-                  wishNotice.kind === "error" ? "bg-red-50 text-red-800" : "bg-secondary text-primary"
-                }`}
-              >
-                {wishNotice.text}
-              </p>
             )}
-          </form>
-
-          <div className="mt-6 space-y-3">
-            {wishlistItems.length === 0 && !loading && (
-              <p className="rounded-2xl bg-secondary px-4 py-5 text-center text-muted-foreground">
-                Ingen ønsker ennå. Skriv inn noe du drømmer om!
-              </p>
-            )}
-            {wishlistItems.map((item) => (
-              <WishCard key={item.id} item={item} balanceOre={approvedOre} />
-            ))}
-          </div>
+            <span className="relative mt-4 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-5 font-extrabold text-primary-foreground shadow-sm">
+              Gå til butikken <ArrowRight className="size-5" />
+            </span>
+          </Link>
+          {openWishCount > 0 && (
+            <p className="px-2 text-center text-sm font-semibold text-muted-foreground">
+              Du har {openWishCount} {openWishCount === 1 ? "ønske" : "ønsker"} i butikken
+            </p>
+          )}
         </aside>
       </div>
     </main>
-  );
-}
-
-function WishCard({ item, balanceOre }: { item: WishlistItem; balanceOre: number }) {
-  if (item.status === "PAID") {
-    return (
-      <div className="rounded-2xl bg-accent/60 p-4">
-        <p className="flex items-center gap-2 font-bold">
-          <PartyPopper className="size-5" /> {item.title}
-        </p>
-        <p className="mt-0.5 text-sm text-accent-foreground">
-          Oppfylt{item.target_ore !== null ? ` for ${formatKr(item.target_ore)}` : ""}!
-        </p>
-      </div>
-    );
-  }
-
-  if (item.status === "PROPOSED") {
-    return (
-      <div className="rounded-2xl border border-dashed border-border p-4">
-        <p className="font-bold">{item.title}</p>
-        <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Clock className="size-4" /> Venter på en voksen
-          {item.suggested_ore ? ` · du tror ${formatKr(item.suggested_ore)}` : ""}
-        </p>
-      </div>
-    );
-  }
-
-  // Sparemål: godkjent pris, men ikke nok til gode ennå (eller akkurat nok nå).
-  const target = item.target_ore ?? 0;
-  const progress = target > 0 ? Math.min(100, Math.round((balanceOre / target) * 100)) : 0;
-  const missing = Math.max(0, target - balanceOre);
-
-  return (
-    <div className="rounded-2xl bg-secondary p-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="font-bold">{item.title}</p>
-        <span className="font-num shrink-0 text-sm font-bold">{formatKr(target)}</span>
-      </div>
-      <div
-        className="mt-3 h-3 overflow-hidden rounded-full bg-card"
-        role="progressbar"
-        aria-valuenow={progress}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Spart til ${item.title}`}
-      >
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-      </div>
-      <p className="mt-2 text-sm font-semibold text-muted-foreground">
-        {missing === 0 ? (
-          <span className="inline-flex items-center gap-1.5 text-primary">
-            <Sparkles className="size-4" /> Du har spart nok! Nå kan en voksen kjøpe det.
-          </span>
-        ) : (
-          `${formatKr(missing)} igjen`
-        )}
-      </p>
-    </div>
   );
 }

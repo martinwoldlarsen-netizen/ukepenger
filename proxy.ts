@@ -33,6 +33,14 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Besteforeldre som har lagt Ukepenger på hjemskjermen starter på "/"
+  // (manifestets start_url). Send dem rett til sin egen side.
+  if (req.cookies.get("uk_guest")?.value && !kioskCookie) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/besteforeldre";
+    return NextResponse.redirect(url);
+  }
+
   const res = NextResponse.next();
 
   const supabase = createServerClient(
