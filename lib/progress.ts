@@ -2,7 +2,14 @@
 // krav og ønsker, så ingenting lagres og ingenting kan «mistes».
 // Bevisst uten tap, tilfeldighet og sammenligning med søsken.
 
-export type Badge = { key: string; emoji: string; title: string; hint: string; earned: boolean; progress?: number };
+// Merkene som kan gi bonus, og hvor mange oppgaver de krever.
+export const BONUS_MILESTONES = [
+  { key: "ten", tasks: 10 },
+  { key: "fifty", tasks: 50 },
+  { key: "hundred", tasks: 100 },
+] as const;
+
+export type Badge = { key: string; emoji: string; title: string; hint: string; earned: boolean; progress?: number; bonusOre?: number };
 export type Progress = {
   badges: Badge[];
   streakWeeks: number;

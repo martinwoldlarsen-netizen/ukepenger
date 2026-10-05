@@ -41,7 +41,7 @@ export function KidProgress({ childId }: { childId: string }) {
       const id = window.setTimeout(() => {
         setFresh(newOne);
         celebrate("big");
-        readAloud(`Nytt merke! ${newOne.title}`);
+        readAloud(`Nytt merke! ${newOne.title}${newOne.bonusOre ? `. Du fikk ${formatKr(newOne.bonusOre)} i bonus!` : ""}`);
       }, 0);
       return () => window.clearTimeout(id);
     }
@@ -63,6 +63,7 @@ export function KidProgress({ childId }: { childId: string }) {
           <span>
             <span className="block text-sm font-bold opacity-80">Nytt merke!</span>
             <span className="block text-2xl font-extrabold leading-tight">{fresh.title}</span>
+            {fresh.bonusOre ? <span className="block text-base font-bold">+{formatKr(fresh.bonusOre)} i bonus!</span> : null}
           </span>
         </button>
       )}
@@ -102,6 +103,12 @@ export function KidProgress({ childId }: { childId: string }) {
                 {b.emoji}
               </span>
               <span className="mt-1 text-xs font-bold leading-tight">{b.earned ? b.title : b.hint}</span>
+              {b.bonusOre ? (
+                <span className={`font-num mt-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ${b.earned ? "bg-white/70" : "bg-primary text-primary-foreground"}`}>
+                  {b.earned ? "✓ " : "+"}
+                  {formatKr(b.bonusOre)}
+                </span>
+              ) : null}
               {!b.earned && (
                 <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-white">
                   <span className="block h-full rounded-full bg-primary" style={{ width: `${b.progress ?? 0}%` }} />
