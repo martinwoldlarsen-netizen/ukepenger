@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { formatKr } from "@/lib/money";
+import { notifyParents } from "@/lib/push";
 import { verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
@@ -39,8 +41,8 @@ export async function POST(request: Request) {
   }
 
   const [childRes, taskRes] = await Promise.all([
-    supabase.from("children").select("id, family_id, active").eq("id", childId).maybeSingle(),
-    supabase.from("tasks").select("id, family_id, amount_ore, active").eq("id", taskId).maybeSingle(),
+    supabase.from("children").select("id, family_id, active, name").eq("id", childId).maybeSingle(),
+    supabase.from("tasks").select("id, family_id, amount_ore, active, title").eq("id", taskId).maybeSingle(),
   ]);
 
   if (childRes.error || !childRes.data) {
@@ -106,6 +108,18 @@ export async function POST(request: Request) {
 
   if (insertRes.error) {
     return NextResponse.json({ error: insertRes.error.message }, { status: 400 });
+  }
+
+  if (status === "SENT") {
+    const c = childRes.data as { name?: string };
+    const t = taskRes.data as { title?: string };
+    after(() =>
+      notifyParents(supabase, auth.familyId, {
+        title: `${c.name ?? "Barnet"} har gjort en oppgave`,
+        body: `${t.title ?? "Oppgave"} · ${formatKr(task.amount_ore)}. Trykk for å godkjenne.`,
+        tag: "claims",
+      })
+    );
   }
 
   return NextResponse.json({ ok: true, status });

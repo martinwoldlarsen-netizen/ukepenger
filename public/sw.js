@@ -1,7 +1,7 @@
 // Bevisst minimal. Denne cacher ALDRI app-kode eller data - bare en
 // frakoblet-side. Da kan ingen bli sittende fast pa en gammel versjon av
 // appen, og vi slipper hele klassen med "hvorfor ser jeg gammelt innhold".
-const CACHE = "ukepenger-offline-v1";
+const CACHE = "ukepenger-offline-v2";
 const FRAKOBLET = "/offline.html";
 
 self.addEventListener("install", (event) => {
@@ -28,5 +28,41 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     fetch(event.request).catch(() => caches.match(FRAKOBLET))
+  );
+});
+
+// Varsler til foreldre (krav, kjøp og gaver).
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "Ukepenger", body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Ukepenger", {
+      body: data.body || "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: data.tag,
+      renotify: Boolean(data.tag),
+      data: { url: data.url || "/admin/inbox" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || "/admin/inbox", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (c.url.startsWith(self.location.origin) && "focus" in c) {
+          c.navigate(url);
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
   );
 });

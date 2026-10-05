@@ -9,6 +9,7 @@ import { formatKr, parseKrToOre } from "@/lib/money";
 import { DEFAULT_WISH_EMOJI, PRICE_CHIPS, WISH_CATEGORIES, type WishCategory } from "@/lib/wish-catalog";
 import { kidColor } from "../../_lib/palette";
 import { taskEmoji } from "@/lib/task-emoji";
+import { celebrate } from "../../_lib/celebrate";
 
 type Wish = {
   id: string;
@@ -297,6 +298,7 @@ function WishDetailSheet({
       return;
     }
     setBought(true);
+    celebrate("big");
     onBought();
   };
 

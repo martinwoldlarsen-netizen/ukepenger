@@ -78,6 +78,8 @@ export type AdminChild = {
   avatar_key: string | null;
   active: boolean;
   created_at?: string;
+  weekly_allowance_ore?: number;
+  allowance_weekday?: number;
   emoji: string;
   color: { bg: string; ink: string };
 };
@@ -91,7 +93,7 @@ export function useChildren(familyId: string | null) {
       const rows = check(
         await supabase
           .from("children")
-          .select("id, name, avatar_key, active, created_at")
+          .select("id, name, avatar_key, active, created_at, weekly_allowance_ore, allowance_weekday")
           .eq("family_id", familyId as string)
           .order("name", { ascending: true })
       ) as Omit<AdminChild, "emoji" | "color">[];
@@ -146,8 +148,8 @@ export type PendingClaim = {
 
 // Krav uten oppgave er enten en bonus (har tekst) eller et butikksalg.
 export function taskTitleOf(claim: { task_id: string | null; tasks: PendingClaim["tasks"]; note?: string | null }) {
-  // Gaver fra besteforeldre har allerede «🎁 Gave fra …» i teksten.
-  if (!claim.task_id) return claim.note ? (claim.note.startsWith("🎁") ? claim.note : `Bonus: ${claim.note}`) : "Butikksalg";
+  // Gaver («🎁 Gave fra …») og ukepenger («📅 Ukepenger») har allerede egen tekst.
+  if (!claim.task_id) return claim.note ? (/^\p{Extended_Pictographic}/u.test(claim.note) ? claim.note : `Bonus: ${claim.note}`) : "Butikksalg";
   const t = Array.isArray(claim.tasks) ? claim.tasks[0] : claim.tasks;
   return t?.title ?? "Oppgave";
 }

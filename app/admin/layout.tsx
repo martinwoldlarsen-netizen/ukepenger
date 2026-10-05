@@ -66,6 +66,9 @@ function AdminShell({ children }: { children: ReactNode }) {
         router.replace("/onboarding");
         return;
       }
+      // Faste ukepenger som har forfalt legges til før sidene henter saldo.
+      const allowance = await supabase.rpc("ensure_weekly_allowances", { p_family_id: ctx.familyId });
+      if (allowance.error) console.error("[ukepenger]", allowance.error.message);
       setReady(true);
     };
     void run();

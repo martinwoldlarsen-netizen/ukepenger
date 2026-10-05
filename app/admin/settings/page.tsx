@@ -8,6 +8,7 @@ import { friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
 import type { ApprovalMode } from "@/lib/family-client";
 import { formatKr } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { NotificationsCard } from "./NotificationsCard";
 
 const SAVINGS_OPTIONS = [0, 5, 10, 15, 20, 25];
 
@@ -54,6 +55,7 @@ export default function AdminSettingsPage() {
 
   return (
     <section className="space-y-5">
+      <NotificationsCard />
       <Card>
         <CardHeader icon={<CheckCheck className="size-5" />} title="Godkjenning" description="Skal en voksen godkjenne hver oppgave før pengene havner hos barnet?" />
         <div className="mt-5 grid grid-cols-2 gap-1.5 rounded-2xl bg-secondary p-1.5">

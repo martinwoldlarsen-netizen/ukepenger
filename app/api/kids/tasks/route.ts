@@ -8,6 +8,8 @@ type ChildRow = {
   name: string;
   avatar_key: string | null;
   active: boolean;
+  weekly_allowance_ore: number;
+  allowance_weekday: number;
 };
 
 type TaskRow = {
@@ -52,7 +54,7 @@ export async function GET(request: Request) {
 
   const childRes = await supabase
     .from("children")
-    .select("id, family_id, name, avatar_key, active")
+    .select("id, family_id, name, avatar_key, active, weekly_allowance_ore, allowance_weekday")
     .eq("id", childId)
     .maybeSingle();
 
@@ -67,6 +69,10 @@ export async function GET(request: Request) {
   if (child.family_id !== auth.familyId) {
     return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   }
+
+  // Legg til faste ukepenger som har forfalt før saldoen regnes ut.
+  const allowance = await supabase.rpc("ensure_weekly_allowances", { p_family_id: auth.familyId });
+  if (allowance.error) console.error("[ukepenger]", allowance.error.message);
 
   const [tasksRes, settingsRes, recentClaimsRes, balanceClaimsRes, familyRes] = await Promise.all([
     supabase
@@ -143,6 +149,7 @@ export async function GET(request: Request) {
     // Prosenten trengs for å vise riktig "Til gode" rett etter auto-godkjenning,
     // også når sparegrisen er skjult for barnet.
     savings_percent,
+    allowance: child.weekly_allowance_ore > 0 ? { amount_ore: child.weekly_allowance_ore, weekday: child.allowance_weekday } : null,
     saved_ore: show_savings ? saved_ore : null,
   });
 }
