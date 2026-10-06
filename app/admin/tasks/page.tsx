@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskIcon } from "@/components/TaskIcon";
 import { useState } from "react";
 import { Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
@@ -7,7 +8,6 @@ import { useConfirm, useToast } from "@/components/ui/feedback";
 import { type AdminTask, friendlyError, useAdminIdentity, useTasks } from "@/lib/admin-data";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
-import { taskEmoji } from "@/lib/task-emoji";
 import { OTHER_CATEGORY, TASK_PACKS, categoryOf, type PackTask } from "@/lib/task-packs";
 
 type Category = { key: string; title: string; emoji: string; tasks: PackTask[] };
@@ -233,9 +233,7 @@ export default function AdminTasksPage() {
                         aria-label={`Endre ${task.title}`}
                         className={cx("flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl text-left", focusRing, !task.active && "opacity-60")}
                       >
-                        <span className="text-2xl" aria-hidden="true">
-                          {taskEmoji(task.title)}
-                        </span>
+                        <TaskIcon title={task.title} size={44} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-semibold">{task.title}</span>
                           <span className="font-num block text-sm text-muted-foreground">{formatKr(task.amount_ore)}</span>
@@ -305,9 +303,7 @@ export default function AdminTasksPage() {
                     const added = existingTitles.has(t.title.toLowerCase());
                     return (
                       <li key={t.title} className="flex items-center gap-3 px-4 py-2">
-                        <span className="text-xl" aria-hidden="true">
-                          {taskEmoji(t.title)}
-                        </span>
+                        <TaskIcon title={t.title} size={40} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-semibold">{t.title}</span>
                           <span className="font-num block text-sm text-muted-foreground">{t.kr} kr</span>
