@@ -2,13 +2,15 @@
 // (4–6 år) kjenner igjen oppgaven. Ingen lagring: samme navn gir alltid
 // samme bilde, og ukjente oppgaver får en stjerne.
 
+import { LIBRARY_EMOJI } from "@/lib/task-packs";
+
 const RULES: Array<[RegExp, string]> = [
   [/pant|flaske/i, "🥤"],
   [/sokk/i, "🧦"],
   [/\bved\b/i, "🪵"],
   [/oppvaskmaskin/i, "🍽️"],
   [/oppvask|vaske opp|tallerken/i, "🧽"],
-  [/søppel|soppel|søpla|resirk/i, "🗑️"],
+  [/søppel|søppl|soppel|søpla|resirk/i, "🗑️"],
   [/støvsug|stovsug/i, "🧹"],
   [/feie|kost/i, "🧹"],
   [/rydd/i, "🧸"],
@@ -37,6 +39,8 @@ const RULES: Array<[RegExp, string]> = [
 ];
 
 export function taskEmoji(title: string) {
+  const fixed = LIBRARY_EMOJI[title.trim().toLowerCase()];
+  if (fixed) return fixed;
   for (const [re, emoji] of RULES) if (re.test(title)) return emoji;
   return "⭐";
 }
