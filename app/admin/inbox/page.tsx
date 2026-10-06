@@ -91,7 +91,7 @@ export default function AdminInboxPage() {
   const approveAll = async () => {
     if (!userId || claimList.length === 0) return;
     const ok = await confirm({
-      title: `Godkjenne alle ${claimList.length}?`,
+      title: claimList.length === 1 ? "Godkjenne kravet?" : `Godkjenne alle ${claimList.length}?`,
       text: `Til sammen ${formatKr(totalOre)} blir lagt til det barna har til gode.`,
       confirmLabel: "Godkjenn alle",
     });
@@ -172,9 +172,15 @@ export default function AdminInboxPage() {
               </p>
               {claimList.length > 0 && <p className="mt-1 text-sm opacity-80">Oppgaver for til sammen {formatKr(totalOre)}</p>}
             </div>
-            {claimList.length > 1 && (
-              <Button variant="secondary" onClick={() => void approveAll()} icon={<Check className="size-4" />} className="border-transparent">
-                Godkjenn alle
+            {claimList.length > 0 && (
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => void approveAll()}
+                icon={<Check className="size-5" />}
+                className="w-full border-transparent sm:w-auto"
+              >
+                {claimList.length === 1 ? "Godkjenn" : "Godkjenn alle"} · {formatKr(totalOre)}
               </Button>
             )}
           </div>
