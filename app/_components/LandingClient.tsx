@@ -376,6 +376,11 @@ export default function LandingClient() {
             {loggedIn ? "Gå til appen" : "Kom i gang"} <ArrowRight className="size-4" />
           </Link>
         </div>
+        {loggedIn && (
+          <Link href="/admin/inbox" aria-label="Gå til appen" className={`${styles.buttonPrimary} ml-auto mr-2 !min-h-11 !gap-1.5 !px-3.5 text-sm md:hidden`}>
+            Appen <ArrowRight className="size-4" />
+          </Link>
+        )}
         <button
           ref={toggleRef}
           type="button"
@@ -449,8 +454,8 @@ export default function LandingClient() {
               Ukepenger gjør det enkelt for barn å ta ansvar – og for foreldre å ha oversikt.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link href="/login" className={`${styles.buttonPrimary} justify-center`}>
-                Start med familien <ArrowRight className="size-4" />
+              <Link href={appHref} className={`${styles.buttonPrimary} justify-center`}>
+                {loggedIn ? "Gå til appen" : "Start med familien"} <ArrowRight className="size-4" />
               </Link>
               <a href="#slik-fungerer-det" className={`${styles.buttonSecondary} justify-center`}>
                 Se hvordan det fungerer <ChevronDown className="size-4" />
@@ -609,8 +614,8 @@ export default function LandingClient() {
         <p className="mx-auto mt-5 max-w-lg text-pretty leading-7 opacity-90">
           Barnet gjør jobben på sin enhet. Du har kontroll på mobilen. Resten flyter.
         </p>
-        <Link href="/login" className={`${styles.buttonLight} mx-auto mt-8`}>
-          Kom i gang <ArrowRight className="size-4" />
+        <Link href={appHref} className={`${styles.buttonLight} mx-auto mt-8`}>
+          {loggedIn ? "Gå til appen" : "Kom i gang"} <ArrowRight className="size-4" />
         </Link>
       </section>
 
