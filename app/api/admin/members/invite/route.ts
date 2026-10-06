@@ -39,20 +39,45 @@ function createInviteToken(size = 32) {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function sendInviteEmail(email: string, inviteLink: string) {
+function escapeHtml(v: string) {
+  return v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+}
+
+// Invitasjonen på e-post (via Resend). Enkel, norsk og tydelig: hvem som
+// inviterer, hvilken familie, og at de må bruke denne e-postadressen.
+async function sendInviteEmail(email: string, inviteLink: string, inviter: string | null, familyName: string | null) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     throw new Error("Mangler RESEND_API_KEY.");
   }
 
   const from = process.env.RESEND_FROM_EMAIL?.trim() || "Ukepenger <no-reply@ukepenger.no>";
-  const payload = {
-    from,
-    to: [email],
-    subject: "Invitasjon til Ukepenger",
-    text: `Du har blitt invitert til Ukepenger.\n\nAksepter invitasjonen her: ${inviteLink}`,
-    html: `<p>Du har blitt invitert til Ukepenger.</p><p><a href="${inviteLink}">Aksepter invitasjonen</a></p>`,
-  };
+  const who = inviter ?? "En forelder";
+  const family = familyName?.trim() || "familien";
+  const subject = `${who} inviterer deg til ${family} på Ukepenger`;
+  const text = [
+    `Hei!`,
+    ``,
+    `${who} har invitert deg til ${family} på Ukepenger. Der kan dere begge godkjenne oppgavene barna gjør og holde oversikt over ukepengene.`,
+    ``,
+    `Bli med her: ${inviteLink}`,
+    ``,
+    `Logg inn eller lag konto med denne e-postadressen (${email}). Invitasjonen varer i 48 timer.`,
+    ``,
+    `Hilsen Ukepenger`,
+  ].join("\n");
+  const html = `<!doctype html><html lang="nb"><body style="margin:0;background:#fbf8f1;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17251c">
+  <div style="max-width:480px;margin:0 auto;padding:32px 20px">
+    <div style="font-size:20px;font-weight:700;color:#0d6b3a;margin-bottom:24px">ukepenger</div>
+    <div style="background:#fff;border-radius:24px;padding:28px;border:1px solid #ebe4d6">
+      <div style="font-size:40px">👨‍👩‍👧</div>
+      <h1 style="font-size:22px;margin:12px 0 8px">Du er invitert!</h1>
+      <p style="font-size:16px;line-height:1.5;margin:0 0 20px"><strong>${escapeHtml(who)}</strong> har invitert deg til <strong>${escapeHtml(family)}</strong> på Ukepenger. Der kan dere begge godkjenne oppgavene barna gjør og holde oversikt over ukepengene.</p>
+      <a href="${inviteLink}" style="display:inline-block;background:#0d6b3a;color:#fff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 22px;border-radius:14px">Bli med i familien</a>
+      <p style="font-size:14px;line-height:1.5;color:#5d6b61;margin:20px 0 0">Logg inn eller lag konto med denne e-postadressen (${escapeHtml(email)}). Invitasjonen varer i 48 timer.</p>
+    </div>
+    <p style="font-size:12px;color:#8a948c;margin-top:20px">Fikk du denne ved en feil? Da kan du bare se bort fra den.</p>
+  </div></body></html>`;
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -60,7 +85,7 @@ async function sendInviteEmail(email: string, inviteLink: string) {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ from, to: [email], subject, text, html }),
   });
 
   if (!res.ok) {
@@ -204,7 +229,11 @@ export async function POST(request: Request) {
   // eller Messenger hvis e-posttjenesten ikke er satt opp.
   let emailed = false;
   try {
-    await sendInviteEmail(email, inviteLink);
+    const [inviterRes, familyRes] = await Promise.all([
+      auth.serviceClient.auth.admin.getUserById(auth.userId),
+      auth.serviceClient.from("families").select("name").eq("id", auth.familyId).maybeSingle(),
+    ]);
+    await sendInviteEmail(email, inviteLink, inviterRes.data.user?.email ?? null, (familyRes.data?.name as string | undefined) ?? null);
     emailed = true;
   } catch (error) {
     console.error("[invite] e-post ble ikke sendt:", error instanceof Error ? error.message : error);
