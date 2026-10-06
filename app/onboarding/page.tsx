@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_AVATAR_KEY } from "@/lib/avatars";
-import { TASK_PACKS } from "@/lib/task-packs";
+import { BASIC_TASKS } from "@/lib/task-packs";
 import { QrImage } from "@/components/QrCode";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
@@ -24,9 +24,12 @@ type ChildDraft = {
 
 // Forslagene kommer fra oppgavepakkene. De vanligste er slått på fra start.
 const ON_BY_DEFAULT = new Set(["Rydde rommet", "Ta oppvasken", "Ta ut søppel", "Dekke bordet"]);
-const defaultTasks: TaskTemplate[] = TASK_PACKS.filter((pack) => !pack.extra).flatMap((pack) =>
-  pack.tasks.map((t) => ({ key: `${pack.key}-${t.title}`, title: t.title, amountOre: t.kr * 100, enabled: ON_BY_DEFAULT.has(t.title) }))
-);
+const defaultTasks: TaskTemplate[] = BASIC_TASKS.map((t) => ({
+  key: t.title,
+  title: t.title,
+  amountOre: t.kr * 100,
+  enabled: ON_BY_DEFAULT.has(t.title),
+}));
 
 export default function OnboardingPage() {
   const router = useRouter();

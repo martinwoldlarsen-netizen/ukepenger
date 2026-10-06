@@ -313,8 +313,8 @@ export default function AdminTasksPage() {
         </ul>
       )}
       <div>
-        <h2 className="text-lg font-bold tracking-tight">Inspirasjon</h2>
-        <p className="mb-3 text-sm text-muted-foreground">Trykk på en pakke for å velge oppgaver. Du kan endre pris etterpå.</p>
+        <h2 className="text-lg font-bold tracking-tight">Hent flere oppgaver</h2>
+        <p className="mb-3 text-sm text-muted-foreground">Trykk på en kategori og legg til de du vil ha. Du kan endre navn og pris etterpå.</p>
         <div className="grid gap-3 md:grid-cols-2">
           {TASK_PACKS.map((pack) => {
             const missing = pack.tasks.filter((t) => !existingTitles.has(t.title.toLowerCase()));
