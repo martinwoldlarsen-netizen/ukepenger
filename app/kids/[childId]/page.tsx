@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskIcon } from "@/components/TaskIcon";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -7,7 +8,6 @@ import useSWR, { useSWRConfig } from "swr";
 import { KidHistory, kidHistoryKey } from "../_components/KidHistory";
 import { KidProgress, kidProgressKey } from "../_components/KidProgress";
 import { ArrowLeft, ArrowRight, Check, Clock, PartyPopper, Pencil, Volume2, X } from "lucide-react";
-import { taskEmoji } from "@/lib/task-emoji";
 import { readAloud } from "../_lib/read-aloud";
 import { celebrate } from "../_lib/celebrate";
 import { SoundToggle } from "../_components/SoundToggle";
@@ -474,9 +474,7 @@ export default function KidTaskPage() {
                     >
                       <span className="flex items-start gap-3">
                         {/* Bilde så barn som ikke kan lese ennå kjenner igjen oppgaven. */}
-                        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-3xl shadow-sm" aria-hidden="true">
-                          {taskEmoji(task.title)}
-                        </span>
+                        <TaskIcon title={task.title} size={60} className="shadow-sm" />
                         <span className="min-w-0 flex-1">
                           <span className="block text-2xl font-extrabold leading-tight tracking-tight [hyphens:auto] [overflow-wrap:break-word]" lang="nb">
                             {task.title}
