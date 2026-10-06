@@ -56,7 +56,7 @@ export function buildHistory(claims: ClaimLike[], payments: PaymentLike[]): Hist
       id: `p-${p.id}`,
       kind: p.method === "WISH" ? "wish" : "payment",
       childId: p.child_id,
-      title: p.method === "WISH" ? `Ønske: ${p.note ?? ""}`.trim() : `Utbetalt (${METHOD_LABEL[p.method] ?? p.method})`,
+      title: p.method === "WISH" ? `Ønske: ${p.note ?? ""}`.trim() : `Utbetalt (${METHOD_LABEL[p.method] ?? p.method})${p.note ? ` · ${p.note}` : ""}`,
       amountOre: p.amount_ore,
       savedOre: 0,
       at: p.created_at,

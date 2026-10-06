@@ -3,7 +3,7 @@
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Check, ChevronDown, Receipt, Trash2, Wallet } from "lucide-react";
+import { ChevronDown, Receipt, Trash2, Wallet } from "lucide-react";
 import { Avatar, Button, Card, EmptyState, Input, ListSkeleton, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
 import {
@@ -12,12 +12,13 @@ import {
   childLookup,
   friendlyError,
   swrDefaults,
+  UserFacingError,
   taskTitleOf,
   useAdminIdentity,
   useChildren,
 } from "@/lib/admin-data";
 import { formatWhen } from "@/lib/dates";
-import { formatKr } from "@/lib/money";
+import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
 type ApprovedClaim = {
@@ -117,10 +118,9 @@ export default function AdminPaymentsPage() {
   const childOf = childLookup(children.data);
 
   const [pickedChildId, setPickedChildId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [note, setNote] = useState("");
-  const [showNote, setShowNote] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const activeChildren = useMemo(() => (children.data ?? []).filter((c) => c.active), [children.data]);
@@ -135,31 +135,34 @@ export default function AdminPaymentsPage() {
   const childId = pickedChildId ?? activeChildren.find((c) => (dueByChild[c.id] ?? 0) > 0)?.id ?? activeChildren[0]?.id ?? null;
   const child: AdminChild | null = childId ? childOf(childId) : null;
   const childClaims = approved.filter((c) => c.child_id === childId);
-  const selectedIds = childClaims.filter((c) => selected[c.id]).map((c) => c.id);
-  const payIds = selectedIds.length > 0 ? selectedIds : childClaims.map((c) => c.id);
-  const payTotal = childClaims.filter((c) => payIds.includes(c.id)).reduce((s, c) => s + c.amount_ore, 0);
+  const balance = childId ? (dueByChild[childId] ?? 0) : 0;
+  // Ett felt for beløp: tomt = alt. Alt fra potten, eldste krav først.
+  const parsed = amount.trim() ? parseKrToOre(amount) : balance;
+  const payOre = typeof parsed === "number" ? parsed : 0;
+  const amountError =
+    amount.trim() && typeof parsed !== "number" ? "Skriv beløpet som et tall, f.eks. 34,50." : payOre > balance ? `${child?.name ?? "Barnet"} har bare ${formatKr(balance)} til gode.` : null;
 
   const loading = !familyId || (data.isLoading && !data.data) || (children.isLoading && !children.data);
 
   const pay = async () => {
-    if (!child || payIds.length === 0 || submitting) return;
+    if (!child || payOre <= 0 || amountError || submitting) return;
     const ok = await confirm({
-      title: `Utbetale ${formatKr(payTotal)} til ${child.name}?`,
-      text: `${payIds.length} ${payIds.length === 1 ? "oppgave" : "oppgaver"} · ${methodLabel[method]}`,
+      title: `Utbetale ${formatKr(payOre)} til ${child.name}?`,
+      text: `${methodLabel[method]}${note.trim() ? ` · ${note.trim()}` : ""}. ${formatKr(balance - payOre)} blir igjen.`,
       confirmLabel: "Utbetal",
     });
     if (!ok) return;
 
     setSubmitting(true);
     try {
-      const payload = await adminFetch<{ amount_ore?: number }>("/api/payments/create", {
-        method: "POST",
-        body: JSON.stringify({ childId: child.id, claimIds: payIds, method, note: note.trim() || undefined }),
-      });
-      toast({ text: `${formatKr(payload.amount_ore ?? payTotal)} utbetalt til ${child.name}` });
-      setSelected({});
+      const res = await supabase.rpc("pay_out_amount", { p_child_id: child.id, p_amount_ore: payOre, p_method: method, p_note: note.trim() || null });
+      if (res.error) {
+        if (/NOT_ENOUGH|BALANCE_CHANGED/.test(res.error.message)) throw new UserFacingError("Beløpet er større enn det barnet har til gode.");
+        throw new Error(res.error.message);
+      }
+      toast({ text: `${formatKr(payOre)} utbetalt til ${child.name}` });
+      setAmount("");
       setNote("");
-      setShowNote(false);
       await data.mutate();
     } catch (error) {
       toast({ kind: "error", text: friendlyError(error, "Klarte ikke å registrere utbetalingen.") });
@@ -216,7 +219,7 @@ export default function AdminPaymentsPage() {
               aria-pressed={active}
               onClick={() => {
                 setPickedChildId(c.id);
-                setSelected({});
+                setAmount("");
               }}
               className={cx(
                 "flex min-w-40 shrink-0 items-center gap-3 rounded-3xl p-3.5 text-left ring-2 transition active:scale-[0.98]",
@@ -250,33 +253,42 @@ export default function AdminPaymentsPage() {
           ) : (
             <>
               <div>
-                <p className="mb-2 text-sm font-semibold text-foreground/85">
-                  {selectedIds.length > 0 ? `${selectedIds.length} valgt` : "Trykk for å velge enkeltoppgaver, eller utbetal alt"}
-                </p>
-                <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
-                  {childClaims.map((claim) => {
-                    const isOn = Boolean(selected[claim.id]);
-                    return (
-                      <li key={claim.id}>
-                        <button
-                          type="button"
-                          aria-pressed={isOn}
-                          onClick={() => setSelected((prev) => ({ ...prev, [claim.id]: !prev[claim.id] }))}
-                          className={cx("flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition", focusRing, isOn ? "bg-primary/8" : "hover:bg-secondary/60")}
-                        >
-                          <span className={cx("flex size-6 shrink-0 items-center justify-center rounded-lg border-2 transition", isOn ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
-                            {isOn && <Check className="size-4" strokeWidth={3} />}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-semibold">{taskTitleOf(claim)}</span>
-                            <span className="block text-sm text-muted-foreground">{formatWhen(claim.created_at)}</span>
-                          </span>
-                          <span className="font-num font-bold">{formatKr(claim.amount_ore)}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <label htmlFor="pay-amount" className="mb-2 block text-sm font-semibold text-foreground/85">
+                  Hvor mye betaler du ut?
+                </label>
+                <span className="relative block">
+                  <Input
+                    id="pay-amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    inputMode="decimal"
+                    placeholder={(balance / 100).toFixed(2).replace(".", ",")}
+                    className="font-num pr-12 text-lg"
+                    aria-invalid={Boolean(amountError)}
+                  />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">kr</span>
+                </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAmount("")}
+                    className={cx("min-h-10 rounded-full px-4 text-sm font-semibold transition", focusRing, !amount.trim() ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent")}
+                  >
+                    Alt · {formatKr(balance)}
+                  </button>
+                </div>
+                {amountError ? (
+                  <p className="mt-2 text-sm font-semibold text-red-700">{amountError}</p>
+                ) : (
+                  amount.trim() && <p className="mt-2 text-sm text-muted-foreground">{formatKr(balance - payOre)} blir igjen i potten.</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="pay-note" className="mb-2 block text-sm font-semibold text-foreground/85">
+                  Hva gjelder det? <span className="font-normal text-muted-foreground">(valgfritt)</span>
+                </label>
+                <Input id="pay-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="F.eks. Lego-sett, eller ukepenger" maxLength={120} />
               </div>
 
               <div>
@@ -294,18 +306,28 @@ export default function AdminPaymentsPage() {
                     </button>
                   ))}
                 </div>
-                {showNote ? (
-                  <Input className="mt-3" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notat, f.eks. «lagt på sparekonto»" autoFocus />
-                ) : (
-                  <button type="button" onClick={() => setShowNote(true)} className={cx("mt-2 min-h-10 rounded-xl px-1 text-sm font-semibold text-primary", focusRing)}>
-                    + Legg til notat
-                  </button>
-                )}
               </div>
 
-              <Button size="lg" block loading={submitting} onClick={() => void pay()} icon={<Wallet className="size-5" />}>
-                {selectedIds.length > 0 ? `Utbetal valgte · ${formatKr(payTotal)}` : `Utbetal alt · ${formatKr(payTotal)}`}
+              <Button size="lg" block loading={submitting} disabled={payOre <= 0 || Boolean(amountError)} onClick={() => void pay()} icon={<Wallet className="size-5" />}>
+                Utbetal {formatKr(payOre)}
               </Button>
+
+              <details className="group">
+                <summary className={cx("flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-xl text-sm font-semibold text-muted-foreground", focusRing)}>
+                  <ChevronDown className="size-4 transition group-open:rotate-180" /> Vis hva pengene kommer fra
+                </summary>
+                <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border text-sm">
+                  {childClaims.map((claim) => (
+                    <li key={claim.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{taskTitleOf(claim)}</span>
+                        <span className="block text-muted-foreground">{formatWhen(claim.created_at)}</span>
+                      </span>
+                      <span className="font-num font-bold">{formatKr(claim.amount_ore)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             </>
           )}
         </Card>
@@ -336,7 +358,7 @@ export default function AdminPaymentsPage() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">
                           {c.name}
-                          {payment.method === "WISH" && payment.note ? ` · ${payment.note}` : ""}
+                          {payment.note ? ` · ${payment.note}` : ""}
                         </span>
                         <span className="block text-sm text-muted-foreground">
                           {formatWhen(payment.created_at)} · {methodLabel[payment.method] ?? payment.method}
@@ -352,7 +374,7 @@ export default function AdminPaymentsPage() {
                           <span className="font-num font-semibold">{formatKr(claim.amount_ore)}</span>
                         </div>
                       ))}
-                      {payment.note && payment.method !== "WISH" && <p className="text-sm text-muted-foreground">Notat: {payment.note}</p>}
+                      
                       <Button variant="dangerSoft" size="sm" className="mt-2" icon={<Trash2 className="size-4" />} onClick={() => void deletePayment(payment)}>
                         Slett utbetaling
                       </Button>
