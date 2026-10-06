@@ -117,7 +117,7 @@ export function childLookup(children: AdminChild[] | undefined) {
 
 /* Oppgaver */
 
-export type AdminTask = { id: string; title: string; amount_ore: number; active: boolean; created_at?: string };
+export type AdminTask = { id: string; title: string; amount_ore: number; active: boolean; created_at?: string; category?: string | null };
 
 export function useTasks(familyId: string | null) {
   return useSWR(
@@ -126,7 +126,7 @@ export function useTasks(familyId: string | null) {
       check(
         await supabase
           .from("tasks")
-          .select("id, title, amount_ore, active, created_at")
+          .select("id, title, amount_ore, active, created_at, category")
           .eq("family_id", familyId as string)
           .is("archived_at", null)
           .order("created_at", { ascending: false })

@@ -107,6 +107,9 @@ Logikk i databasen (security definer, ikke kallbar fra klient der det ikke treng
 - `claims_trophies` (trigger): gir trofé-/milepælsbonus én gang, rangbasert.
 - `ensure_weekly_allowances(family_id)`: faste ukepenger, kalles lat fra API-ene.
 
+`tasks.category` grupperer oppgaver (nøkler fra `lib/task-packs.ts`, null = gjettes
+ut fra navnet med `categoryOf`).
+
 Konvensjon for krav uten oppgave (`task_id` null): notat som starter med emoji
 vises som det er (`🎁 Gave …`, `📅 Ukepenger`, `🏆 …`, `🏅 …`), annet notat
 vises som `Bonus: …`, ingen notat = `Butikksalg`.

@@ -147,3 +147,28 @@ export const TASK_PACKS: TaskPack[] = [
     ],
   },
 ];
+
+// Oppgaver som ikke passer i noen kategori (f.eks. «Salg 10,-»).
+export const OTHER_CATEGORY = { key: "andre", title: "Andre oppgaver", emoji: "📦" } as const;
+
+const CATEGORY_RULES: Array<[RegExp, string]> = [
+  [/søppel|soppel|søpla|søppla|pant|flaske|resirk|handlepose/i, "avfall"],
+  [/hund|katt|dyr|mate |fisk|bur\b|hest|kanin/i, "dyr"],
+  [/snø|sno|måke|make|løv|rake|plen|gress|hage|luke|ved\b|bil|bod|trapp|garasje/i, "ute"],
+  [/oppvask|bord|mat|middag|frokost|lunsj|kjøkken|kjøleskap|bake|matpakk/i, "kjokken"],
+  [/klær|klaer|klesvask|brette|skittentøy|seng(e|a)?tøy|skifte på|sko/i, "klaer"],
+  [/lekse|les(e|ing)|skole|sekk|instrument|øve|piano|stå opp|legge seg/i, "skole"],
+  [/leke|tenn|kle på|sokk/i, "minste"],
+  [/søsken|passe|besteforeld|nabo|hjelpe/i, "snill"],
+  [/rydd|støvsug|vask|støv|gulv|bad|vindu|blomst|seng/i, "huset"],
+];
+
+// Kategori for en oppgave: lagret verdi, ellers eksakt treff i biblioteket,
+// ellers et gjett ut fra navnet.
+export function categoryOf(task: { title: string; category?: string | null }): string {
+  if (task.category) return task.category;
+  const t = task.title.trim().toLowerCase();
+  const exact = TASK_PACKS.find((p) => p.tasks.some((x) => x.title.toLowerCase() === t));
+  if (exact) return exact.key;
+  return CATEGORY_RULES.find(([re]) => re.test(task.title))?.[1] ?? OTHER_CATEGORY.key;
+}
