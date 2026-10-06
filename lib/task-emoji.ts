@@ -3,6 +3,9 @@
 // samme bilde, og ukjente oppgaver får en stjerne.
 
 const RULES: Array<[RegExp, string]> = [
+  [/pant|flaske/i, "🥤"],
+  [/sokk/i, "🧦"],
+  [/\bved\b/i, "🪵"],
   [/oppvaskmaskin/i, "🍽️"],
   [/oppvask|vaske opp|tallerken/i, "🧽"],
   [/søppel|soppel|søpla|resirk/i, "🗑️"],
