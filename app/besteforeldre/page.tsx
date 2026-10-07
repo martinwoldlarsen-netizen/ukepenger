@@ -1,24 +1,65 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import useSWR from "swr";
-import { Coins, Gift, Heart, Share, X } from "lucide-react";
+import { Check, Coins, Copy, Gift, Heart, Share, UserRound, X } from "lucide-react";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
+import { rememberPendingGuest } from "@/lib/after-auth";
 import { formatKr, parseKrToOre } from "@/lib/money";
+import { supabase } from "@/lib/supabaseClient";
 
 type GuestWish = { id: string; title: string; emoji: string | null; price_ore: number | null; approved: boolean };
 type GuestChild = { id: string; name: string; avatar_key: string | null; due_ore: number; saved_ore: number | null; wishes: GuestWish[] };
-type Overview = { guestName: string; familyName: string | null; children: GuestChild[] };
+type Recipient = { id: string; name: string; phone: string };
+type Overview = {
+  guestId: string;
+  guestName: string;
+  familyName: string | null;
+  linked: boolean;
+  families: { guestId: string; familyName: string | null }[];
+  recipients: Recipient[];
+  children: GuestChild[];
+};
 
 const AMOUNTS = [50, 100, 200, 500];
+const FAMILY_KEY = "uk_guest_family";
+const WELCOME_KEY = "uk_guest_welcome_seen";
 
-async function fetchOverview(): Promise<Overview> {
-  const res = await fetch("/api/guest/overview", { credentials: "include" });
+function readLocal(key: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // privat modus
+  }
+}
+
+// Besteforeldre kan komme inn med lenke-cookien, en innlogget profil, eller begge.
+async function guestHeaders(guestId?: string | null): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+  if (guestId) headers["x-guest-id"] = guestId;
+  return headers;
+}
+
+async function fetchOverview([, guestId]: [string, string | null]): Promise<Overview & { signedIn: boolean }> {
+  const headers = await guestHeaders(guestId);
+  const res = await fetch("/api/guest/overview", { credentials: "include", headers });
   const payload = (await res.json().catch(() => ({}))) as Overview & { error?: string };
-  if (!res.ok) throw Object.assign(new Error(payload.error ?? "Feil"), { status: res.status });
-  return payload;
+  if (!res.ok) throw Object.assign(new Error(payload.error ?? "Feil"), { status: res.status, signedIn: Boolean(headers.Authorization) });
+  return { ...payload, signedIn: Boolean(headers.Authorization) };
 }
 
 export default function GrandparentPage() {
@@ -30,12 +71,39 @@ export default function GrandparentPage() {
 }
 
 function GrandparentInner() {
-  const linkError = useSearchParams().get("feil") === "lenke";
-  const { data, error, mutate } = useSWR("guest-overview", fetchOverview, { revalidateOnFocus: true, shouldRetryOnError: false });
+  const params = useSearchParams();
+  const linkError = params.get("feil") === "lenke";
+  const profileMade = params.get("profil") === "ok";
+  const [familyPick, setFamilyPick] = useState<string | null>(() => readLocal(FAMILY_KEY));
+  const { data, error, mutate } = useSWR(["guest-overview", familyPick] as [string, string | null], fetchOverview, {
+    revalidateOnFocus: true,
+    shouldRetryOnError: false,
+  });
   const [giftFor, setGiftFor] = useState<GuestChild | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [welcomeSeen, setWelcomeSeen] = useState(() => readLocal(WELCOME_KEY) === "1");
 
-  const notConnected = linkError || (error && (error as { status?: number }).status === 401);
+  const notConnected = (linkError && !data) || (error && (error as { status?: number }).status === 401);
+  const signedInWithoutAccess = Boolean(error && (error as { signedIn?: boolean }).signedIn);
+
+  const makeProfile = () => {
+    writeLocal(WELCOME_KEY, "1");
+    rememberPendingGuest();
+    window.location.href = "/besteforeldre/bli-med";
+  };
+  const skipProfile = () => {
+    writeLocal(WELCOME_KEY, "1");
+    setWelcomeSeen(true);
+  };
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
+
+  // Første gang med lenke: velg om du vil lage profil eller bare fortsette.
+  if (data && !data.linked && !data.signedIn && !welcomeSeen) {
+    return <WelcomeChoice name={data.guestName} familyName={data.familyName} onMakeProfile={makeProfile} onSkip={skipProfile} />;
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-5 py-8 text-lg sm:py-12">
@@ -49,8 +117,21 @@ function GrandparentInner() {
       {notConnected ? (
         <div className="mt-10 rounded-[2rem] border border-border bg-card p-8 text-center shadow-sm">
           <div className="text-6xl" aria-hidden="true">🔗</div>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight">Lenken virker ikke</h1>
-          <p className="mt-2 text-muted-foreground">Be foreldrene sende deg en ny lenke fra Ukepenger.</p>
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{signedInWithoutAccess ? "Ingen familie ennå" : "Lenken virker ikke"}</h1>
+          <p className="mt-2 text-muted-foreground">
+            {signedInWithoutAccess
+              ? "Profilen din er ikke koblet til en familie. Be foreldrene sende deg en besteforelder-lenke, og åpne den her."
+              : "Be foreldrene sende deg en ny lenke fra Ukepenger."}
+          </p>
+          {signedInWithoutAccess ? (
+            <button type="button" onClick={() => void signOut()} className="mt-6 min-h-14 w-full rounded-2xl bg-secondary font-bold">
+              Logg ut
+            </button>
+          ) : (
+            <Link href="/login" className="mt-6 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-secondary font-bold">
+              <UserRound className="size-5" /> Har du profil? Logg inn
+            </Link>
+          )}
         </div>
       ) : !data ? (
         <div className="mt-10 space-y-4" aria-label="Laster" role="status">
@@ -61,6 +142,31 @@ function GrandparentInner() {
         <>
           <h1 className="mt-8 text-4xl font-extrabold tracking-tight">Hei, {data.guestName}! 👋</h1>
           <p className="mt-2 text-xl text-muted-foreground">Her ser du hva barnebarna sparer til, og kan gi dem en gave.</p>
+
+          {profileMade && data.linked && (
+            <p className="animate-pop mt-6 rounded-2xl bg-accent px-5 py-4 font-bold text-accent-foreground">
+              Profilen din er klar ✓ Neste gang logger du bare inn på ukepenger.no.
+            </p>
+          )}
+
+          {data.families.length > 1 && (
+            <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="Velg familie">
+              {data.families.map((f) => (
+                <button
+                  key={f.guestId}
+                  type="button"
+                  aria-pressed={f.guestId === data.guestId}
+                  onClick={() => {
+                    writeLocal(FAMILY_KEY, f.guestId);
+                    setFamilyPick(f.guestId);
+                  }}
+                  className={`min-h-12 rounded-full px-5 font-bold transition ${f.guestId === data.guestId ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
+                >
+                  {f.familyName ?? "Familie"}
+                </button>
+              ))}
+            </div>
+          )}
 
           <AddToHomeHint />
 
@@ -141,12 +247,26 @@ function GrandparentInner() {
               );
             })}
           </div>
+
+          <div className="mt-10 border-t border-border pt-6 text-center text-base text-muted-foreground">
+            {data.signedIn ? (
+              <button type="button" onClick={() => void signOut()} className="underline">
+                Logg ut
+              </button>
+            ) : !data.linked ? (
+              <button type="button" onClick={makeProfile} className="font-semibold text-primary underline">
+                Lag profil, så finner du alltid tilbake
+              </button>
+            ) : null}
+          </div>
         </>
       )}
 
       {giftFor && (
         <GiftSheet
           child={giftFor}
+          guestId={data?.guestId ?? null}
+          recipients={data?.recipients ?? []}
           onClose={() => setGiftFor(null)}
           onSent={() => {
             setSentTo(giftFor.id);
@@ -159,28 +279,75 @@ function GrandparentInner() {
   );
 }
 
-function GiftSheet({ child, onClose, onSent }: { child: GuestChild; onClose: () => void; onSent: () => void }) {
+function GiftSheet({
+  child,
+  guestId,
+  recipients,
+  onClose,
+  onSent,
+}: {
+  child: GuestChild;
+  guestId: string | null;
+  recipients: Recipient[];
+  onClose: () => void;
+  onSent: () => void;
+}) {
   const [amount, setAmount] = useState<number | null>(100);
   const [custom, setCustom] = useState("");
   const [wishId, setWishId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [recipientId, setRecipientId] = useState<string | null>(recipients.length === 1 ? recipients[0].id : null);
+  const [step, setStep] = useState<"choose" | "vipps">("choose");
+  const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  const send = async () => {
-    const typed = custom.trim() ? parseKrToOre(custom) : null;
-    const amountOre = typeof typed === "number" ? typed : amount !== null ? amount * 100 : null;
+  const typed = custom.trim() ? parseKrToOre(custom) : null;
+  const amountOre = typeof typed === "number" ? typed : amount !== null && !custom.trim() ? amount * 100 : null;
+  const recipient = recipients.find((r) => r.id === recipientId) ?? null;
+  const useVipps = recipients.length > 0;
+
+  const next = () => {
     if (typed === "invalid" || !amountOre) {
       setError("Velg et beløp.");
       return;
     }
+    if (useVipps && !recipient) {
+      setError("Velg hvem som skal få pengene.");
+      return;
+    }
+    setError("");
+    if (useVipps) setStep("vipps");
+    else void send();
+  };
+
+  const copyNumber = async () => {
+    if (!recipient) return;
+    try {
+      await navigator.clipboard.writeText(recipient.phone);
+      setCopied(true);
+    } catch {
+      // Ikke støttet: nummeret står uansett stort på skjermen.
+    }
+  };
+
+  // Vipps tar ikke imot beløp og mottaker i en lenke for vanlige personer, så
+  // vi kopierer nummeret og åpner appen. Beløpet står stort her.
+  const openVipps = async () => {
+    await copyNumber();
+    window.location.assign("vipps://");
+  };
+
+  const send = async () => {
+    if (!amountOre) return;
     setSending(true);
     setError("");
+    const headers = { "Content-Type": "application/json", ...(await guestHeaders(guestId)) };
     const res = await fetch("/api/guest/gift", {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ childId: child.id, amountOre, wishId, message }),
+      headers,
+      body: JSON.stringify({ childId: child.id, amountOre, wishId, message, recipientId: recipient?.id ?? null }),
     });
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
     setSending(false);
@@ -203,76 +370,186 @@ function GiftSheet({ child, onClose, onSent }: { child: GuestChild; onClose: () 
         <button type="button" onClick={onClose} aria-label="Lukk" className="absolute right-4 top-4 flex size-12 items-center justify-center rounded-xl border border-border hover:bg-secondary">
           <X className="size-6" />
         </button>
-        <h2 className="pr-14 text-3xl font-extrabold tracking-tight">Gave til {child.name} 🎁</h2>
 
-        <p className="mt-5 font-bold">Hvor mye?</p>
-        <div className="mt-2 grid grid-cols-2 gap-3">
-          {AMOUNTS.map((kr) => (
-            <button
-              key={kr}
-              type="button"
-              aria-pressed={!custom && amount === kr}
-              onClick={() => {
-                setAmount(kr);
-                setCustom("");
-              }}
-              className={`font-num min-h-16 rounded-2xl text-2xl font-bold transition ${!custom && amount === kr ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
-            >
-              {kr} kr
-            </button>
-          ))}
-        </div>
-        <input
-          value={custom}
-          onChange={(e) => setCustom(e.target.value)}
-          inputMode="decimal"
-          placeholder="Annet beløp (kr)"
-          className="mt-3 min-h-14 w-full rounded-2xl border border-border bg-card px-4 text-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-        />
-
-        {child.wishes.length > 0 && (
+        {step === "vipps" && recipient && amountOre ? (
           <>
-            <p className="mt-5 font-bold">Til et ønske? <span className="font-normal text-muted-foreground">(valgfritt)</span></p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {child.wishes.map((w) => (
+            <h2 className="pr-14 text-3xl font-extrabold tracking-tight">Send med Vipps</h2>
+            <div className="mt-5 rounded-[1.5rem] bg-[#ff5b24]/10 p-5 text-center">
+              <p className="font-semibold text-muted-foreground">Send</p>
+              <p className="font-num text-5xl font-extrabold">{formatKr(amountOre)}</p>
+              <p className="mt-2 font-semibold text-muted-foreground">til {recipient.name}</p>
+              <p className="font-num mt-1 text-3xl font-bold tracking-wider">
+                {recipient.phone.replace(/(\d{3})(\d{2})(\d{3})/, "$1 $2 $3")}
+              </p>
+              <button type="button" onClick={() => void copyNumber()} className="mx-auto mt-3 flex min-h-12 items-center gap-2 rounded-full bg-card px-5 font-bold shadow-sm">
+                {copied ? <Check className="size-5 text-primary" /> : <Copy className="size-5" />} {copied ? "Nummeret er kopiert" : "Kopier nummeret"}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void openVipps()}
+              className="mt-5 flex min-h-16 w-full items-center justify-center rounded-2xl bg-[#ff5b24] text-xl font-extrabold text-white shadow-lg transition active:scale-[0.98]"
+            >
+              Åpne Vipps
+            </button>
+            <ol className="mt-4 list-decimal space-y-1 pl-6 text-base text-muted-foreground">
+              <li>Trykk «Send» i Vipps og lim inn eller skriv nummeret.</li>
+              <li>Skriv {formatKr(amountOre)} og send.</li>
+              <li>Kom tilbake hit og trykk knappen under.</li>
+            </ol>
+
+            {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-800">{error}</p>}
+
+            <button
+              type="button"
+              disabled={sending}
+              onClick={() => void send()}
+              className="mt-6 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground shadow-lg transition hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
+            >
+              <Heart className="size-6" /> {sending ? "Sender …" : "Jeg har sendt pengene"}
+            </button>
+            <button type="button" onClick={() => setStep("choose")} className="mt-3 w-full py-2 text-base font-semibold text-muted-foreground underline">
+              Tilbake
+            </button>
+          </>
+        ) : (
+          <>
+            <h2 className="pr-14 text-3xl font-extrabold tracking-tight">Gave til {child.name} 🎁</h2>
+
+            <p className="mt-5 font-bold">Hvor mye?</p>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              {AMOUNTS.map((kr) => (
                 <button
-                  key={w.id}
+                  key={kr}
                   type="button"
-                  aria-pressed={wishId === w.id}
-                  onClick={() => setWishId(wishId === w.id ? null : w.id)}
-                  className={`min-h-12 rounded-full px-4 font-semibold transition ${wishId === w.id ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
+                  aria-pressed={!custom && amount === kr}
+                  onClick={() => {
+                    setAmount(kr);
+                    setCustom("");
+                  }}
+                  className={`font-num min-h-16 rounded-2xl text-2xl font-bold transition ${!custom && amount === kr ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
                 >
-                  {w.emoji ?? "🎁"} {w.title}
+                  {kr} kr
                 </button>
               ))}
             </div>
+            <input
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              inputMode="decimal"
+              placeholder="Annet beløp (kr)"
+              className="mt-3 min-h-14 w-full rounded-2xl border border-border bg-card px-4 text-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            />
+
+            {child.wishes.length > 0 && (
+              <>
+                <p className="mt-5 font-bold">
+                  Til et ønske? <span className="font-normal text-muted-foreground">(valgfritt)</span>
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {child.wishes.map((w) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      aria-pressed={wishId === w.id}
+                      onClick={() => setWishId(wishId === w.id ? null : w.id)}
+                      className={`min-h-12 rounded-full px-4 font-semibold transition ${wishId === w.id ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
+                    >
+                      {w.emoji ?? "🎁"} {w.title}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <p className="mt-5 font-bold">
+              Hilsen <span className="font-normal text-muted-foreground">(valgfritt)</span>
+            </p>
+            <input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              maxLength={60}
+              placeholder="F.eks. Godt jobba! Klem fra mormor"
+              className="mt-2 min-h-14 w-full rounded-2xl border border-border bg-card px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            />
+
+            {useVipps && (
+              <>
+                <p className="mt-5 font-bold">Hvem skal få pengene på Vipps?</p>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  {recipients.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      aria-pressed={recipientId === r.id}
+                      onClick={() => setRecipientId(r.id)}
+                      className={`min-h-16 rounded-2xl px-3 text-xl font-bold transition ${recipientId === r.id ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
+                    >
+                      {r.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-800">{error}</p>}
+
+            <button
+              type="button"
+              disabled={sending}
+              onClick={next}
+              className="mt-6 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground shadow-lg transition hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
+            >
+              <Heart className="size-6" /> {useVipps ? "Videre til Vipps" : sending ? "Sender …" : "Send gaven"}
+            </button>
+            {!useVipps && (
+              <p className="mt-3 text-center text-base text-muted-foreground">
+                Send pengene til foreldrene (f.eks. Vipps). De legger gaven til når de har fått dem.
+              </p>
+            )}
           </>
         )}
-
-        <p className="mt-5 font-bold">Hilsen <span className="font-normal text-muted-foreground">(valgfritt)</span></p>
-        <input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          maxLength={60}
-          placeholder="F.eks. Godt jobba! Klem fra mormor"
-          className="mt-2 min-h-14 w-full rounded-2xl border border-border bg-card px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-        />
-
-        {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-800">{error}</p>}
-
-        <button
-          type="button"
-          disabled={sending}
-          onClick={() => void send()}
-          className="mt-6 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground shadow-lg transition hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
-        >
-          <Heart className="size-6" /> {sending ? "Sender…" : "Send gaven"}
-        </button>
-        <p className="mt-3 text-center text-base text-muted-foreground">
-          Send pengene til foreldrene (f.eks. Vipps). De legger gaven til når de har fått dem.
-        </p>
       </div>
     </div>
+  );
+}
+
+// Første gang lenken åpnes: lag profil (finner tilbake på alle enheter) eller
+// bare fortsett med lenken på denne telefonen.
+function WelcomeChoice({
+  name,
+  familyName,
+  onMakeProfile,
+  onSkip,
+}: {
+  name: string;
+  familyName: string | null;
+  onMakeProfile: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-10 text-lg">
+      <div className="text-center text-7xl" aria-hidden="true">👋</div>
+      <h1 className="mt-4 text-center text-4xl font-extrabold tracking-tight">Hei, {name}!</h1>
+      <p className="mt-3 text-center text-xl text-muted-foreground">
+        Du er invitert til {familyName ? <strong>{familyName}</strong> : "familien"} på Ukepenger. Her ser du hva barnebarna sparer til, og kan gi dem en gave.
+      </p>
+
+      <button
+        type="button"
+        onClick={onMakeProfile}
+        className="mt-8 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground shadow-lg transition active:scale-[0.98]"
+      >
+        <UserRound className="size-6" /> Lag profil
+      </button>
+      <p className="mt-2 text-center text-base text-muted-foreground">Da finner du alltid tilbake – også på ny telefon eller PC.</p>
+
+      <button type="button" onClick={onSkip} className="mt-6 min-h-16 w-full rounded-2xl bg-secondary text-xl font-bold transition active:scale-[0.98]">
+        Fortsett uten profil
+      </button>
+      <p className="mt-2 text-center text-base text-muted-foreground">Du kan lage profil senere, nederst på siden.</p>
+    </main>
   );
 }
 

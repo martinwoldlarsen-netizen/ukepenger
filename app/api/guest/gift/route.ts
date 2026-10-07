@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const guest = await verifyGuestRequest(request);
   if (!guest) return NextResponse.json({ error: "Lenken er ikke aktiv." }, { status: 401 });
 
-  const body = (await request.json().catch(() => ({}))) as { childId?: string; amountOre?: number; message?: string; wishId?: string };
+  const body = (await request.json().catch(() => ({}))) as { childId?: string; amountOre?: number; message?: string; wishId?: string; recipientId?: string };
   const amount = Number(body.amountOre);
   if (!Number.isInteger(amount) || amount <= 0 || amount > MAX_GIFT_ORE) {
     return NextResponse.json({ error: "Velg et beløp mellom 1 og 5 000 kr." }, { status: 400 });
@@ -34,6 +34,17 @@ export async function POST(request: Request) {
     if (wishRes.data && wishRes.data.family_id === guest.familyId && wishRes.data.child_id === body.childId) wishTitle = wishRes.data.title;
   }
 
+  // Hvem fikk pengene på Vipps? Må være en forelder i samme familie.
+  let recipientName: string | null = null;
+  if (body.recipientId) {
+    const recipientRes = await supabase
+      .from("profiles")
+      .select("display_name, family_id")
+      .eq("user_id", body.recipientId)
+      .maybeSingle();
+    if (recipientRes.data && recipientRes.data.family_id === guest.familyId) recipientName = recipientRes.data.display_name ?? "Forelder";
+  }
+
   const prefix = `🎁 Gave fra ${guest.name}`;
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const recent = await supabase
@@ -48,7 +59,8 @@ export async function POST(request: Request) {
   }
 
   const message = (body.message ?? "").trim().replace(/\s+/g, " ");
-  const note = `${prefix}${wishTitle ? ` til ${wishTitle}` : ""}${message ? `: ${message}` : ""}`.slice(0, 120);
+  const via = recipientName ? ` (Vipps til ${recipientName})` : "";
+  const note = `${prefix}${via}${wishTitle ? ` til ${wishTitle}` : ""}${message ? `: ${message}` : ""}`.slice(0, 120);
 
   const insert = await supabase.from("claims").insert({
     family_id: guest.familyId,
@@ -66,7 +78,7 @@ export async function POST(request: Request) {
   after(() =>
     notifyParents(supabase, guest.familyId, {
       title: `${guest.name} vil gi ${childName} ${formatKr(amount)} 🎁`,
-      body: "Godkjenn når du har fått pengene.",
+      body: recipientName ? `Sendt på Vipps til ${recipientName}. Godkjenn når pengene er kommet.` : "Godkjenn når du har fått pengene.",
       tag: "claims",
     })
   );

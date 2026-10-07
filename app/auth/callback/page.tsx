@@ -4,8 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { peekPendingInvitePath } from "@/lib/pending-invite";
-import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
+import { pathAfterAuth } from "@/lib/after-auth";
 import { supabase } from "@/lib/supabaseClient";
 
 // Supabase fjerner tokens fra URL-en saa snart den har lest dem (replaceState),
@@ -51,27 +50,10 @@ export default function AuthCallbackPage() {
       if (handled || !mounted) return;
       handled = true;
 
-      // Kom brukeren fra en invitasjon, skal de tilbake dit, ikke få ny familie.
-      const invitePath = peekPendingInvitePath();
-      if (invitePath) {
-        router.replace(invitePath);
-        return;
-      }
-
-      const ensure = await ensureFamilyForUser({ id: user.id, email: user.email });
-      if (ensure.error) {
-        fail(ensure.error);
-        return;
-      }
-
-      // Sesjonen er akkurat utstedt av Supabase, saa det er ingen grunn til at
-      // getAdminSetupStatus() skal verifisere brukeren med et nytt nettverkskall.
-      primeAdminIdentity(user, ensure.familyId);
-
-      const setup = await getAdminSetupStatus();
+      // Invitasjon, besteforelder-profil, forelder eller helt ny konto.
+      const path = await pathAfterAuth(user);
       if (!mounted) return;
-
-      router.replace(setup.needsOnboarding ? "/onboarding" : "/admin/inbox");
+      router.replace(path);
     };
 
     const run = async () => {
