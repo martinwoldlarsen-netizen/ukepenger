@@ -16,13 +16,8 @@ export async function GET(request: Request) {
   const [familyRes, familiesRes, recipientsRes, childrenRes, claimsRes, wishesRes] = await Promise.all([
     supabase.from("families").select("name, show_savings_to_kids").eq("id", guest.familyId).maybeSingle(),
     supabase.from("families").select("id, name").in("id", familyIds),
-    // Foreldre som har lagt inn Vipps-nummer for gaver.
-    supabase
-      .from("profiles")
-      .select("user_id, display_name, vipps_phone")
-      .eq("family_id", guest.familyId)
-      .not("vipps_phone", "is", null)
-      .order("created_at", { ascending: true }),
+    // Vipps-mottakere familien har lagt inn for gaver.
+    supabase.from("family_vipps").select("id, name, phone").eq("family_id", guest.familyId).order("created_at", { ascending: true }),
     supabase.from("children").select("id, name, avatar_key").eq("family_id", guest.familyId).eq("active", true).order("name"),
     supabase.from("claims").select("child_id, status, amount_ore, saved_ore").eq("family_id", guest.familyId).in("status", ["APPROVED", "PAID"]),
     supabase
@@ -55,7 +50,7 @@ export async function GET(request: Request) {
       guestId: g.guestId,
       familyName: familiesRes.data?.find((f) => f.id === g.familyId)?.name ?? null,
     })),
-    recipients: (recipientsRes.data ?? []).map((p) => ({ id: p.user_id, name: p.display_name ?? "Forelder", phone: p.vipps_phone })),
+    recipients: recipientsRes.data ?? [],
     children: (childrenRes.data ?? []).map((child) => ({
       ...child,
       due_ore: totals[child.id]?.due ?? 0,

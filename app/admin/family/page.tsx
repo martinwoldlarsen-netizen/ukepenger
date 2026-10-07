@@ -95,7 +95,7 @@ export default function AdminFamilyPage() {
                 <p className="truncate font-semibold">{m.display_name ?? m.email ?? "Ukjent e-post"}</p>
                 <p className="truncate text-sm text-muted-foreground">
                   {m.display_name && m.email ? `${m.email} · ` : ""}
-                  {m.vipps_phone ? `Vipps ${formatPhone(m.vipps_phone)}` : `Med siden ${formatWhen(m.created_at)}`}
+                  Med siden {formatWhen(m.created_at)}
                 </p>
               </div>
               {m.isMe && <Badge tone="primary">Deg</Badge>}
@@ -159,82 +159,138 @@ export default function AdminFamilyPage() {
           </div>
         )}
       </Card>
-      <VippsCard key={me0Key(data.data.members)} me={data.data.members.find((m) => m.isMe) ?? null} onSaved={() => void data.mutate()} />
+      <VippsCard />
 
       <GrandparentsCard />
     </section>
   );
 }
 
-// Ny nøkkel når lagrede verdier endres, så skjemaet starter med dem.
-function me0Key(members: Member[]) {
-  const me = members.find((m) => m.isMe);
-  return `${me?.display_name ?? ""}|${me?.vipps_phone ?? ""}`;
-}
-
 function formatPhone(phone: string) {
   return phone.replace(/(\d{3})(\d{2})(\d{3})/, "$1 $2 $3");
 }
 
-// Hver forelder legger selv inn navn og Vipps-nummer. Da kan besteforeldre
-// velge hvem gaven skal sendes til. Tomt nummer = vises ikke.
-function VippsCard({ me, onSaved }: { me: Member | null; onSaved: () => void }) {
+type VippsRecipient = { id: string; name: string; phone: string };
+
+function useFamilyVipps(familyId: string | null) {
+  return useSWR(
+    familyId ? ["family-vipps", familyId] : null,
+    async () => {
+      const res = await supabase.from("family_vipps").select("id, name, phone").eq("family_id", familyId!).order("created_at", { ascending: true });
+      if (res.error) throw new Error(res.error.message);
+      return (res.data ?? []) as VippsRecipient[];
+    },
+    swrDefaults
+  );
+}
+
+// Hvem besteforeldre kan sende gavepenger til på Vipps. Gjelder hele
+// familien: legg inn både Mamma og Pappa, også om bare én har konto.
+function VippsCard() {
   const toast = useToast();
-  const [name, setName] = useState(me?.display_name ?? "");
-  const [phone, setPhone] = useState(me?.vipps_phone ? formatPhone(me.vipps_phone) : "");
+  const confirm = useConfirm();
+  const { familyId } = useAdminIdentity();
+  const list = useFamilyVipps(familyId);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
+  const recipients = list.data ?? [];
 
-  if (!me) return null;
-
-  const save = async () => {
+  const add = async () => {
+    if (!familyId) return;
     const digits = phone.replace(/\D/g, "").replace(/^(47|0047)(?=\d{8}$)/, "");
-    if (digits && !/^\d{8}$/.test(digits)) {
-      toast({ kind: "error", text: "Skriv et norsk mobilnummer med 8 siffer." });
-      return;
-    }
-    if (digits && !name.trim()) {
+    if (!name.trim()) {
       toast({ kind: "error", text: "Skriv navnet besteforeldre skal se, f.eks. Pappa." });
       return;
     }
+    if (!/^\d{8}$/.test(digits)) {
+      toast({ kind: "error", text: "Skriv et norsk mobilnummer med 8 siffer." });
+      return;
+    }
     setSaving(true);
-    const res = await supabase
-      .from("profiles")
-      .update({ display_name: name.trim().slice(0, 40) || null, vipps_phone: digits || null })
-      .eq("user_id", me.user_id);
+    const res = await supabase.from("family_vipps").insert({ family_id: familyId, name: name.trim().slice(0, 40), phone: digits });
     setSaving(false);
     if (res.error) {
       toast({ kind: "error", text: "Klarte ikke å lagre." });
       return;
     }
-    toast({ text: digits ? "Lagret. Besteforeldre kan nå sende gaver til deg på Vipps." : "Lagret" });
-    onSaved();
+    toast({ text: `${name.trim()} er lagt til` });
+    setName("");
+    setPhone("");
+    await list.mutate();
   };
 
+  const remove = async (r: VippsRecipient) => {
+    const ok = await confirm({ title: `Fjerne ${r.name}?`, text: "Besteforeldre kan ikke lenger velge dette nummeret.", confirmLabel: "Fjern", danger: true });
+    if (!ok) return;
+    const res = await supabase.from("family_vipps").delete().eq("id", r.id);
+    if (res.error) {
+      toast({ kind: "error", text: "Klarte ikke å fjerne." });
+      return;
+    }
+    await list.mutate();
+  };
+
+  const suggestions = ["Mamma", "Pappa"].filter((n) => !recipients.some((r) => r.name.toLowerCase() === n.toLowerCase()));
+
   return (
-    <Card className="space-y-4">
-      <CardHeader
-        icon={<Smartphone className="size-5" />}
-        title="Gaver på Vipps"
-        description="Legg inn navnet ditt og Vipps-nummeret ditt. Når besteforeldre gir en gave, velger de hvem som skal få pengene, og Vipps åpnes. Hver forelder legger inn sitt eget."
-      />
-      <form
-        className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <Field label="Navnet ditt (som besteforeldre ser)">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="F.eks. Pappa" maxLength={40} />
-        </Field>
-        <Field label="Vipps-nummer">
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="123 45 678" inputMode="tel" autoComplete="tel-national" />
-        </Field>
-        <Button type="submit" size="lg" loading={saving}>
-          Lagre
-        </Button>
-      </form>
-    </Card>
+    <div id="vipps" className="scroll-mt-24">
+      <Card className="space-y-4">
+        <CardHeader
+          icon={<Smartphone className="size-5" />}
+          title="Vipps for gaver"
+          description="Når besteforeldre gir en gave, velger de hvem som skal få pengene, og Vipps åpnes med nummeret. Legg inn én eller flere – f.eks. både Mamma og Pappa."
+        />
+
+        {recipients.length > 0 && (
+          <ul className="space-y-2">
+            {recipients.map((r) => (
+              <li key={r.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
+                <span className="flex size-10 items-center justify-center rounded-full bg-[#ff5b24]/10 text-lg font-bold text-[#ff5b24]">
+                  {r.name.slice(0, 1).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{r.name}</p>
+                  <p className="font-num text-sm text-muted-foreground">{formatPhone(r.phone)}</p>
+                </div>
+                <Button size="sm" variant="ghost" className="text-red-700 hover:bg-red-50" onClick={() => void remove(r)}>
+                  Fjern
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void add();
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Navn">
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="F.eks. Pappa" maxLength={40} />
+            </Field>
+            <Field label="Vipps-nummer">
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="123 45 678" inputMode="tel" autoComplete="off" />
+            </Field>
+          </div>
+          {suggestions.length > 0 && !name && (
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((n) => (
+                <button key={n} type="button" onClick={() => setName(n)} className="min-h-10 rounded-full bg-secondary px-4 text-sm font-semibold hover:bg-accent">
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
+          <Button type="submit" size="lg" block loading={saving} disabled={!name.trim() || !phone.trim()}>
+            Legg til
+          </Button>
+        </form>
+      </Card>
+    </div>
   );
 }
 
@@ -249,6 +305,7 @@ function GrandparentsCard() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [freshLink, setFreshLink] = useState<{ name: string; link: string } | null>(null);
+  const vipps = useFamilyVipps(familyId);
 
   const makeLink = async (payload: { name?: string; guestId?: string }, label: string) => {
     setBusy(true);
@@ -297,6 +354,12 @@ function GrandparentsCard() {
         title="Besteforeldre"
         description="Gi besteforeldre (eller tante, gudfar …) en egen lenke. De ser hva barna sparer til og kan gi gaver. Vil de, lager de en egen profil så de finner tilbake på alle enheter. De kan ikke godkjenne, betale ut eller endre noe."
       />
+
+      {vipps.data && vipps.data.length === 0 && (
+        <a href="#vipps" className="block rounded-2xl bg-[#ff5b24]/10 px-4 py-3 text-sm font-semibold">
+          Tips: Legg inn Vipps-nummer under «Vipps for gaver», så kan besteforeldre sende pengene rett til dere.
+        </a>
+      )}
 
       {freshLink && (
         <div className="animate-pop space-y-3 rounded-2xl bg-amber-50 p-4">
