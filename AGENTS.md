@@ -20,8 +20,9 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
   både cookien og Bearer-token (`verifyGuestRequest`).
 - **Ny konto** uten familie havner på `/velkommen` («Start ny familie» /
   invitert forelder / besteforelder). Ruting etter innlogging: `lib/after-auth.ts`.
-- **Vipps-gaver**: hver forelder legger inn `profiles.display_name` +
-  `vipps_phone` (Familie-siden). Besteforelder velger mottaker, appen viser
+- **Vipps-gaver**: familien legger inn mottakere i `family_vipps` (navn +
+  nummer, f.eks. Mamma og Pappa) på Familie-siden («Vipps for gaver»).
+  `profiles.display_name`/`vipps_phone` brukes ikke lenger. Besteforelder velger mottaker, appen viser
   beløp/nummer og åpner Vipps (vanlige personer kan ikke få forhåndsutfylt
   beløp), «Jeg har sendt» → SENT-krav `🎁 Gave fra … (Vipps til …)`.
 
@@ -109,7 +110,7 @@ public/sw.js          service worker (frakoblet-side + varsler)
 `child_task_settings`, `claims` (krav; status SENT/APPROVED/REJECTED/PAID),
 `payments` + `payment_claims`, `wishlist_items`, `devices` + `device_pairings`
 (engangs-QR), `family_guests`, `family_invites`, `push_subscriptions`,
-`trophy_awards`, `app_secrets`.
+`trophy_awards`, `app_secrets`, `family_vipps`.
 
 Logikk i databasen (security definer, ikke kallbar fra klient der det ikke trengs):
 - `apply_claim_savings` (trigger): trekker sparing (%) når et krav godkjennes.

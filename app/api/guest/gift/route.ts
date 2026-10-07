@@ -34,15 +34,11 @@ export async function POST(request: Request) {
     if (wishRes.data && wishRes.data.family_id === guest.familyId && wishRes.data.child_id === body.childId) wishTitle = wishRes.data.title;
   }
 
-  // Hvem fikk pengene på Vipps? Må være en forelder i samme familie.
+  // Hvem fikk pengene på Vipps? Må være en mottaker i samme familie.
   let recipientName: string | null = null;
   if (body.recipientId) {
-    const recipientRes = await supabase
-      .from("profiles")
-      .select("display_name, family_id")
-      .eq("user_id", body.recipientId)
-      .maybeSingle();
-    if (recipientRes.data && recipientRes.data.family_id === guest.familyId) recipientName = recipientRes.data.display_name ?? "Forelder";
+    const recipientRes = await supabase.from("family_vipps").select("name, family_id").eq("id", body.recipientId).maybeSingle();
+    if (recipientRes.data && recipientRes.data.family_id === guest.familyId) recipientName = recipientRes.data.name;
   }
 
   const prefix = `🎁 Gave fra ${guest.name}`;
