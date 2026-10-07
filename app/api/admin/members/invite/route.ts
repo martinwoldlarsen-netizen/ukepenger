@@ -145,7 +145,7 @@ export async function GET(request: Request) {
   const [membersRes, invitesRes] = await Promise.all([
     auth.serviceClient
       .from("profiles")
-      .select("user_id, family_id, role, created_at")
+      .select("user_id, family_id, role, created_at, display_name, vipps_phone")
       .eq("family_id", auth.familyId)
       .order("created_at", { ascending: true }),
     auth.serviceClient
@@ -166,7 +166,7 @@ export async function GET(request: Request) {
   const members = await Promise.all(
     (membersRes.data ?? []).map(async (m) => {
       const userRes = await auth.serviceClient.auth.admin.getUserById(m.user_id as string);
-      return { user_id: m.user_id, role: m.role, created_at: m.created_at, email: userRes.data.user?.email ?? null, isMe: m.user_id === auth.userId };
+      return { user_id: m.user_id, role: m.role, created_at: m.created_at, display_name: m.display_name ?? null, vipps_phone: m.vipps_phone ?? null, email: userRes.data.user?.email ?? null, isMe: m.user_id === auth.userId };
     })
   );
   const siteUrl = getSiteUrl();

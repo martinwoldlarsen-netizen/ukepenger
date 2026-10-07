@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Coins } from "lucide-react";
 import { Button, Field, Input, cx, focusRing } from "@/components/ui";
-import { peekPendingInvitePath } from "@/lib/pending-invite";
-import { ensureFamilyForUser, getAdminSetupStatus, primeAdminIdentity } from "@/lib/family-client";
+import { hasPendingGuest, pathAfterAuth } from "@/lib/after-auth";
+import { inAppBrowserName } from "@/lib/in-app-browser";
 import { supabase } from "@/lib/supabaseClient";
 
 const MIN_PASSWORD = 10;
@@ -35,14 +35,10 @@ export default function LoginPage() {
       .catch(() => {});
   }, []);
 
-  const goAfterAuth = async () => {
-    const setup = await getAdminSetupStatus();
-    if (setup.needsOnboarding) {
-      router.push("/onboarding");
-      return;
-    }
-    router.push("/admin/inbox");
-  };
+  // Besteforeldre som kom fra «Lag profil» får egen tekst.
+  const [forGuest] = useState(() => typeof window !== "undefined" && hasPendingGuest());
+  // Google blokkerer innlogging inne i Messenger/Facebook o.l.
+  const [inApp] = useState(() => inAppBrowserName());
 
   // Allerede innlogget (også en eldre innlogging som nettopp ble flyttet fra
   // lokal lagring): rett inn i appen i stedet for å vise skjemaet.
@@ -54,8 +50,7 @@ export default function LoginPage() {
       .then(async ({ data }) => {
         if (!alive) return;
         if (data.session) {
-          const setup = await getAdminSetupStatus();
-          router.replace(setup.needsOnboarding ? "/onboarding" : "/admin/inbox");
+          router.replace(await pathAfterAuth(data.session.user));
           return;
         }
         setChecking(false);
@@ -95,28 +90,7 @@ export default function LoginPage() {
       return;
     }
 
-    // Kom brukeren fra en invitasjon, skal de inn i den familien, ikke få en ny.
-    const invitePath = peekPendingInvitePath();
-    if (invitePath) {
-      router.push(invitePath);
-      return;
-    }
-
-    const ensure = await ensureFamilyForUser({
-      id: result.data.user.id,
-      email: result.data.user.email,
-    });
-
-    if (ensure.error) {
-      setAction(null);
-      setStatus(`Feil: ${authErrorText(ensure.error)}`);
-      return;
-    }
-
-    primeAdminIdentity(result.data.user, ensure.familyId);
-
-    await goAfterAuth();
-    setAction(null);
+    router.push(await pathAfterAuth(result.data.user));
   };
 
   const handleLogin = async () => {
@@ -136,27 +110,7 @@ export default function LoginPage() {
       return;
     }
 
-    const invitePath = peekPendingInvitePath();
-    if (invitePath) {
-      router.push(invitePath);
-      return;
-    }
-
-    const ensure = await ensureFamilyForUser({
-      id: result.data.user.id,
-      email: result.data.user.email,
-    });
-
-    if (ensure.error) {
-      setAction(null);
-      setStatus(`Feil: ${authErrorText(ensure.error)}`);
-      return;
-    }
-
-    primeAdminIdentity(result.data.user, ensure.familyId);
-
-    await goAfterAuth();
-    setAction(null);
+    router.push(await pathAfterAuth(result.data.user));
   };
 
   const handleOAuth = async (provider: "google" | "apple") => {
@@ -197,10 +151,27 @@ export default function LoginPage() {
       </Link>
 
       <section className="w-full max-w-md rounded-[2rem] border border-border bg-card p-6 shadow-xl shadow-black/5 sm:p-8">
-        <h1 className="text-3xl font-extrabold tracking-tight">Hei igjen 👋</h1>
-        <p className="mt-1 text-muted-foreground">Logg inn for å se hva barna har gjort.</p>
+        {forGuest ? (
+          <>
+            <h1 className="text-3xl font-extrabold tracking-tight">Lag din profil 💛</h1>
+            <p className="mt-1 text-muted-foreground">
+              Bruk Google, Apple eller e-post. Har du ikke konto, skriv e-post og et passord og trykk «Opprett konto».
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-3xl font-extrabold tracking-tight">Hei igjen 👋</h1>
+            <p className="mt-1 text-muted-foreground">Logg inn for å se hva barna har gjort.</p>
+          </>
+        )}
 
-        <div className="mt-6 space-y-2.5">
+        {inApp && (
+          <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+            Du er inne i {inApp}. Google-innlogging virker ikke her – bruk e-post og passord under, eller åpne ukepenger.no i Safari.
+          </p>
+        )}
+
+        <div className={inApp ? "hidden" : "mt-6 space-y-2.5"}>
           <Button variant="secondary" size="lg" block loading={action === "google"} disabled={isLoading} onClick={() => void handleOAuth("google")}>
             Fortsett med Google
           </Button>
@@ -211,10 +182,14 @@ export default function LoginPage() {
           )}
         </div>
 
-        <div className="my-6 flex items-center gap-3 text-sm text-muted-foreground">
-          <div className="h-px flex-1 bg-border" />
-          <span>eller med e-post</span>
-          <div className="h-px flex-1 bg-border" />
+        <div className={inApp ? "my-5" : "my-6 flex items-center gap-3 text-sm text-muted-foreground"}>
+          {!inApp && (
+            <>
+              <div className="h-px flex-1 bg-border" />
+              <span>eller med e-post</span>
+              <div className="h-px flex-1 bg-border" />
+            </>
+          )}
         </div>
 
         <form

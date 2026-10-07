@@ -2,14 +2,23 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Copy, Heart, Mail, Share2, UserPlus, Users } from "lucide-react";
+import { Copy, Heart, Mail, Share2, Smartphone, UserPlus, Users } from "lucide-react";
 import { QrImage } from "@/components/QrCode";
 import { Badge, Button, Card, CardHeader, Field, Input, ListSkeleton } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
 import { adminFetch, friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
 import { formatWhen } from "@/lib/dates";
+import { supabase } from "@/lib/supabaseClient";
 
-type Member = { user_id: string; email: string | null; role: string; created_at: string; isMe: boolean };
+type Member = {
+  user_id: string;
+  email: string | null;
+  role: string;
+  created_at: string;
+  isMe: boolean;
+  display_name: string | null;
+  vipps_phone: string | null;
+};
 type Invite = { id: string; email: string; expires_at: string; created_at: string; link: string };
 type MembersPayload = { members: Member[]; invites: Invite[] };
 
@@ -80,11 +89,14 @@ export default function AdminFamilyPage() {
           {data.data.members.map((m) => (
             <li key={m.user_id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
               <span className="flex size-10 items-center justify-center rounded-full bg-secondary text-lg font-bold text-primary">
-                {(m.email ?? "?").slice(0, 1).toUpperCase()}
+                {(m.display_name ?? m.email ?? "?").slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{m.email ?? "Ukjent e-post"}</p>
-                <p className="text-sm text-muted-foreground">Med siden {formatWhen(m.created_at)}</p>
+                <p className="truncate font-semibold">{m.display_name ?? m.email ?? "Ukjent e-post"}</p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {m.display_name && m.email ? `${m.email} · ` : ""}
+                  {m.vipps_phone ? `Vipps ${formatPhone(m.vipps_phone)}` : `Med siden ${formatWhen(m.created_at)}`}
+                </p>
               </div>
               {m.isMe && <Badge tone="primary">Deg</Badge>}
             </li>
@@ -147,12 +159,86 @@ export default function AdminFamilyPage() {
           </div>
         )}
       </Card>
+      <VippsCard key={me0Key(data.data.members)} me={data.data.members.find((m) => m.isMe) ?? null} onSaved={() => void data.mutate()} />
+
       <GrandparentsCard />
     </section>
   );
 }
 
-type Guest = { id: string; name: string; created_at: string; last_seen_at: string | null };
+// Ny nøkkel når lagrede verdier endres, så skjemaet starter med dem.
+function me0Key(members: Member[]) {
+  const me = members.find((m) => m.isMe);
+  return `${me?.display_name ?? ""}|${me?.vipps_phone ?? ""}`;
+}
+
+function formatPhone(phone: string) {
+  return phone.replace(/(\d{3})(\d{2})(\d{3})/, "$1 $2 $3");
+}
+
+// Hver forelder legger selv inn navn og Vipps-nummer. Da kan besteforeldre
+// velge hvem gaven skal sendes til. Tomt nummer = vises ikke.
+function VippsCard({ me, onSaved }: { me: Member | null; onSaved: () => void }) {
+  const toast = useToast();
+  const [name, setName] = useState(me?.display_name ?? "");
+  const [phone, setPhone] = useState(me?.vipps_phone ? formatPhone(me.vipps_phone) : "");
+  const [saving, setSaving] = useState(false);
+
+  if (!me) return null;
+
+  const save = async () => {
+    const digits = phone.replace(/\D/g, "").replace(/^(47|0047)(?=\d{8}$)/, "");
+    if (digits && !/^\d{8}$/.test(digits)) {
+      toast({ kind: "error", text: "Skriv et norsk mobilnummer med 8 siffer." });
+      return;
+    }
+    if (digits && !name.trim()) {
+      toast({ kind: "error", text: "Skriv navnet besteforeldre skal se, f.eks. Pappa." });
+      return;
+    }
+    setSaving(true);
+    const res = await supabase
+      .from("profiles")
+      .update({ display_name: name.trim().slice(0, 40) || null, vipps_phone: digits || null })
+      .eq("user_id", me.user_id);
+    setSaving(false);
+    if (res.error) {
+      toast({ kind: "error", text: "Klarte ikke å lagre." });
+      return;
+    }
+    toast({ text: digits ? "Lagret. Besteforeldre kan nå sende gaver til deg på Vipps." : "Lagret" });
+    onSaved();
+  };
+
+  return (
+    <Card className="space-y-4">
+      <CardHeader
+        icon={<Smartphone className="size-5" />}
+        title="Gaver på Vipps"
+        description="Legg inn navnet ditt og Vipps-nummeret ditt. Når besteforeldre gir en gave, velger de hvem som skal få pengene, og Vipps åpnes. Hver forelder legger inn sitt eget."
+      />
+      <form
+        className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <Field label="Navnet ditt (som besteforeldre ser)">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="F.eks. Pappa" maxLength={40} />
+        </Field>
+        <Field label="Vipps-nummer">
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="123 45 678" inputMode="tel" autoComplete="tel-national" />
+        </Field>
+        <Button type="submit" size="lg" loading={saving}>
+          Lagre
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
+type Guest = { id: string; name: string; created_at: string; last_seen_at: string | null; has_account: boolean };
 
 // Besteforeldre og andre som skal se barna og gi gaver, uten egen konto.
 function GrandparentsCard() {
@@ -209,7 +295,7 @@ function GrandparentsCard() {
       <CardHeader
         icon={<Heart className="size-5" />}
         title="Besteforeldre"
-        description="Gi besteforeldre (eller tante, gudfar …) en egen lenke. De ser hva barna sparer til og kan gi gaver – uten innlogging. De kan ikke godkjenne, betale ut eller endre noe."
+        description="Gi besteforeldre (eller tante, gudfar …) en egen lenke. De ser hva barna sparer til og kan gi gaver. Vil de, lager de en egen profil så de finner tilbake på alle enheter. De kan ikke godkjenne, betale ut eller endre noe."
       />
 
       {freshLink && (
@@ -232,7 +318,9 @@ function GrandparentsCard() {
             <li key={g.id} className="flex flex-wrap items-center gap-2 rounded-2xl border border-border px-4 py-3">
               <span className="text-2xl" aria-hidden="true">👵</span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{g.name}</p>
+                <p className="truncate font-semibold">
+                  {g.name} {g.has_account && <Badge tone="primary">Har profil</Badge>}
+                </p>
                 <p className="text-sm text-muted-foreground">{g.last_seen_at ? `Sist inne ${formatWhen(g.last_seen_at)}` : "Har ikke åpnet lenken ennå"}</p>
               </div>
               <Button size="sm" variant="secondary" disabled={busy} onClick={() => void makeLink({ guestId: g.id }, g.name)}>

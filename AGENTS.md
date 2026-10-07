@@ -14,7 +14,16 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
   engangs-QR (Mer → Enheter) og får en httpOnly-cookie `uk_kiosk`. Barnet
   velger profil hver gang på `/kids` – **bevisst ingen per-barn-cookie**.
 - **Besteforeldre** får en lenke (Familie-siden) → httpOnly-cookie `uk_guest`
-  → `/besteforeldre` («Se og gi»).
+  → `/besteforeldre` («Se og gi»). Første gang velger de «Lag profil» eller
+  «Fortsett uten». Profil = vanlig Supabase-konto uten `profiles`-rad, koblet
+  via `family_guests.user_id` (kan ha flere familier). Gjeste-API-ene godtar
+  både cookien og Bearer-token (`verifyGuestRequest`).
+- **Ny konto** uten familie havner på `/velkommen` («Start ny familie» /
+  invitert forelder / besteforelder). Ruting etter innlogging: `lib/after-auth.ts`.
+- **Vipps-gaver**: hver forelder legger inn `profiles.display_name` +
+  `vipps_phone` (Familie-siden). Besteforelder velger mottaker, appen viser
+  beløp/nummer og åpner Vipps (vanlige personer kan ikke få forhåndsutfylt
+  beløp), «Jeg har sendt» → SENT-krav `🎁 Gave fra … (Vipps til …)`.
 
 Språk i UI: norsk bokmål, enkelt og barnevennlig (4–18 år). Kommentarer i
 koden er også på norsk.
@@ -113,6 +122,9 @@ ut fra navnet med `categoryOf`).
 Konvensjon for krav uten oppgave (`task_id` null): notat som starter med emoji
 vises som det er (`🎁 Gave …`, `📅 Ukepenger`, `🏆 …`, `🏅 …`), annet notat
 vises som `Bonus: …`, ingen notat = `Butikksalg`.
+
+`profiles_guard` (trigger): klienten kan ikke endre egen `role`/`family_id`
+(bare inn i en helt ny, tom familie). Invitasjoner går via service role.
 
 RLS er på for alle tabeller og testet: en forelder i familie A ser 0 rader fra
 familie B. Server-tabeller (`app_secrets`, `push_subscriptions`,

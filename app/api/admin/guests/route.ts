@@ -12,12 +12,13 @@ export async function GET(request: Request) {
   const { serviceClient, familyId } = auth.ctx;
   const res = await serviceClient
     .from("family_guests")
-    .select("id, name, created_at, last_seen_at")
+    .select("id, name, created_at, last_seen_at, user_id")
     .eq("family_id", familyId)
     .is("revoked_at", null)
     .order("created_at", { ascending: true });
   if (res.error) return NextResponse.json({ error: "Klarte ikke å hente." }, { status: 400 });
-  return NextResponse.json({ guests: res.data ?? [] });
+  const guests = (res.data ?? []).map(({ user_id, ...g }) => ({ ...g, has_account: Boolean(user_id) }));
+  return NextResponse.json({ guests });
 }
 
 // Lager en ny gjest, eller en ny lenke til en eksisterende (den gamle slutter å virke).
