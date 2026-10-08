@@ -8,6 +8,7 @@ import { Check, Coins, Copy, Gift, Heart, Share, UserRound, X } from "lucide-rea
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
 import { rememberPendingGuest } from "@/lib/after-auth";
+import { OpenOutsideCard } from "@/components/OpenOutsideCard";
 import { inAppBrowserName } from "@/lib/in-app-browser";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
@@ -537,6 +538,12 @@ function WelcomeChoice({
         Du er invitert til {familyName ? <strong>{familyName}</strong> : "familien"} på Ukepenger. Her ser du hva barnebarna sparer til, og kan gi dem en gave.
       </p>
 
+      <OpenOutsideCard
+        guest
+        className="mt-6"
+        text="Åpne siden i nettleseren først – da kan du lage profil med Google og legge Ukepenger på hjemskjermen."
+      />
+
       <button
         type="button"
         onClick={onMakeProfile}
@@ -569,43 +576,40 @@ function StartHint({ linked, signedIn, onMakeProfile }: { linked: boolean; signe
     </button>
   );
 
+  // Inne i Messenger o.l.: først ut til den vanlige nettleseren.
+  if (inApp) {
+    return (
+      <div className="mt-6">
+        <OpenOutsideCard
+          guest
+          text={
+            linked
+              ? "Åpne siden i nettleseren og logg inn med profilen din – der kan du legge Ukepenger på hjemskjermen."
+              : "Åpne siden i nettleseren, så kan du lage profil med Google og legge Ukepenger på hjemskjermen."
+          }
+        />
+        {!linked && (
+          <button type="button" onClick={onMakeProfile} className="mt-2 w-full py-2 text-base font-semibold text-primary underline">
+            Eller lag profil her med e-post
+          </button>
+        )}
+      </div>
+    );
+  }
+
   if (!linked) {
     return (
       <div className="mt-6 rounded-2xl bg-accent p-4 text-base text-accent-foreground">
         <div className="flex items-start gap-3">
           <UserRound className="mt-0.5 size-6 shrink-0" />
           <p className="flex-1">
-            {inApp ? (
-              <>
-                Du har åpnet siden inne i <strong>{inApp}</strong>. Lag en profil, så kan du senere bare gå til <strong>ukepenger.no</strong> og
-                logge inn – fra hvilken som helst telefon eller PC.
-              </>
-            ) : (
-              <>
-                <strong>Lag en profil</strong>, så finner du alltid tilbake: gå til <strong>ukepenger.no</strong> og logg inn – også på ny telefon
-                eller PC.
-              </>
-            )}
+            <strong>Lag en profil</strong>, så finner du alltid tilbake: gå til <strong>ukepenger.no</strong> og logg inn – også på ny telefon eller PC.
           </p>
           {close}
         </div>
         <button type="button" onClick={onMakeProfile} className="mt-3 min-h-14 w-full rounded-2xl bg-primary text-lg font-extrabold text-primary-foreground shadow-sm active:scale-[0.98]">
           Lag profil
         </button>
-      </div>
-    );
-  }
-
-  // Har profil, men er inne i en app-nettleser: hjemskjerm finnes ikke her.
-  if (inApp) {
-    return (
-      <div className="mt-6 flex items-start gap-3 rounded-2xl bg-secondary p-4 text-base">
-        <Share className="mt-0.5 size-6 shrink-0 text-primary" />
-        <p className="flex-1">
-          <strong>Tips:</strong> Åpne <strong>ukepenger.no</strong> i Safari (eller Chrome) og logg inn med profilen din. Der kan du legge Ukepenger på
-          hjemskjermen som en app.
-        </p>
-        {close}
       </div>
     );
   }
