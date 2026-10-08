@@ -308,7 +308,6 @@ function GiftSheet({
   const typed = custom.trim() ? parseKrToOre(custom) : null;
   const amountOre = typeof typed === "number" ? typed : amount !== null && !custom.trim() ? amount * 100 : null;
   const recipient = recipients.find((r) => r.id === recipientId) ?? null;
-  const wishTitle = child.wishes.find((w) => w.id === wishId)?.title ?? null;
   const useVipps = recipients.length > 0;
 
   const next = () => {
@@ -335,15 +334,12 @@ function GiftSheet({
     }
   };
 
-  // Åpner Vipps med mottaker, beløp og melding ferdig utfylt – samme
-  // lenkeformat som de personlige QR-kodene i Vipps bruker. Ikke en offisiell,
-  // dokumentert funksjon, så nummeret kopieres også (reserve hvis feltene er
-  // tomme), og nummer og beløp står stort på skjermen.
-  const vippsMessage = `Gave til ${child.name}${wishTitle ? `: ${wishTitle}` : ""}`.slice(0, 50);
-  const openVipps = async (scheme: "vipps" | "https" = "vipps") => {
-    if (!recipient || !amountOre) return;
+  // Vipps lar ikke andre apper fylle inn mottaker og beløp for vanlige
+  // personer (lenker i QR-format avvises med «Vi kjenner ikke denne
+  // QR-koden»). Vi kopierer nummeret og åpner Vipps; beløpet står stort her.
+  const openVipps = async () => {
     await copyNumber();
-    window.location.assign(vippsLink(recipient.phone, amountOre, vippsMessage, scheme));
+    window.location.assign("vipps://");
   };
 
   const send = async () => {
@@ -403,17 +399,14 @@ function GiftSheet({
             </button>
             <ol className="mt-4 list-decimal space-y-1 pl-6 text-base text-muted-foreground">
               <li>
-                Vipps åpnes med {recipient.name} og {formatKr(amountOre)} ferdig utfylt. Sjekk og trykk <strong>Send</strong>.
+                Trykk <strong>Send</strong> i Vipps og lim inn nummeret (det er kopiert).
+              </li>
+              <li>
+                Skriv <strong>{formatKr(amountOre)}</strong> og send.
               </li>
               <li>Kom tilbake hit og trykk knappen under.</li>
             </ol>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Var feltene tomme? Lim inn nummeret (det er kopiert) og skriv {formatKr(amountOre)}.{" "}
-              <button type="button" onClick={() => void openVipps("https")} className="font-semibold underline">
-                Åpnet ikke Vipps? Prøv her
-              </button>
-              {inApp ? " – eller åpne siden i Safari/Chrome først (knappen øverst på siden)." : ""}
-            </p>
+            {inApp && <p className="mt-2 text-sm text-muted-foreground">Åpnes ikke Vipps? Åpne siden i Safari/Chrome først (knappen øverst på siden).</p>}
 
             {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-800">{error}</p>}
 
@@ -529,13 +522,6 @@ function GiftSheet({
       </div>
     </div>
   );
-}
-
-// Vipps-lenke med mottaker, beløp (øre) og melding, i formatet fra Vipps sine
-// personlige QR-koder. «vipps://» åpner appen direkte; «https://» er reserve.
-function vippsLink(phone: string, amountOre: number, message: string, scheme: "vipps" | "https") {
-  const query = `v=1&a=${Math.round(amountOre)}&m=${encodeURIComponent(message)}`;
-  return `${scheme}://qr.vipps.no/28/2/01/031/${encodeURIComponent(phone)}?${query}`;
 }
 
 // Første gang lenken åpnes: lag profil (finner tilbake på alle enheter) eller
