@@ -21,6 +21,11 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
   e-post legges en signert koblings-billett i kontoens `user_metadata`
   (`uk_guest_link`), så kontoen kobles ved første innlogging selv om e-posten
   bekreftes i en annen nettleser (Messenger → Safari). Se `/api/guest/me`.
+- **Messenger/Facebook o.l.** (`lib/in-app-browser.ts`): Google-innlogging og
+  hjemskjerm virker ikke der. `components/OpenOutsideCard.tsx` åpner siden i
+  Safari/Chrome/standard-nettleser (`x-safari-https://`, `googlechromes://`,
+  Android `intent://`). Besteforelder-tilgangen tas med via en kryptert
+  overlevering (`/api/guest/handoff` → `/besteforeldre/koble?h=…`, 30 min).
 - **Ny konto** uten familie havner på `/velkommen` («Start ny familie» /
   invitert forelder / besteforelder). Ruting etter innlogging: `lib/after-auth.ts`.
 - **Vipps-gaver**: familien legger inn mottakere i `family_vipps` (navn +

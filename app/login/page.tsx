@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Coins } from "lucide-react";
 import { Button, Field, Input, cx, focusRing } from "@/components/ui";
 import { hasPendingGuest, pathAfterAuth } from "@/lib/after-auth";
+import { OpenOutsideCard } from "@/components/OpenOutsideCard";
 import { inAppBrowserName } from "@/lib/in-app-browser";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -171,9 +172,7 @@ export default function LoginPage() {
           <>
             <h1 className="text-3xl font-extrabold tracking-tight">Lag din profil 💛</h1>
             <p className="mt-1 text-muted-foreground">
-              {inApp
-                ? "Skriv e-posten din og velg et passord. Da finner du alltid tilbake til barnebarna."
-                : `Bruk Google${appleOn ? " eller Apple" : ""}, eller skriv e-posten din og velg et passord.`}
+              {inApp ? "Da finner du alltid tilbake til barnebarna." : `Bruk Google${appleOn ? " eller Apple" : ""}, eller skriv e-posten din og velg et passord.`}
             </p>
           </>
         ) : (
@@ -184,9 +183,16 @@ export default function LoginPage() {
         )}
 
         {inApp && (
-          <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-            Du er inne i {inApp}. Her virker ikke Google-innlogging, så bruk e-post og passord.
-          </p>
+          <>
+            <OpenOutsideCard
+              className="mt-5"
+              guest={forGuest}
+              profile={forGuest}
+              path={forGuest ? undefined : "/login"}
+              text="Vil du logge inn med Google? Åpne siden i nettleseren først – det virker ikke her."
+            />
+            <p className="mt-5 text-center text-sm font-semibold text-muted-foreground">Eller bruk e-post og passord her:</p>
+          </>
         )}
 
         <div className={inApp ? "hidden" : "mt-6 space-y-2.5"}>

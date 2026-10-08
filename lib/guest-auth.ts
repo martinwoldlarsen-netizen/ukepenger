@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { createClient, type User } from "@supabase/supabase-js";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
@@ -59,13 +59,54 @@ export async function verifyGuestCredentials(guestId: string, secret: string): P
   return { guestId: row.id, familyId: row.family_id, name: row.name, userId: row.user_id ?? null };
 }
 
-// Gjesten fra cookien (lenken), hvis den er gyldig.
-export async function verifyGuestCookie(request: Request) {
+// Id og hemmelighet fra cookien, uten å sjekke dem.
+export function readGuestCookie(request: Request): { guestId: string; secret: string } | null {
   const raw = readCookie(request);
   if (!raw) return null;
   const [guestId, secret] = raw.split(":");
-  if (!guestId || !secret) return null;
-  return verifyGuestCredentials(guestId, secret);
+  return guestId && secret ? { guestId, secret } : null;
+}
+
+// Gjesten fra cookien (lenken), hvis den er gyldig.
+export async function verifyGuestCookie(request: Request) {
+  const raw = readGuestCookie(request);
+  return raw ? verifyGuestCredentials(raw.guestId, raw.secret) : null;
+}
+
+// Overlevering til en annen nettleser: åpnes siden inne i Messenger o.l.,
+// ligger cookien bare der. «Åpne i Safari/Chrome» får en kortlivet, kryptert
+// lenke (30 min) som setter samme cookie i den nye nettleseren. Hemmeligheten
+// er kryptert, så den vises aldri i klartekst i adresselinjen.
+const HANDOFF_MS = 30 * 60 * 1000;
+
+function handoffKey() {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return secret ? createHmac("sha256", secret).update("uk-guest-handoff-v1").digest() : null;
+}
+
+export function makeGuestHandoff(guestId: string, secret: string): string | null {
+  const key = handoffKey();
+  if (!key) return null;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const body = Buffer.concat([cipher.update(JSON.stringify({ g: guestId, s: secret, e: Date.now() + HANDOFF_MS }), "utf8"), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), body]).toString("base64url");
+}
+
+export function readGuestHandoff(token: string): { guestId: string; secret: string } | null {
+  const key = handoffKey();
+  if (!key || !token) return null;
+  try {
+    const raw = Buffer.from(token, "base64url");
+    const decipher = createDecipheriv("aes-256-gcm", key, raw.subarray(0, 12));
+    decipher.setAuthTag(raw.subarray(12, 28));
+    const json = Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString("utf8");
+    const data = JSON.parse(json) as { g?: string; s?: string; e?: number };
+    if (!data.g || !data.s || !data.e || data.e < Date.now()) return null;
+    return { guestId: data.g, secret: data.s };
+  } catch {
+    return null;
+  }
 }
 
 // Innlogget bruker fra «Authorization: Bearer …», eller null.
