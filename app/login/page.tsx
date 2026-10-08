@@ -70,7 +70,19 @@ export default function LoginPage() {
       return;
     }
     setAction("signup");
-    const result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    // Besteforeldre: legg en koblings-billett på kontoen, så den kobles til
+    // familien selv om e-posten bekreftes i en annen nettleser (f.eks. Safari).
+    let guestLink: string | undefined;
+    if (forGuest) {
+      const res = await fetch("/api/guest/link-token", { method: "POST", credentials: "include" }).catch(() => null);
+      const payload = res?.ok ? ((await res.json().catch(() => ({}))) as { token?: string }) : {};
+      guestLink = payload.token;
+    }
+    const result = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback`, ...(guestLink ? { data: { uk_guest_link: guestLink } } : {}) },
+    });
 
     if (result.error) {
       setAction(null);
@@ -86,7 +98,11 @@ export default function LoginPage() {
 
     if (!result.data.session) {
       setAction(null);
-      setStatus("Kontoen er laget! Sjekk e-posten din og trykk på lenken for å bekrefte.");
+      setStatus(
+        forGuest
+          ? "Nesten ferdig! Sjekk e-posten din og trykk på lenken for å bekrefte. Etterpå logger du inn på ukepenger.no med e-post og passord – da kommer du rett til barnebarna."
+          : "Kontoen er laget! Sjekk e-posten din og trykk på lenken for å bekrefte."
+      );
       return;
     }
 
@@ -155,7 +171,9 @@ export default function LoginPage() {
           <>
             <h1 className="text-3xl font-extrabold tracking-tight">Lag din profil 💛</h1>
             <p className="mt-1 text-muted-foreground">
-              Bruk Google, Apple eller e-post. Har du ikke konto, skriv e-post og et passord og trykk «Opprett konto».
+              {inApp
+                ? "Skriv e-posten din og velg et passord. Da finner du alltid tilbake til barnebarna."
+                : `Bruk Google${appleOn ? " eller Apple" : ""}, eller skriv e-posten din og velg et passord.`}
             </p>
           </>
         ) : (
@@ -167,7 +185,7 @@ export default function LoginPage() {
 
         {inApp && (
           <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-            Du er inne i {inApp}. Google-innlogging virker ikke her – bruk e-post og passord under, eller åpne ukepenger.no i Safari.
+            Du er inne i {inApp}. Her virker ikke Google-innlogging, så bruk e-post og passord.
           </p>
         )}
 
@@ -196,14 +214,21 @@ export default function LoginPage() {
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (canSubmit) void handleLogin();
+            if (!canSubmit) return;
+            void (forGuest ? handleSignUp() : handleLogin());
           }}
         >
           <Field label="E-post">
             <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="navn@epost.no" />
           </Field>
           <Field label="Passord">
-            <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Passord eller passfrase" />
+            <Input
+              type="password"
+              autoComplete={forGuest ? "new-password" : "current-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={forGuest ? `Velg et passord (minst ${MIN_PASSWORD} tegn)` : "Passord eller passfrase"}
+            />
           </Field>
 
           {status && (
@@ -212,12 +237,25 @@ export default function LoginPage() {
             </p>
           )}
 
-          <Button type="submit" size="lg" block loading={action === "login"} disabled={!canSubmit}>
-            Logg inn
-          </Button>
-          <Button variant="ghost" block loading={action === "signup"} disabled={!canSubmit} onClick={() => void handleSignUp()}>
-            Ny her? Opprett konto
-          </Button>
+          {forGuest ? (
+            <>
+              <Button type="submit" size="lg" block loading={action === "signup"} disabled={!canSubmit}>
+                Lag profil
+              </Button>
+              <Button variant="ghost" block loading={action === "login"} disabled={!canSubmit} onClick={() => void handleLogin()}>
+                Har du profil fra før? Logg inn
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="submit" size="lg" block loading={action === "login"} disabled={!canSubmit}>
+                Logg inn
+              </Button>
+              <Button variant="ghost" block loading={action === "signup"} disabled={!canSubmit} onClick={() => void handleSignUp()}>
+                Ny her? Opprett konto
+              </Button>
+            </>
+          )}
         </form>
       </section>
     </main>

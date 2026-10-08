@@ -17,7 +17,10 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
   → `/besteforeldre` («Se og gi»). Første gang velger de «Lag profil» eller
   «Fortsett uten». Profil = vanlig Supabase-konto uten `profiles`-rad, koblet
   via `family_guests.user_id` (kan ha flere familier). Gjeste-API-ene godtar
-  både cookien og Bearer-token (`verifyGuestRequest`).
+  både cookien og Bearer-token (`verifyGuestRequest`). Ved «Lag profil» med
+  e-post legges en signert koblings-billett i kontoens `user_metadata`
+  (`uk_guest_link`), så kontoen kobles ved første innlogging selv om e-posten
+  bekreftes i en annen nettleser (Messenger → Safari). Se `/api/guest/me`.
 - **Ny konto** uten familie havner på `/velkommen` («Start ny familie» /
   invitert forelder / besteforelder). Ruting etter innlogging: `lib/after-auth.ts`.
 - **Vipps-gaver**: familien legger inn mottakere i `family_vipps` (navn +
