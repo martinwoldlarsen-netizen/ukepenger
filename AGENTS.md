@@ -31,8 +31,10 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
 - **Vipps-gaver**: familien legger inn mottakere i `family_vipps` (navn +
   nummer, f.eks. Mamma og Pappa) på Familie-siden («Vipps for gaver»).
   `profiles.display_name`/`vipps_phone` brukes ikke lenger. Besteforelder velger mottaker, appen viser
-  beløp/nummer og åpner Vipps (vanlige personer kan ikke få forhåndsutfylt
-  beløp), «Jeg har sendt» → SENT-krav `🎁 Gave fra … (Vipps til …)`.
+  beløp/nummer og åpner Vipps ferdig utfylt via formatet til Vipps' personlige
+  QR-koder (`vipps://qr.vipps.no/28/2/01/031/<nr>?v=1&a=<øre>&m=<melding>`,
+  ikke offisielt dokumentert – nummeret kopieres som reserve), «Jeg har
+  sendt» → SENT-krav `🎁 Gave fra … (Vipps til …)`.
 
 Språk i UI: norsk bokmål, enkelt og barnevennlig (4–18 år). Kommentarer i
 koden er også på norsk.
