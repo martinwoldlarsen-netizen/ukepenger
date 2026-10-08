@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { userIdFromBearer, verifyGuestCookie } from "@/lib/guest-auth";
-import { getServiceSupabaseClient } from "@/lib/server-supabase";
+import { linkGuestToUser, userIdFromBearer, verifyGuestCookie } from "@/lib/guest-auth";
 
 export const runtime = "nodejs";
 
@@ -13,16 +12,8 @@ export async function POST(request: Request) {
   if (guest.userId && guest.userId !== userId) {
     return NextResponse.json({ error: "Denne lenken er allerede koblet til en annen konto." }, { status: 409 });
   }
-  const supabase = getServiceSupabaseClient();
-  if (!supabase) return NextResponse.json({ error: "Serverfeil." }, { status: 500 });
-  const res = await supabase
-    .from("family_guests")
-    .update({ user_id: userId })
-    .eq("id", guest.guestId)
-    .is("revoked_at", null)
-    .or(`user_id.is.null,user_id.eq.${userId}`)
-    .select("id")
-    .maybeSingle();
-  if (res.error || !res.data) return NextResponse.json({ error: "Klarte ikke å koble kontoen." }, { status: 400 });
+  if (!(await linkGuestToUser(guest.guestId, userId))) {
+    return NextResponse.json({ error: "Klarte ikke å koble kontoen." }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }

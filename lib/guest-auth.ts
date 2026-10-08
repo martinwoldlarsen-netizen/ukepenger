@@ -1,5 +1,5 @@
-import { createHash, randomBytes, timingSafeEqual } from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { createClient, type User } from "@supabase/supabase-js";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
 // Gjeste-tilgang for besteforeldre: cookien "uk_guest" inneholder
@@ -69,14 +69,75 @@ export async function verifyGuestCookie(request: Request) {
 }
 
 // Innlogget bruker fra «Authorization: Bearer …», eller null.
-export async function userIdFromBearer(request: Request): Promise<string | null> {
+export async function userFromBearer(request: Request): Promise<User | null> {
   const header = request.headers.get("authorization") ?? "";
   const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!token || !url || !anonKey) return null;
   const res = await createClient(url, anonKey).auth.getUser(token);
-  return res.error || !res.data.user ? null : res.data.user.id;
+  return res.error || !res.data.user ? null : res.data.user;
+}
+
+export async function userIdFromBearer(request: Request): Promise<string | null> {
+  return (await userFromBearer(request))?.id ?? null;
+}
+
+// Koblings-billett: når besteforeldre lager profil med e-post, åpnes
+// bekreftelseslenken ofte i en annen nettleser (f.eks. Safari i stedet for
+// Messenger), der lenke-cookien ikke finnes. Billetten legges på kontoen ved
+// registrering og gjør at kontoen kobles til familien første gang de logger
+// inn – uansett nettleser. Signert av serveren, gyldig i 7 dager.
+const LINK_TOKEN_DAYS = 7;
+
+function linkKey() {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return secret ? createHmac("sha256", secret).update("uk-guest-link-v1").digest() : null;
+}
+
+// Billetten er knyttet til lenkens nåværende hemmelighet (som hash), så
+// «Ny lenke» eller «Steng» gjør gamle billetter ugyldige.
+async function currentSecretTag(guestId: string): Promise<string | null> {
+  const supabase = getServiceSupabaseClient();
+  if (!supabase) return null;
+  const res = await supabase.from("family_guests").select("secret_hash, revoked_at").eq("id", guestId).maybeSingle();
+  if (res.error || !res.data || res.data.revoked_at) return null;
+  return createHash("sha256").update(res.data.secret_hash).digest("base64url").slice(0, 16);
+}
+
+export async function guestLinkToken(guestId: string): Promise<string | null> {
+  const key = linkKey();
+  const tag = await currentSecretTag(guestId);
+  if (!key || !tag) return null;
+  const expires = Date.now() + LINK_TOKEN_DAYS * 24 * 60 * 60 * 1000;
+  const payload = `${guestId}.${expires}.${tag}`;
+  return `${payload}.${createHmac("sha256", key).update(payload).digest("base64url")}`;
+}
+
+export async function verifyGuestLinkToken(token: unknown): Promise<string | null> {
+  const key = linkKey();
+  if (!key || typeof token !== "string") return null;
+  const [guestId, expires, tag, sig] = token.split(".");
+  if (!guestId || !expires || !tag || !sig || !/^[0-9a-f-]{36}$/i.test(guestId) || Number(expires) < Date.now()) return null;
+  const expected = createHmac("sha256", key).update(`${guestId}.${expires}.${tag}`).digest("base64url");
+  if (!sameHash(sig, expected)) return null;
+  const current = await currentSecretTag(guestId);
+  return current && sameHash(tag, current) ? guestId : null;
+}
+
+// Kobler en besteforelder-rad til en konto, hvis den ikke allerede tilhører en annen.
+export async function linkGuestToUser(guestId: string, userId: string) {
+  const supabase = getServiceSupabaseClient();
+  if (!supabase) return false;
+  const res = await supabase
+    .from("family_guests")
+    .update({ user_id: userId })
+    .eq("id", guestId)
+    .is("revoked_at", null)
+    .or(`user_id.is.null,user_id.eq.${userId}`)
+    .select("id")
+    .maybeSingle();
+  return !res.error && Boolean(res.data);
 }
 
 // Alle familier en besteforelder-konto er koblet til.

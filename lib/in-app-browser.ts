@@ -4,8 +4,8 @@
 export function inAppBrowserName(): string | null {
   if (typeof navigator === "undefined") return null;
   const ua = navigator.userAgent;
-  if (/Messenger|FBAN\/MessengerForiOS|FB_IAB\/MESSENGER/i.test(ua)) return "Messenger";
-  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "Facebook";
+  // Messenger og Facebook bruker samme nettleser og kan ikke skilles sikkert.
+  if (/Messenger|FBAN|FBAV|FB_IAB/i.test(ua)) return "Messenger/Facebook";
   if (/Instagram/i.test(ua)) return "Instagram";
   if (/Snapchat/i.test(ua)) return "Snapchat";
   if (/\bLine\//i.test(ua)) return "Line";
