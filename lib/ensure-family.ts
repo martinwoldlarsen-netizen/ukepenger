@@ -1,11 +1,8 @@
+import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type ProfileRow = {
   family_id: string | null;
-};
-
-type FamilyRow = {
-  id: string;
 };
 
 export async function ensureFamilyForUser(supabase: SupabaseClient, userId: string): Promise<string> {
@@ -28,12 +25,13 @@ export async function ensureFamilyForUser(supabase: SupabaseClient, userId: stri
     return profile.family_id;
   }
 
-  const familyInsert = await supabase.from("families").insert({}).select("id").single();
-  if (familyInsert.error || !familyInsert.data) {
-    throw new Error(familyInsert.error?.message ?? "Kunne ikke opprette familie.");
+  // Egen id og ingen «select» etter insert: nye brukere kan ikke lese
+  // familien før profilen peker på den (sikkerhetsreglene).
+  const newFamilyId = randomUUID();
+  const familyInsert = await supabase.from("families").insert({ id: newFamilyId });
+  if (familyInsert.error) {
+    throw new Error(familyInsert.error.message);
   }
-
-  const newFamilyId = (familyInsert.data as FamilyRow).id;
 
   const profileUpdate = await supabase
     .from("profiles")

@@ -23,6 +23,20 @@ export default function LoginPage() {
 
   const isLoading = action !== null;
 
+  // Kontoen er laget, men e-posten er ikke bekreftet ennå: tilby å sende på nytt.
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [resent, setResent] = useState(false);
+  const resendConfirmation = async () => {
+    if (!email.trim()) return;
+    const res = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    if (res.error) {
+      setStatus(`Feil: ${authErrorText(res.error.message)}`);
+      return;
+    }
+    setResent(true);
+    setStatus("Ny e-post er sendt. Sjekk innboksen – og søppelpost/reklame hvis den ikke dukker opp.");
+  };
+
   // Apple-knappen vises bare når Apple er slått på i Supabase, så den aldri
   // gir feil. Den dukker opp av seg selv når oppsettet er gjort.
   const [appleOn, setAppleOn] = useState(false);
@@ -99,10 +113,11 @@ export default function LoginPage() {
 
     if (!result.data.session) {
       setAction(null);
+      setNeedsConfirm(true);
       setStatus(
         forGuest
-          ? "Nesten ferdig! Sjekk e-posten din og trykk på lenken for å bekrefte. Etterpå logger du inn på ukepenger.no med e-post og passord – da kommer du rett til barnebarna."
-          : "Kontoen er laget! Sjekk e-posten din og trykk på lenken for å bekrefte."
+          ? "Nesten ferdig! Sjekk e-posten din (også søppelpost) og trykk på lenken for å bekrefte. Etterpå logger du inn på ukepenger.no med e-post og passord – da kommer du rett til barnebarna."
+          : "Kontoen er laget! Sjekk e-posten din (også søppelpost) og trykk på lenken for å bekrefte."
       );
       return;
     }
@@ -117,6 +132,7 @@ export default function LoginPage() {
 
     if (result.error) {
       setAction(null);
+      setNeedsConfirm(/email not confirmed/i.test(result.error.message));
       setStatus(`Feil: ${authErrorText(result.error.message)}`);
       return;
     }
@@ -242,6 +258,11 @@ export default function LoginPage() {
               {status.replace(/^Feil: /, "")}
             </p>
           )}
+          {needsConfirm && !resent && (
+            <Button variant="secondary" block onClick={() => void resendConfirmation()} disabled={!email.trim()}>
+              Fikk du ikke e-posten? Send på nytt
+            </Button>
+          )}
 
           {forGuest ? (
             <>
@@ -271,7 +292,7 @@ export default function LoginPage() {
 // Supabase sine feilmeldinger er på engelsk og tekniske.
 function authErrorText(message: string) {
   if (/invalid login credentials/i.test(message)) return "Feil e-post eller passord.";
-  if (/email not confirmed/i.test(message)) return "Bekreft e-posten din først. Sjekk innboksen.";
+  if (/email not confirmed/i.test(message)) return "Bekreft e-posten din først. Sjekk innboksen og søppelpost.";
   if (/already registered|already exists/i.test(message)) return "Det finnes allerede en konto med denne e-posten. Prøv å logge inn.";
   if (/password should be at least|weak password/i.test(message)) return `Passordet må ha minst ${MIN_PASSWORD} tegn.`;
   if (/pwned|leaked|compromised/i.test(message)) return "Dette passordet har vært med i en kjent datalekkasje. Velg et annet.";
