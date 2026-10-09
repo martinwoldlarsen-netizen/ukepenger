@@ -21,7 +21,7 @@ export async function DELETE(request: Request) {
   const user = await serviceClient.auth.admin.deleteUser(userId);
   if (user.error) {
     console.error("[account delete user]", user.error.message);
-    return NextResponse.json({ error: "Familien er slettet, men kontoen kunne ikke slettes. Skriv til personvern@ukepenger.no." }, { status: 400 });
+    return NextResponse.json({ error: "Familien er slettet, men kontoen kunne ikke slettes. Skriv til oss på ukepenger.no/kontakt." }, { status: 400 });
   }
   return NextResponse.json({ ok: true });
 }

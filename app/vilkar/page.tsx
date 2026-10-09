@@ -66,7 +66,11 @@ export default function VilkarPage() {
 
       <Avsnitt tittel="6. Dine data, eksport og sletting">
         <p>
-          Familiens data tilhører familien. Du kan når som helst be om en kopi eller om at alt slettes ved å skrive til <Mail to="personvern@ukepenger.no" />.
+          Familiens data tilhører familien. Du kan når som helst be om en kopi eller om at alt slettes ved å skrive til <Mail to="personvern@ukepenger.no" /> eller bruke{" "}
+          <a href="/kontakt?emne=personvern" className="font-semibold text-foreground underline underline-offset-4">
+            kontaktskjemaet
+          </a>
+          .
         </p>
         <p>
           Hvis vi legger ned Ukepenger, varsler vi alle kontoer på e-post og i appen minst 60 dager i forveien, slik at dere kan hente ut historikken før dataene slettes.
@@ -88,7 +92,11 @@ export default function VilkarPage() {
 
       <Avsnitt tittel="9. Lovvalg og kontakt">
         <p>
-          Norsk lov gjelder. Spørsmål eller uenighet tar vi helst direkte: <Mail to="hei@ukepenger.no" />. Som forbruker kan du også klage til Forbrukerrådet.
+          Norsk lov gjelder. Spørsmål eller uenighet tar vi helst direkte: <Mail to="hei@ukepenger.no" /> eller{" "}
+          <a href="/kontakt" className="font-semibold text-foreground underline underline-offset-4">
+            kontaktskjemaet
+          </a>
+          . Som forbruker kan du også klage til Forbrukerrådet.
         </p>
       </Avsnitt>
     </LegalPage>

@@ -39,7 +39,10 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
 - **Overvåking**: anonym besøksstatistikk med Vercel Web Analytics
   (`components/SiteAnalytics.tsx`, ikke på `/kids`, URL-er uten `?`-parametere).
   Eier-oversikt `/admin/eier` (`/api/admin/owner`) for kontoer i tabellen
-  `app_owners` (bare service role): kontoer, familier, besteforeldre, krav per dag.
+  `app_owners` (bare service role): kontoer, familier, besteforeldre, krav per dag,
+  og meldinger fra kontaktskjemaet `/kontakt` (`/api/contact` → tabellen
+  `contact_messages`, varsel til eierens familie). hei@/personvern@ ukepenger.no
+  tar ikke imot e-post før MX er satt opp hos Webhuset.
 
 Språk i UI: norsk bokmål, enkelt og barnevennlig (4–18 år). Kommentarer i
 koden er også på norsk.
@@ -125,7 +128,7 @@ public/sw.js          service worker (frakoblet-side + varsler)
 `child_task_settings`, `claims` (krav; status SENT/APPROVED/REJECTED/PAID),
 `payments` + `payment_claims`, `wishlist_items`, `devices` + `device_pairings`
 (engangs-QR), `family_guests`, `family_invites`, `push_subscriptions`,
-`trophy_awards`, `app_secrets`, `family_vipps`, `app_owners`.
+`trophy_awards`, `app_secrets`, `family_vipps`, `app_owners`, `contact_messages`.
 
 Logikk i databasen (security definer, ikke kallbar fra klient der det ikke trengs):
 - `apply_claim_savings` (trigger): trekker sparing (%) når et krav godkjennes.

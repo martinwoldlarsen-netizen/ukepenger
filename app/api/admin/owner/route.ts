@@ -1,6 +1,6 @@
-import { createClient, type User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { getServiceSupabaseClient } from "@/lib/server-supabase";
+import { requireOwner } from "@/lib/owner-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,18 +10,9 @@ const DAY = 24 * 60 * 60 * 1000;
 // Eier-oversikt: hvem som bruker tjenesten. Bare for kontoer i app_owners.
 // ?check=1 svarer bare om du er eier (brukes for å vise menypunktet).
 export async function GET(request: Request) {
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const supabase = getServiceSupabaseClient();
-  if (!token || !url || !anonKey || !supabase) return NextResponse.json({ error: "Ikke tilgang." }, { status: 403 });
-
-  const userRes = await createClient(url, anonKey).auth.getUser(token);
-  const me = userRes.data.user;
-  if (!me) return NextResponse.json({ error: "Ikke tilgang." }, { status: 403 });
-  const ownerRes = await supabase.from("app_owners").select("user_id").eq("user_id", me.id).maybeSingle();
-  if (!ownerRes.data) return NextResponse.json({ error: "Ikke tilgang." }, { status: 403 });
+  const owner = await requireOwner(request);
+  if (!owner) return NextResponse.json({ error: "Ikke tilgang." }, { status: 403 });
+  const { supabase } = owner;
   if (new URL(request.url).searchParams.get("check") === "1") return NextResponse.json({ owner: true });
 
   const now = Date.now();
@@ -35,13 +26,14 @@ export async function GET(request: Request) {
     if (res.data.users.length < 1000) break;
   }
 
-  const [profilesRes, familiesRes, childrenRes, guestsRes, devicesRes, claimsRes] = await Promise.all([
+  const [profilesRes, familiesRes, childrenRes, guestsRes, devicesRes, claimsRes, messagesRes] = await Promise.all([
     supabase.from("profiles").select("user_id, family_id"),
     supabase.from("families").select("id, name, created_at"),
     supabase.from("children").select("family_id, active"),
     supabase.from("family_guests").select("id, family_id, name, user_id, created_at, last_seen_at, revoked_at"),
     supabase.from("devices").select("family_id, active, revoked_at"),
     supabase.from("claims").select("family_id, task_id, note, created_at").gte("created_at", since30),
+    supabase.from("contact_messages").select("id, created_at, name, email, topic, message, handled_at").order("created_at", { ascending: false }).limit(50),
   ]);
   if (profilesRes.error || familiesRes.error || childrenRes.error || guestsRes.error || devicesRes.error || claimsRes.error) {
     return NextResponse.json({ error: "Klarte ikke å hente tall." }, { status: 500 });
@@ -109,6 +101,7 @@ export async function GET(request: Request) {
     .sort((a, b) => (b.last_activity ?? b.created_at).localeCompare(a.last_activity ?? a.created_at));
 
   return NextResponse.json({
+    messages: messagesRes.data ?? [],
     totals: {
       families: families.length,
       activeFamilies7: activeFamilies.size,
