@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { useSWRConfig } from "swr";
-import { CheckCheck, Coins, ListChecks, LogOut, MoreHorizontal, Heart, History, Settings, Smartphone, Users, Wallet, X, Trophy } from "lucide-react";
+import useSWR, { useSWRConfig } from "swr";
+import { BarChart3, CheckCheck, Coins, ListChecks, LogOut, MoreHorizontal, Heart, History, Settings, Smartphone, Users, Wallet, X, Trophy } from "lucide-react";
 import { cx, focusRing, Skeleton } from "@/components/ui";
 import { FeedbackProvider } from "@/components/ui/feedback";
-import { useAdminIdentity, usePendingClaims, usePendingWishes } from "@/lib/admin-data";
+import { adminFetch, useAdminIdentity, usePendingClaims, usePendingWishes } from "@/lib/admin-data";
 import { clearAdminIdentityCache, getAdminSetupStatus, getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -22,7 +22,7 @@ const primaryNav: NavItem[] = [
   { href: "/admin/children", label: "Barn", icon: Users },
 ];
 
-const secondaryNav: NavItem[] = [
+const baseSecondaryNav: NavItem[] = [
   { href: "/admin/trophies", label: "Trofeer", icon: Trophy },
   { href: "/admin/history", label: "Historikk", icon: History },
   { href: "/admin/family", label: "Familie", icon: Heart },
@@ -30,7 +30,8 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/settings", label: "Innstillinger", icon: Settings },
 ];
 
-const allNav = [...primaryNav, ...secondaryNav];
+// Eier-oversikten vises bare for eieren av tjenesten (sjekkes på serveren).
+const ownerNav: NavItem = { href: "/admin/eier", label: "Eier-oversikt", icon: BarChart3 };
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -49,6 +50,12 @@ function AdminShell({ children }: { children: ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const { familyId } = useAdminIdentity();
+  const isOwner = useSWR(ready ? "is-owner" : null, () => adminFetch<{ owner: boolean }>("/api/admin/owner?check=1").then((r) => r.owner).catch(() => false), {
+    revalidateOnFocus: false,
+    dedupingInterval: 10 * 60_000,
+  }).data;
+  const secondaryNav = isOwner ? [...baseSecondaryNav, ownerNav] : baseSecondaryNav;
+  const allNav = [...primaryNav, ...secondaryNav];
   const claims = usePendingClaims(ready ? familyId : null);
   const wishes = usePendingWishes(ready ? familyId : null);
   const pendingCount = (claims.data?.length ?? 0) + (wishes.data?.length ?? 0);

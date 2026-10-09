@@ -12,7 +12,7 @@ export default function PersonvernPage() {
     <LegalPage
       eyebrow="Personvern"
       title="Personvernerklæring"
-      updated="5. oktober 2026"
+      updated="9. oktober 2026"
       intro={
         <p>
           Ukepenger er laget for barn. Derfor vil vi si tydelig hva vi behandler, hvorfor, og hvem som hjelper oss. Det finnes også en{" "}
@@ -29,7 +29,9 @@ export default function PersonvernPage() {
           Om barnet lagrer vi fornavnet og avataren dere velger, og det barnet gjør i appen: oppgaver, krav, beløp, sparing, utbetalinger, ønsker og trofeer. Vi ber
           aldri om fødselsdato, fødselsnummer, adresse, telefon eller bilde.
         </li>
-        <li>Vi bruker ingen sporing, statistikkverktøy eller annonser.</li>
+        <li>
+          Vi har ingen annonser og sporer deg ikke på tvers av nettsteder. Vi bruker bare anonym besøksstatistikk uten informasjonskapsler, og ikke på barnesiden.
+        </li>
         <li>Ukepenger flytter ingen penger og er ikke koblet til bank eller betalingsløsning.</li>
         <li>Databasen ligger i Irland (EU). Enkelte leverandører kan behandle tekniske data utenfor EØS, med godkjente overføringsmekanismer (se under).</li>
       </KortFortalt>
@@ -87,6 +89,11 @@ export default function PersonvernPage() {
           rows={[
             ["Supabase", "Database, innlogging og e-post ved registrering/glemt passord. Fører innloggingslogger (blant annet IP-adresse og nettleser).", "Databasen i Irland (EU). Supabase og underleverandører kan behandle data utenfor EØS etter EUs standardavtaler."],
             ["Vercel", "Driver nettsiden og serverne. Behandler tekniske data som IP-adresse, omtrentlig sted, nettleser og forespørselslogger.", "Globalt nettverk. Overføring utenfor EØS skjer etter EUs standardavtaler / EU–US Data Privacy Framework."],
+            [
+              "Vercel Web Analytics",
+              "Anonym besøksstatistikk: hvilke sider som besøkes, land, type enhet og nettleser, og hvilken side du kom fra. Ingen informasjonskapsler; IP-adressen lagres ikke, og besøk kan ikke kobles til deg eller følges over tid eller mellom nettsteder. Ikke på barnesiden, og lenker sendes uten koder.",
+              "Som Vercel over.",
+            ],
             ["Google", "Bare hvis du velger «Fortsett med Google»: Google bekrefter hvem du er og gir oss navn og e-post.", "Google sine vilkår gjelder for Google-kontoen din."],
             ["Nettleserens varseltjeneste (Apple, Google eller Mozilla)", "Bare hvis du slår på varsler: leverer varselet til enheten din. Innholdet er kort tekst om kravet.", "Avhenger av nettleseren din."],
           ]}
@@ -106,7 +113,10 @@ export default function PersonvernPage() {
             [<Code key="e">uk_badges_…</Code>, "Hvilke merker som allerede er feiret på denne enheten", "Ukepenger", "Til den slettes i nettleseren"],
           ]}
         />
-        <p>Vi bruker ingen informasjonskapsler til sporing, statistikk eller annonser. Tar vi slike verktøy i bruk senere, spør vi om samtykke først.</p>
+        <p>
+          Vi bruker ingen informasjonskapsler til sporing, statistikk eller annonser. Besøksstatistikken vår (Vercel Web Analytics) er anonym og bruker ikke
+          informasjonskapsler. Tar vi i bruk verktøy som trenger det, spør vi om samtykke først.
+        </p>
       </Avsnitt>
 
       <Avsnitt tittel="Hvor lenge vi lagrer" id="lagringstid">
