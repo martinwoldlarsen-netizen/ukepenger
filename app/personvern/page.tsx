@@ -39,7 +39,11 @@ export default function PersonvernPage() {
       <Avsnitt tittel="Hvem er ansvarlig">
         <p>
           Behandlingsansvarlig er Martin Wold Larsen, som driver Ukepenger. Spørsmål om personvern, innsyn, retting eller sletting sendes til{" "}
-          <Mail to="personvern@ukepenger.no" />. Andre henvendelser: <Mail to="hei@ukepenger.no" />.
+          <Mail to="personvern@ukepenger.no" /> eller via{" "}
+          <a href="/kontakt?emne=personvern" className="font-semibold text-foreground underline underline-offset-4">
+            kontaktskjemaet
+          </a>
+          . Andre henvendelser: <Mail to="hei@ukepenger.no" />.
         </p>
       </Avsnitt>
 
@@ -127,7 +131,7 @@ export default function PersonvernPage() {
             ["Når kontoen slettes", "Familien og alt innholdet slettes med en gang fra databasen. Det forsvinner fra sikkerhetskopiene når de roteres, normalt innen 30 dager."],
             ["Innloggings- og driftslogger hos Supabase og Vercel", "Kort tid etter leverandørenes standard, fra timer opptil 90 dager, deretter slettes de automatisk."],
             ["Varselabonnement", "Til du slår av varsler, eller nettleseren melder at abonnementet er utløpt."],
-            ["E-post til oss", "Så lenge saken pågår, og senest 12 måneder etter siste svar."],
+            ["E-post og meldinger via kontaktskjemaet", "Så lenge saken pågår, og senest 12 måneder etter siste svar."],
           ]}
         />
       </Avsnitt>
@@ -153,7 +157,11 @@ export default function PersonvernPage() {
           kan trekkes tilbake i Innstillinger. Som forelder utøver du rettighetene på vegne av barna dine.
         </p>
         <p>
-          Skriv til <Mail to="personvern@ukepenger.no" />, så svarer vi innen 30 dager. Du kan også klage til{" "}
+          Skriv til <Mail to="personvern@ukepenger.no" /> eller bruk{" "}
+          <a href="/kontakt?emne=personvern" className="font-semibold text-foreground underline underline-offset-4">
+            kontaktskjemaet
+          </a>
+          , så svarer vi innen 30 dager. Du kan også klage til{" "}
           <a href="https://www.datatilsynet.no" className="font-semibold text-foreground underline underline-offset-4">
             Datatilsynet
           </a>

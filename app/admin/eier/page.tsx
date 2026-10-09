@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { BarChart3, ExternalLink, Heart, Home, Mail, UserRound } from "lucide-react";
+import { BarChart3, ExternalLink, Heart, Home, Inbox, Mail, UserRound } from "lucide-react";
 import { Badge, Card, CardHeader, ListSkeleton } from "@/components/ui";
 import { adminFetch, friendlyError, swrDefaults } from "@/lib/admin-data";
 import { formatWhen } from "@/lib/dates";
@@ -11,7 +11,11 @@ import { supabase } from "@/lib/supabaseClient";
 type Account = { email: string; created_at: string; last_sign_in_at: string | null; provider: string; type: "forelder" | "besteforelder" | "uten-familie" | "ubekreftet"; family: string | null };
 type FamilyRow = { name: string; created_at: string; parents: number; children: number; grandparents: number; claims30: number; last_activity: string | null; active: boolean };
 type Grandparent = { name: string; family: string; has_profile: boolean; last_seen_at: string | null; created_at: string };
+type ContactMessage = { id: string; created_at: string; name: string | null; email: string; topic: string; message: string; handled_at: string | null };
+const TOPIC: Record<string, string> = { sporsmal: "Spørsmål", personvern: "Personvern", feil: "Feil", annet: "Annet" };
+
 type Stats = {
+  messages: ContactMessage[];
   totals: Record<
     | "families"
     | "activeFamilies7"
@@ -50,6 +54,11 @@ export default function OwnerPage() {
   const [showAll, setShowAll] = useState(false);
   const [resent, setResent] = useState<Record<string, string>>({});
 
+  const markHandled = async (id: string, handled: boolean) => {
+    await adminFetch("/api/admin/owner/messages", { method: "PATCH", body: JSON.stringify({ id, handled }) }).catch(() => null);
+    await stats.mutate();
+  };
+
   // Sender bekreftelses-e-posten på nytt (samme som «Send på nytt» på innloggingssiden).
   const resend = async (email: string) => {
     const res = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
@@ -64,12 +73,46 @@ export default function OwnerPage() {
     );
   }
   if (!stats.data) return <ListSkeleton rows={4} />;
-  const { totals, perDay, accounts, families, grandparents } = stats.data;
+  const { totals, perDay, accounts, families, grandparents, messages } = stats.data;
+  const openMessages = messages.filter((m) => !m.handled_at);
   const stuck = accounts.filter((a) => a.type === "uten-familie" || a.type === "ubekreftet");
   const shown = showAll ? accounts : accounts.slice(0, 15);
 
   return (
     <section className="space-y-5">
+      {messages.length > 0 && (
+        <Card className="space-y-3">
+          <CardHeader
+            icon={<Inbox className="size-5" />}
+            title={openMessages.length ? `Meldinger (${openMessages.length} nye)` : "Meldinger"}
+            description="Fra kontaktskjemaet på ukepenger.no/kontakt. Svar på e-post."
+          />
+          <ul className="space-y-2">
+            {(showAll ? messages : messages.slice(0, 10)).map((m) => (
+              <li key={m.id} className={`rounded-2xl border px-4 py-3 ${m.handled_at ? "border-border opacity-60" : "border-primary/40"}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="min-w-0 flex-1 break-all font-semibold">{m.name ? `${m.name} · ${m.email}` : m.email}</p>
+                  <Badge tone={m.topic === "personvern" ? "warning" : "neutral"}>{TOPIC[m.topic] ?? m.topic}</Badge>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-sm">{m.message}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span>{formatWhen(m.created_at)}</span>
+                  <a
+                    href={`mailto:${m.email}?subject=${encodeURIComponent("Svar fra Ukepenger")}&body=${encodeURIComponent(`\n\n> ${m.message.slice(0, 500)}`)}`}
+                    className="ml-auto font-semibold text-primary underline"
+                  >
+                    Svar på e-post
+                  </a>
+                  <button type="button" onClick={() => void markHandled(m.id, !m.handled_at)} className="font-semibold underline">
+                    {m.handled_at ? "Åpne igjen" : "Ferdig"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Familier" value={totals.families} sub={`${totals.activeFamilies7} aktive siste 7 dager`} />
         <Tile label="Innlogget i dag" value={totals.logins1} sub={`${totals.logins7} siste 7 dager`} />

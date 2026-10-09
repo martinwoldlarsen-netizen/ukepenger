@@ -29,7 +29,7 @@ const menyLenker = [
 
 const hjelpeLenker = [
   { href: "/login", label: "Logg inn", intern: true },
-  { href: "mailto:hei@ukepenger.no", label: "Kontakt oss", intern: false },
+  { href: "/kontakt", label: "Kontakt oss", intern: true },
   { href: "/personvern", label: "Personvern", intern: true },
 ];
 
@@ -599,9 +599,9 @@ export default function LandingClient() {
         </div>
         <p className="mt-8 text-center text-sm text-muted-foreground">
           Noe annet du lurer på?{" "}
-          <a href="mailto:hei@ukepenger.no" className="font-semibold text-foreground underline underline-offset-4">
-            Send oss en e-post
-          </a>
+          <Link href="/kontakt" className="font-semibold text-foreground underline underline-offset-4">
+            Skriv til oss
+          </Link>
           .
         </p>
       </section>
@@ -624,7 +624,7 @@ export default function LandingClient() {
         <div className="flex flex-col gap-3 sm:items-end">
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             <Link href={appHref} className={styles.navLink}>{appLabel}</Link>
-            <a href="mailto:hei@ukepenger.no" className={styles.navLink}>Kontakt oss</a>
+            <Link href="/kontakt" className={styles.navLink}>Kontakt oss</Link>
             <Link href="/personvern" className={styles.navLink}>Personvern</Link>
             <Link href="/vilkar" className={styles.navLink}>Vilkår</Link>
           </div>
