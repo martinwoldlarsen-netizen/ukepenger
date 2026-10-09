@@ -75,17 +75,15 @@ export async function ensureFamilyForUser(user: { id: string; email?: string | n
   const familyNameSeed = user.email?.split("@")[0]?.trim();
   const familyName = familyNameSeed ? `${familyNameSeed} sin familie` : "Min familie";
 
-  const familyInsert = await supabase
-    .from("families")
-    .insert({ name: familyName })
-    .select("id")
-    .single();
+  // Vi lager id-en selv og ber ikke om raden tilbake: sikkerhetsreglene lar
+  // deg bare lese familier du er med i, og det er du ikke før profilen under
+  // er lagret. («insert … select» ga derfor alltid feil for nye brukere.)
+  const familyId = crypto.randomUUID();
+  const familyInsert = await supabase.from("families").insert({ id: familyId, name: familyName });
 
-  if (familyInsert.error || !familyInsert.data) {
-    return { familyId: null, error: familyInsert.error?.message ?? "Kunne ikke opprette familie." };
+  if (familyInsert.error) {
+    return { familyId: null, error: familyInsert.error.message };
   }
-
-  const familyId = familyInsert.data.id as string;
 
   const profileInsert = await supabase.from("profiles").insert({
     user_id: user.id,

@@ -6,6 +6,7 @@ import { BarChart3, ExternalLink, Heart, Home, Mail, UserRound } from "lucide-re
 import { Badge, Card, CardHeader, ListSkeleton } from "@/components/ui";
 import { adminFetch, friendlyError, swrDefaults } from "@/lib/admin-data";
 import { formatWhen } from "@/lib/dates";
+import { supabase } from "@/lib/supabaseClient";
 
 type Account = { email: string; created_at: string; last_sign_in_at: string | null; provider: string; type: "forelder" | "besteforelder" | "uten-familie" | "ubekreftet"; family: string | null };
 type FamilyRow = { name: string; created_at: string; parents: number; children: number; grandparents: number; claims30: number; last_activity: string | null; active: boolean };
@@ -47,6 +48,13 @@ const ANALYTICS_URL = "https://vercel.com/martin-larsens-projects/ukepenger-app/
 export default function OwnerPage() {
   const stats = useSWR("owner-stats", () => adminFetch<Stats>("/api/admin/owner"), { ...swrDefaults, refreshInterval: 60_000 });
   const [showAll, setShowAll] = useState(false);
+  const [resent, setResent] = useState<Record<string, string>>({});
+
+  // Sender bekreftelses-e-posten på nytt (samme som «Send på nytt» på innloggingssiden).
+  const resend = async (email: string) => {
+    const res = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    setResent((r) => ({ ...r, [email]: res.error ? "Klarte ikke å sende – prøv igjen om litt." : "Sendt ✓" }));
+  };
 
   if (stats.error) {
     return (
@@ -103,9 +111,19 @@ export default function OwnerPage() {
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <span>Laget {formatWhen(a.created_at)}</span>
                   <Badge tone="warning">{TYPE_LABEL[a.type].text}</Badge>
-                  <a href={`mailto:${a.email}?subject=${encodeURIComponent("Ukepenger – trenger du hjelp?")}`} className="ml-auto font-semibold text-primary underline">
-                    Send e-post
-                  </a>
+                  <span className="ml-auto flex gap-3">
+                    {a.type === "ubekreftet" &&
+                      (resent[a.email] ? (
+                        <span className="font-semibold">{resent[a.email]}</span>
+                      ) : (
+                        <button type="button" onClick={() => void resend(a.email)} className="font-semibold text-primary underline">
+                          Send bekreftelse på nytt
+                        </button>
+                      ))}
+                    <a href={`mailto:${a.email}?subject=${encodeURIComponent("Ukepenger – trenger du hjelp?")}`} className="font-semibold text-primary underline">
+                      Send e-post
+                    </a>
+                  </span>
                 </div>
               </li>
             ))}
