@@ -48,7 +48,7 @@ const sporsmal = [
   },
   {
     sporsmal: "Hva lagrer dere om barnet mitt?",
-    svar: "Fornavnet du skriver inn, avataren barnet velger, og det barnet gjør i appen: oppgaver, krav, beløp, sparing, utbetalinger, ønsker og trofeer. Vi spør aldri om fødselsdato, fødselsnummer, e-post, telefon eller adresse, og vi bruker ingen sporing eller analyseverktøy. Databasen ligger i Irland (EU). Les mer i personvernerklæringen.",
+    svar: "Fornavnet du skriver inn, avataren barnet velger, og det barnet gjør i appen: oppgaver, krav, beløp, sparing, utbetalinger, ønsker og trofeer. Vi spør aldri om fødselsdato, fødselsnummer, e-post, telefon eller adresse, og vi sporer ikke barnet – barnesiden har ingen statistikk eller analyse. Databasen ligger i Irland (EU). Les mer i personvernerklæringen.",
   },
   {
     sporsmal: "Hvor mange barn kan vi ha?",

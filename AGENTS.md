@@ -36,6 +36,11 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
   `qr.vipps.no/28/2/01/031/<nr>` ble testet og avvises («Vi kjenner ikke denne
   QR-koden»). «Jeg har sendt» → SENT-krav `🎁 Gave fra … (Vipps til …)`.
 
+- **Overvåking**: anonym besøksstatistikk med Vercel Web Analytics
+  (`components/SiteAnalytics.tsx`, ikke på `/kids`, URL-er uten `?`-parametere).
+  Eier-oversikt `/admin/eier` (`/api/admin/owner`) for kontoer i tabellen
+  `app_owners` (bare service role): kontoer, familier, besteforeldre, krav per dag.
+
 Språk i UI: norsk bokmål, enkelt og barnevennlig (4–18 år). Kommentarer i
 koden er også på norsk.
 
@@ -120,7 +125,7 @@ public/sw.js          service worker (frakoblet-side + varsler)
 `child_task_settings`, `claims` (krav; status SENT/APPROVED/REJECTED/PAID),
 `payments` + `payment_claims`, `wishlist_items`, `devices` + `device_pairings`
 (engangs-QR), `family_guests`, `family_invites`, `push_subscriptions`,
-`trophy_awards`, `app_secrets`, `family_vipps`.
+`trophy_awards`, `app_secrets`, `family_vipps`, `app_owners`.
 
 Logikk i databasen (security definer, ikke kallbar fra klient der det ikke trengs):
 - `apply_claim_savings` (trigger): trekker sparing (%) når et krav godkjennes.
