@@ -9,6 +9,7 @@ import { useConfirm, useToast } from "@/components/ui/feedback";
 import { adminFetch, friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
 import { formatWhen } from "@/lib/dates";
 import { supabase } from "@/lib/supabaseClient";
+import { openVippsApp } from "@/lib/vipps";
 
 type Member = {
   user_id: string;
@@ -231,6 +232,16 @@ function VippsCard() {
     await list.mutate();
   };
 
+  // Samme som besteforeldre får: nummeret kopieres og Vipps åpnes.
+  const test = async (r: VippsRecipient) => {
+    const res = await openVippsApp(r.phone);
+    if (!res.opened) {
+      toast({ text: res.copied ? "Nummeret er kopiert. Test på mobilen – der åpnes Vipps." : "Test på mobilen – der åpnes Vipps." });
+      return;
+    }
+    toast({ text: res.copied ? `Vipps åpnes. ${formatPhone(r.phone)} er kopiert – trykk Send og lim inn.` : "Vipps åpnes." });
+  };
+
   const suggestions = ["Mamma", "Pappa"].filter((n) => !recipients.some((r) => r.name.toLowerCase() === n.toLowerCase()));
 
   return (
@@ -253,6 +264,9 @@ function VippsCard() {
                   <p className="truncate font-semibold">{r.name}</p>
                   <p className="font-num text-sm text-muted-foreground">{formatPhone(r.phone)}</p>
                 </div>
+                <Button size="sm" variant="secondary" onClick={() => void test(r)}>
+                  Test
+                </Button>
                 <Button size="sm" variant="ghost" className="text-red-700 hover:bg-red-50" onClick={() => void remove(r)}>
                   Fjern
                 </Button>

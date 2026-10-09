@@ -10,6 +10,7 @@ import { getFigure } from "@/components/avatars/figures";
 import { rememberPendingGuest } from "@/lib/after-auth";
 import { OpenOutsideCard } from "@/components/OpenOutsideCard";
 import { inAppBrowserName } from "@/lib/in-app-browser";
+import { copyVippsNumber, openVippsApp } from "@/lib/vipps";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -325,21 +326,14 @@ function GiftSheet({
   };
 
   const copyNumber = async () => {
-    if (!recipient) return;
-    try {
-      await navigator.clipboard.writeText(recipient.phone);
-      setCopied(true);
-    } catch {
-      // Ikke støttet: nummeret står uansett stort på skjermen.
-    }
+    if (recipient && (await copyVippsNumber(recipient.phone))) setCopied(true);
   };
 
-  // Vipps lar ikke andre apper fylle inn mottaker og beløp for vanlige
-  // personer (lenker i QR-format avvises med «Vi kjenner ikke denne
-  // QR-koden»). Vi kopierer nummeret og åpner Vipps; beløpet står stort her.
+  // Kopierer nummeret og åpner Vipps (se lib/vipps.ts). Beløpet står stort her.
   const openVipps = async () => {
-    await copyNumber();
-    window.location.assign("vipps://");
+    if (!recipient) return;
+    const res = await openVippsApp(recipient.phone);
+    if (res.copied) setCopied(true);
   };
 
   const send = async () => {
