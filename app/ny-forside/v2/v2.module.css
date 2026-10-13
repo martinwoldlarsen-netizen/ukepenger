@@ -1,21 +1,5 @@
 /* Bevegelse på forside-test 2. Alt skrus av for dem som har bedt om mindre bevegelse. */
 
-@keyframes svev {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-.svev {
-  animation: svev 4s ease-in-out infinite;
-}
-.svevSen {
-  animation: svev 4s ease-in-out 1.6s infinite;
-}
-
 /* Toppen: glir inn ved lasting (rent CSS, så ingenting blinker). */
 @keyframes innLast {
   from {
@@ -25,15 +9,6 @@
 }
 .innLast {
   animation: innLast 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  animation-delay: var(--d, 0ms);
-}
-@keyframes pop {
-  from {
-    scale: 0;
-  }
-}
-.popLast {
-  animation: pop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) both;
   animation-delay: var(--d, 0ms);
 }
 
@@ -60,18 +35,11 @@
   opacity: 1;
   transform: none;
 }
-.skjult .merkeBg {
-  scale: 0;
-}
-.skjult.inn .merkeBg {
-  scale: 1;
-  transition: scale 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) 0.35s;
-}
 
 /* Figurer som spretter opp. */
 .sprett {
   opacity: 0;
-  transform: translateY(70%) scale(0.8);
+  transform: translateY(60%) scale(0.8);
   transition:
     opacity 0.4s ease,
     transform 0.75s cubic-bezier(0.3, 1.5, 0.5, 1);
@@ -82,14 +50,9 @@
   transform: none;
 }
 
-/* Rullende rader (bilder og merkelapper). Innholdet ligger dobbelt, så det går i ring. */
+/* Rullende bildestripe. Innholdet ligger dobbelt, så det går i ring. */
 @keyframes rull {
   to {
-    transform: translateX(-50%);
-  }
-}
-@keyframes rullMotsatt {
-  from {
     transform: translateX(-50%);
   }
 }
@@ -97,12 +60,7 @@
   width: max-content;
   animation: rull var(--fart, 60s) linear infinite;
 }
-.rullMotsatt {
-  width: max-content;
-  animation: rullMotsatt var(--fart, 40s) linear infinite;
-}
-.rullPause:hover .rull,
-.rullPause:hover .rullMotsatt {
+.rullPause:hover .rull {
   animation-play-state: paused;
 }
 
@@ -133,13 +91,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .svev,
-  .svevSen,
   .innLast,
-  .popLast,
   .zoomInn,
   .rull,
-  .rullMotsatt,
   .veksle {
     animation: none;
   }
