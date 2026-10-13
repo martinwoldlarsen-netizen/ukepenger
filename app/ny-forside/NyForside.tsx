@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Bell, Check, ChevronDown, Coins, Gift, Heart, Lock, PiggyBank, ShieldCheck, Smartphone, Sparkles, Wallet } from "lucide-react";
+import { ArrowRight, Bell, Check, ChevronDown, Coins, Heart, Lock, PiggyBank, ShieldCheck, Smartphone, Sparkles, Wallet } from "lucide-react";
 import { TaskIcon } from "@/components/TaskIcon";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { sporsmal } from "@/app/_components/LandingClient";
@@ -12,7 +12,7 @@ import styles from "./ny.module.css";
 
 // Ny forside (test). Viser ekte skjermbilder av appen (demofamilie med
 // påfunne navn) i stedet for tegnede mockuper, og snakker til barnet,
-// forelderen og besteforeldrene hver for seg.
+// forelderen. Besteforeldre nevnes bare under spørsmål, ikke høyt oppe.
 
 const OPPGAVER = ["Dekke bordet", "Rydde rommet", "Tømme oppvaskmaskinen", "Lufte hunden", "Ta ut søppel", "Støvsuge stua", "Re opp sengen", "Gjøre lekser"];
 const FIGURER = ["skyvalp", "raptor", "pusi", "robot", "drage", "astronaut", "hubro", "kvakk"];
@@ -88,9 +88,6 @@ export default function NyForside() {
           <nav className="flex items-center gap-2 sm:gap-4">
             <a href="#slik" className="hidden font-semibold text-muted-foreground hover:text-foreground md:inline">
               Slik virker det
-            </a>
-            <a href="#besteforeldre" className="hidden font-semibold text-muted-foreground hover:text-foreground md:inline">
-              Besteforeldre
             </a>
             <a href="#sporsmal" className="hidden font-semibold text-muted-foreground hover:text-foreground md:inline">
               Spørsmål
@@ -270,33 +267,6 @@ export default function NyForside() {
         </div>
       </section>
 
-      {/* 5. Besteforeldre */}
-      <section id="besteforeldre" className="scroll-mt-20 bg-[#EAF5FD] py-16 sm:py-24">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.1fr]">
-          <div className="order-2 lg:order-1">
-            <Phone src="/forside/besteforeldre.webp" alt="Besteforeldresiden: Farmor ser at Emma sparer til et Lego-sett" className="mx-auto w-[70%] max-w-[300px] rotate-[-2deg]" />
-          </div>
-          <div className="order-1 lg:order-2">
-            <Eyebrow>For besteforeldre</Eyebrow>
-            <h2 className="mt-3 text-4xl font-extrabold tracking-tight sm:text-5xl">Farmor kan heie – og gi en gave.</h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Besteforeldre, tanter og gudforeldre får sin egen lenke. De ser hva barna sparer til, og kan gi en gave rett til dere på Vipps – den havner på ønsket
-              barnet sparer til.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {["Egen side, uten å kunne endre noe", "Vipps-gave til mamma eller pappa", "Dere godkjenner før gaven legges til"].map((t) => (
-                <li key={t} className="flex items-center gap-3 font-semibold">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Gift className="size-4" />
-                  </span>
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
       {/* 6. Trygt + hvorfor */}
       <section className="py-16 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:grid-cols-[1.2fr_1fr]">
@@ -344,7 +314,13 @@ export default function NyForside() {
             </p>
           </div>
           <div className="mt-8 space-y-3">
-            {sporsmal.map((s) => (
+            {[
+              ...sporsmal,
+              {
+                sporsmal: "Kan besteforeldre være med?",
+                svar: "Ja. Besteforeldre, tanter og gudforeldre kan få en egen lenke. De ser hva barna sparer til, og kan gi en gave på Vipps til ønsket – dere godkjenner før den legges til. De kan ikke endre noe.",
+              },
+            ].map((s) => (
               <details key={s.sporsmal} className="group rounded-2xl bg-card px-5 py-4 ring-1 ring-black/5 open:shadow-sm">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-bold">
                   {s.sporsmal}
