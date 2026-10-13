@@ -1,0 +1,25 @@
+/* Rolig «svev» på små merkelapper rundt telefonene. Av for dem som har bedt om mindre bevegelse. */
+@keyframes svev {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.svev {
+  animation: svev 4s ease-in-out infinite;
+}
+
+.svevSen {
+  animation: svev 4s ease-in-out 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svev,
+  .svevSen {
+    animation: none;
+  }
+}
