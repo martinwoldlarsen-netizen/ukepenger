@@ -33,7 +33,7 @@ const hjelpeLenker = [
   { href: "/personvern", label: "Personvern", intern: true },
 ];
 
-const sporsmal = [
+export const sporsmal = [
   {
     sporsmal: "Hva koster det?",
     svar: "Ingenting. Ukepenger er gratis å bruke, og vi har ingen planer om å ta betalt. Du trenger ikke kredittkort, og det finnes ingen prøveperiode som går ut.",
