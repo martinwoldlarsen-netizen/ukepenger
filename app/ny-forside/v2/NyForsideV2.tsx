@@ -191,7 +191,7 @@ export default function NyForsideV2() {
   const h2 = "text-4xl font-semibold leading-[1.08] tracking-[-0.035em] sm:text-5xl";
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#FBF7EE] text-[#17201a]">
+    <div className="min-h-screen overflow-x-clip bg-[#FBF7EE] text-[#17201a]">
       <div className="bg-amber-200 px-4 py-2 text-center text-sm font-bold text-amber-950">Testversjon 2 av ny forside – ikke publisert ennå</div>
 
       {/* Svevende pille-meny */}

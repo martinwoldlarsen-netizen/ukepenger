@@ -76,7 +76,7 @@ export default function NyForside() {
     "inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-primary px-7 text-lg font-extrabold text-primary-foreground shadow-[0_14px_30px_-14px_rgba(16,80,40,0.7)] transition hover:bg-primary-dark active:scale-[0.98]";
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-screen overflow-x-clip bg-background text-foreground">
       {/* Merkelapp så det er tydelig at dette er en test */}
       <div className="bg-amber-200 px-4 py-2 text-center text-sm font-bold text-amber-950">Testversjon av ny forside – ikke publisert ennå</div>
 
