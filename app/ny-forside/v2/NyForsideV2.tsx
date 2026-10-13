@@ -16,10 +16,12 @@ import styles from "../ny.module.css";
 const LIME = "#D4F56C";
 const BLAA = "#9CC8FF";
 
-// Bildestripe: ekte hverdagsøyeblikk. Flere bilder legges til her.
+// Bildestripe: hverdagsøyeblikk. Barna vises bakfra eller uten ansikt – med vilje.
 const STRIPE = [
-  { src: "/forside/stripe-1.webp", alt: "Gutt bærer søppelposen ut" },
-  { src: "/forside/topp-mobil.webp", alt: "Jente dekker bordet mens mamma lager middag" },
+  { src: "/forside/stripe-soppel.webp", alt: "Gutt bærer søppelposen ut" },
+  { src: "/forside/stripe-oppvask.webp", alt: "Søsken tømmer oppvaskmaskinen" },
+  { src: "/forside/stripe-seng.webp", alt: "Barn rer opp sengen" },
+  { src: "/forside/stripe-sparegris.webp", alt: "Barn putter en mynt i sparegrisen" },
 ];
 
 const SKJERMER = [
@@ -146,41 +148,39 @@ export default function NyForsideV2() {
         </div>
       </header>
 
-      {/* 1. Toppbilde med overskrift */}
-      <section className="relative -mt-[60px]">
-        <div className="relative h-[88svh] min-h-[560px] max-h-[900px] overflow-hidden rounded-b-[2.5rem] sm:rounded-b-[3.5rem]">
-          <picture>
-            <source media="(min-width: 768px)" srcSet="/forside/topp-pc.webp" />
-            <img
-              src="/forside/topp-mobil.webp"
-              alt="Jente dekker bordet i kveldssola mens mamma lager middag"
-              className="absolute inset-0 size-full object-cover object-[50%_70%] md:object-[60%_60%]"
-              fetchPriority="high"
-            />
-          </picture>
-          <div className="absolute inset-x-0 top-0 h-[60%] bg-gradient-to-b from-[#FBF7EE]/90 via-[#FBF7EE]/50 to-transparent md:h-full md:w-[62%] md:bg-gradient-to-r md:from-[#FBF7EE]/90 md:via-[#FBF7EE]/55" />
+      {/* 1. Toppen: overskrift og stort bilde. Barnet vises bakfra – vi viser ikke barns ansikter. */}
+      <section className="px-3 pt-14 sm:px-6 sm:pt-20">
+        <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
+          <h1 className="text-[2.9rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-7xl">
+            Oppgavene blir <Merke>gjort.</Merke>
+            <br />
+            Uten{" "}
+            <Merke farge={BLAA} vri="rotate-2">
+              mas.
+            </Merke>
+          </h1>
+          <p className="mt-5 max-w-lg text-lg leading-relaxed text-[#17201a]/75 sm:text-xl">
+            Barna trykker «Jeg har gjort det!». Du godkjenner på mobilen. Pengene holder appen styr på.
+          </p>
+          <Link href="/login" className={cx(knapp, "mt-7")}>
+            Kom i gang – gratis <ArrowRight className="size-5" />
+          </Link>
+        </div>
 
-          <div className="relative mx-auto flex h-full max-w-6xl flex-col items-center px-4 pt-28 text-center sm:px-6 md:items-start md:justify-center md:pt-10 md:text-left">
-            <h1 className="max-w-[12ch] text-[2.9rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-7xl">
-              Oppgavene blir <Merke>gjort.</Merke>
-              <br />
-              Uten{" "}
-              <Merke farge={BLAA} vri="rotate-2">
-                mas.
-              </Merke>
-            </h1>
-            <p className="mt-5 max-w-md text-lg leading-relaxed text-[#17201a]/80 sm:text-xl">
-              Barna trykker «Jeg har gjort det!». Du godkjenner på mobilen. Pengene holder appen styr på.
-            </p>
-            <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row md:items-start">
-              <Link href="/login" className={knapp}>
-                Kom i gang – gratis <ArrowRight className="size-5" />
-              </Link>
-            </div>
+        <div className="relative mx-auto mt-12 aspect-[4/5] max-w-6xl overflow-hidden rounded-[2.5rem] sm:aspect-[16/9] sm:rounded-[3rem]">
+          <Image
+            src="/forside/topp-tur.webp"
+            alt="Jente går tur med hunden på en høstvei, sett bakfra"
+            fill
+            priority
+            sizes="(min-width: 1200px) 1152px, 100vw"
+            className="object-cover object-[55%_60%]"
+          />
+          <div className={cx("absolute left-4 top-5 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:left-8 sm:top-8", styles.svev)}>
+            <span>✅</span> Lufte hunden · +15 kr
           </div>
-
-          <div className={cx("absolute bottom-6 right-4 hidden rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:right-8 sm:block", styles.svev)}>
-            <span className="mr-1.5">✅</span> Dekke bordet · +10 kr
+          <div className={cx("absolute bottom-5 right-4 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:bottom-8 sm:right-8", styles.svevSen)}>
+            <span>🔥</span> 3 uker på rad!
           </div>
         </div>
       </section>
@@ -253,7 +253,7 @@ export default function NyForsideV2() {
           </h2>
           <div className="mt-12 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
             <div className="relative min-h-[320px] overflow-hidden rounded-[2rem]">
-              <Image src="/forside/stripe-1.webp" alt="Gutt bærer søppelposen ut" fill sizes="(min-width: 1024px) 560px, 100vw" className="object-cover" />
+              <Image src="/forside/stripe-soppel.webp" alt="Gutt bærer søppelposen ut" fill sizes="(min-width: 1024px) 560px, 100vw" className="object-cover" />
               <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-white/95 p-4 text-[#17201a] shadow-lg">
                 <p className="text-sm font-semibold text-[#17201a]/60">Varsel</p>
                 <p className="font-bold">Oliver har tatt ut søppel · 15 kr</p>
