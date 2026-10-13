@@ -2,48 +2,127 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Bell, ChevronDown, Coins, Heart, Lock, Menu, PiggyBank, ShieldCheck, Wallet, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, Bell, Check, ChevronDown, Coins, Heart, Lock, Menu, PiggyBank, ShieldCheck, Wallet, X } from "lucide-react";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { sporsmal } from "@/app/_components/LandingClient";
 import { supabase } from "@/lib/supabaseClient";
-import styles from "../ny.module.css";
+import styles from "./v2.module.css";
 
 // Ny forside, versjon 2 (test). Inspirert av fotobaserte app-sider: stort
-// familiebilde øverst, «klistremerker» på nøkkelord, bildestripe, fargede
-// blokker og en karusell med skjermbilder. Besteforeldre nevnes bare under spørsmål.
+// bilde øverst, «klistremerker» på nøkkelord, rullende bildestripe, fargede
+// blokker, skjermopptak av appen og ting som glir inn når man scroller.
+// Barna på bildene vises bakfra eller uten ansikt – med vilje.
+// Besteforeldre nevnes bare under spørsmål.
 
 const LIME = "#D4F56C";
 const BLAA = "#9CC8FF";
 
-// Bildestripe: hverdagsøyeblikk. Barna vises bakfra eller uten ansikt – med vilje.
 const STRIPE = [
   { src: "/forside/stripe-soppel.webp", alt: "Gutt bærer søppelposen ut" },
   { src: "/forside/stripe-oppvask.webp", alt: "Søsken tømmer oppvaskmaskinen" },
+  { src: "/forside/topp-tur.webp", alt: "Jente går tur med hunden" },
   { src: "/forside/stripe-seng.webp", alt: "Barn rer opp sengen" },
   { src: "/forside/stripe-sparegris.webp", alt: "Barn putter en mynt i sparegrisen" },
 ];
 
-const SKJERMER = [
+type Skjerm = { src: string; t: string; d: string; video?: string };
+const SKJERMER: Skjerm[] = [
   { src: "/forside/barn-velg.webp", t: "Barnet velger seg selv", d: "Ingen konto eller passord for barna." },
   { src: "/forside/barn-oppgaver.webp", t: "Oppgaver med bilder", d: "Barna ser hva de kan gjøre og hva det er verdt." },
-  { src: "/forside/barn-feiring.webp", t: "«Jeg har gjort det!»", d: "Et trykk, og en liten feiring." },
-  { src: "/forside/forelder-krav.webp", t: "Du godkjenner", d: "Varsel på mobilen. Ett trykk – eller «Godkjenn alle»." },
+  { src: "/forside/app-barn-poster.webp", video: "/forside/app-barn.mp4", t: "«Jeg har gjort det!»", d: "Et trykk, og en liten feiring." },
+  { src: "/forside/app-forelder-poster.webp", video: "/forside/app-forelder.mp4", t: "Du godkjenner", d: "Varsel på mobilen. Ett trykk – eller «Godkjenn alle»." },
   { src: "/forside/barn-trofeer.webp", t: "Trofeer og merker", d: "Framgang og uker på rad – uten straff." },
   { src: "/forside/barn-onsker.webp", t: "Ønskebutikken", d: "Pengene får et mål." },
 ];
 
 const GJENG = ["pusi", "raptor", "skyvalp", "robot", "drage", "astronaut", "hubro"];
+const VEKSLE = ["Barna trenger ingen konto", "Godkjenn med ett trykk", "Ekte kroner – ingen poeng", "Gratis for hele familien"];
+const TRYGT = ["Ingen konto for barna", "Ingen reklame", "Ingen sporing av barna", "Ingen lootbokser", "Ingen rangering av søsken", "Data lagres i EU", "Ekte kroner", "Slett alt når du vil"];
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
-// Ord med et skjevt «klistremerke» bak, som i overskrifter på Hidee.
-function Merke({ children, farge = LIME, vri = "-rotate-2" }: { children: ReactNode; farge?: string; vri?: string }) {
+function liteBevegelse() {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// Glir inn når elementet kommer til syne. Det som allerede er synlig ved
+// lasting, skjules ikke (ingen blinking), og alt vises uten JavaScript.
+function Reveal({ children, className, delay = 0, variant = "glid" }: { children: ReactNode; className?: string; delay?: number; variant?: "glid" | "sprett" }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || liteBevegelse() || el.getBoundingClientRect().top < window.innerHeight * 0.92) return;
+    el.classList.add(variant === "sprett" ? styles.sprett : styles.skjult);
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          el.classList.add(styles.inn);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -12% 0px" },
+    );
+    // Figurer som spretter står delvis utenfor en boks med overflow skjult, så da følges forelderen.
+    io.observe(variant === "sprett" && el.parentElement ? el.parentElement : el);
+    return () => io.disconnect();
+  }, [variant]);
+  return (
+    <div ref={ref} className={className} style={{ "--d": `${delay}ms` } as CSSProperties}>
+      {children}
+    </div>
+  );
+}
+
+// Tekst der ordene «tennes» ett for ett mens man scroller forbi.
+function ScrollText({ text, className }: { text: string; className?: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [andel, setAndel] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || liteBevegelse()) return;
+    let raf = 0;
+    const oppdater = () => {
+      raf = 0;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      setAndel(Math.min(1, Math.max(0, (vh * 0.85 - r.top) / (r.height + vh * 0.3))));
+    };
+    const ved = () => {
+      if (!raf) raf = requestAnimationFrame(oppdater);
+    };
+    ved();
+    window.addEventListener("scroll", ved, { passive: true });
+    window.addEventListener("resize", ved);
+    return () => {
+      window.removeEventListener("scroll", ved);
+      window.removeEventListener("resize", ved);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  const ord = text.split(" ");
+  return (
+    <p ref={ref} className={className}>
+      {ord.map((o, i) => (
+        <span key={i} className="transition-colors duration-300" style={{ color: i / ord.length < andel ? "#17201a" : "rgba(23,32,26,0.2)" }}>
+          {o}{" "}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+// Ord med et skjevt «klistremerke» bak.
+function Merke({ children, farge = LIME, vri = "-rotate-2", pop }: { children: ReactNode; farge?: string; vri?: string; pop?: number }) {
   return (
     <span className="relative inline-block px-[0.12em]">
-      <span aria-hidden className={cx("absolute inset-x-0 inset-y-[0.1em] rounded-[0.35em] shadow-sm", vri)} style={{ background: farge }} />
+      <span
+        aria-hidden
+        className={cx("absolute inset-x-0 inset-y-[0.1em] rounded-[0.35em] shadow-sm", vri, styles.merkeBg, pop !== undefined && styles.popLast)}
+        style={{ background: farge, "--d": `${pop ?? 0}ms` } as CSSProperties}
+      />
       <span className="relative">{children}</span>
     </span>
   );
@@ -60,11 +139,26 @@ function Logo({ liten }: { liten?: boolean }) {
   );
 }
 
-function Phone({ src, alt, className, priority }: { src: string; alt: string; className?: string; priority?: boolean }) {
+// Telefonramme med skjermbilde eller skjermopptak (lydløst, i løkke).
+function Phone({ src, alt, video, spill = true, className, priority }: { src: string; alt: string; video?: string; spill?: boolean; className?: string; priority?: boolean }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    v.muted = true;
+    if (spill && !liteBevegelse()) v.play().catch(() => {});
+    else v.pause();
+  }, [spill]);
   return (
     <div className={cx("rounded-[2.6rem] bg-[#15261c] p-[7px] shadow-[0_30px_60px_-24px_rgba(16,40,28,0.55)]", className)}>
       <div className="overflow-hidden rounded-[2.15rem] bg-background">
-        <Image src={src} alt={alt} width={780} height={1688} sizes="(min-width: 1024px) 300px, 70vw" className="h-auto w-full" priority={priority} />
+        {video ? (
+          <video ref={ref} muted loop playsInline preload="metadata" poster={src} aria-label={alt} width={600} height={1298} className="block h-auto w-full">
+            <source src={video} type="video/mp4" />
+          </video>
+        ) : (
+          <Image src={src} alt={alt} width={780} height={1688} sizes="(min-width: 1024px) 300px, 70vw" className="h-auto w-full" priority={priority} />
+        )}
       </div>
     </div>
   );
@@ -73,7 +167,8 @@ function Phone({ src, alt, className, priority }: { src: string; alt: string; cl
 export default function NyForsideV2() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [meny, setMeny] = useState(false);
-  const [aktiv, setAktiv] = useState(2);
+  const [aktiv, setAktiv] = useState(3);
+  const sveip = useRef<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -94,6 +189,7 @@ export default function NyForsideV2() {
 
   const knapp =
     "inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-primary px-7 py-3.5 text-lg font-bold text-primary-foreground shadow-[0_14px_30px_-14px_rgba(16,80,40,0.7)] transition hover:bg-primary-dark active:scale-[0.98]";
+  const h2 = "text-4xl font-semibold leading-[1.08] tracking-[-0.035em] sm:text-5xl";
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#FBF7EE] text-[#17201a]">
@@ -148,116 +244,147 @@ export default function NyForsideV2() {
         </div>
       </header>
 
-      {/* 1. Toppen: overskrift og stort bilde. Barnet vises bakfra – vi viser ikke barns ansikter. */}
+      {/* 1. Toppen: overskrift, stort bilde og skjermopptak av appen. Barnet vises bakfra. */}
       <section className="px-3 pt-14 sm:px-6 sm:pt-20">
         <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
-          <h1 className="text-[2.9rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-7xl">
-            Oppgavene blir <Merke>gjort.</Merke>
+          <h1 className={cx("text-[2.9rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-7xl", styles.innLast)}>
+            Oppgavene blir <Merke pop={450}>gjort.</Merke>
             <br />
             Uten{" "}
-            <Merke farge={BLAA} vri="rotate-2">
+            <Merke farge={BLAA} vri="rotate-2" pop={650}>
               mas.
             </Merke>
           </h1>
-          <p className="mt-5 max-w-lg text-lg leading-relaxed text-[#17201a]/75 sm:text-xl">
+          <p className={cx("mt-5 max-w-lg text-lg leading-relaxed text-[#17201a]/75 sm:text-xl", styles.innLast)} style={{ "--d": "120ms" } as CSSProperties}>
             Barna trykker «Jeg har gjort det!». Du godkjenner på mobilen. Pengene holder appen styr på.
           </p>
-          <Link href="/login" className={cx(knapp, "mt-7")}>
-            Kom i gang – gratis <ArrowRight className="size-5" />
-          </Link>
+          <div className={styles.innLast} style={{ "--d": "220ms" } as CSSProperties}>
+            <Link href="/login" className={cx(knapp, "mt-7")}>
+              Kom i gang – gratis <ArrowRight className="size-5" />
+            </Link>
+          </div>
+          <div className={cx("mt-5 h-7 overflow-hidden text-base font-semibold text-[#17201a]/70", styles.innLast)} style={{ "--d": "320ms" } as CSSProperties}>
+            <ul className={styles.veksle}>
+              {[...VEKSLE, VEKSLE[0]].map((t, i) => (
+                <li key={i} className="flex h-7 items-center justify-center gap-1.5" aria-hidden={i > 0}>
+                  <Check className="size-4 text-primary" strokeWidth={3} /> {t}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
-        <div className="relative mx-auto mt-12 aspect-[4/5] max-w-6xl overflow-hidden rounded-[2.5rem] sm:aspect-[16/9] sm:rounded-[3rem]">
-          <Image
-            src="/forside/topp-tur.webp"
-            alt="Jente går tur med hunden på en høstvei, sett bakfra"
-            fill
-            priority
-            sizes="(min-width: 1200px) 1152px, 100vw"
-            className="object-cover object-[55%_60%]"
-          />
-          <div className={cx("absolute left-4 top-5 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:left-8 sm:top-8", styles.svev)}>
-            <span>✅</span> Lufte hunden · +15 kr
+        <div className={cx("relative mx-auto mt-10 max-w-6xl", styles.innLast)} style={{ "--d": "300ms" } as CSSProperties}>
+          <div className="relative aspect-[4/5] overflow-hidden rounded-[2.5rem] sm:aspect-[16/9] sm:rounded-[3rem]">
+            <Image
+              src="/forside/topp-tur.webp"
+              alt="Jente går tur med hunden på en høstvei, sett bakfra"
+              fill
+              priority
+              sizes="(min-width: 1200px) 1152px, 100vw"
+              className="object-cover object-[55%_60%]"
+            />
+            <div className={cx("absolute left-4 top-5 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:left-8 sm:top-8", styles.svev)}>
+              <span>✅</span> Lufte hunden · +15 kr
+            </div>
+            <div
+              className={cx(
+                "absolute right-4 top-20 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:bottom-8 sm:left-8 sm:right-auto sm:top-auto",
+                styles.svevSen,
+              )}
+            >
+              <span>🔥</span> 3 uker på rad!
+            </div>
           </div>
-          <div className={cx("absolute bottom-5 right-4 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:bottom-8 sm:right-8", styles.svevSen)}>
-            <span>🔥</span> 3 uker på rad!
+          <div className={cx("absolute -bottom-[290px] left-1/2 w-[180px] -translate-x-1/2 sm:-bottom-20 sm:left-auto sm:right-[7%] sm:w-[230px] sm:translate-x-0", styles.innLast)} style={{ "--d": "650ms" } as CSSProperties}>
+            <Phone src="/forside/app-barn-poster.webp" video="/forside/app-barn.mp4" alt="Skjermopptak: Emma trykker «Jeg har gjort det!» og får konfetti" className="rotate-[3deg]" />
           </div>
         </div>
       </section>
 
       {/* 2. Kort fortalt */}
-      <section id="slik" className="scroll-mt-24 px-4 py-20 sm:px-6 sm:py-28">
-        <div className="mx-auto grid max-w-5xl items-center gap-12 lg:grid-cols-[1fr_300px]">
-          <div>
-            <h2 className="text-4xl font-semibold leading-[1.08] tracking-[-0.035em] sm:text-5xl">
+      <section id="slik" className="scroll-mt-24 px-4 pb-20 pt-[340px] sm:px-6 sm:pb-28 sm:pt-36">
+        <div className="mx-auto max-w-3xl text-center">
+          <Reveal>
+            <h2 className={h2}>
               Små oppgaver. <Merke>Ekte kroner.</Merke> Stolte barn.
             </h2>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#17201a]/70">
-              Du velger oppgavene og hva de er verdt. Barna ser alt på en iPad eller mobil hjemme, og trykker når de er ferdige. Du får et varsel og godkjenner
-              med ett trykk. Dere betaler ut som før – med Vipps eller kontant.
-            </p>
-            <ol className="mt-8 grid gap-3 sm:grid-cols-3">
-              {["Velg oppgaver og beløp", "Barnet trykker «Ferdig»", "Du godkjenner"].map((t, i) => (
-                <li key={t} className="rounded-3xl bg-white p-5 ring-1 ring-black/5">
-                  <span className="font-num text-sm font-bold text-primary">0{i + 1}</span>
-                  <p className="mt-1 font-bold">{t}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <Phone src="/forside/barn-feiring.webp" alt="Barnesiden: «Bra jobba! +10 kr» med konfetti" className="mx-auto w-[70%] max-w-[280px] rotate-[2deg] lg:w-full" />
+          </Reveal>
+          <ScrollText
+            className="mt-8 text-xl leading-relaxed sm:text-2xl"
+            text="Du velger oppgavene og hva de er verdt. Barna ser alt på en iPad eller mobil hjemme, og trykker når de er ferdige. Du får et varsel og godkjenner med ett trykk. Dere betaler ut som før – med Vipps eller kontant."
+          />
         </div>
+        <ol className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-3">
+          {["Velg oppgaver og beløp", "Barnet trykker «Ferdig»", "Du godkjenner"].map((t, i) => (
+            <li key={t} className="list-none">
+              <Reveal delay={i * 120} className="h-full rounded-3xl bg-white p-6 ring-1 ring-black/5">
+                <span className="font-num text-sm font-bold text-primary">0{i + 1}</span>
+                <p className="mt-1 text-lg font-bold">{t}</p>
+              </Reveal>
+            </li>
+          ))}
+        </ol>
       </section>
 
-      {/* 3. Bildestripe */}
-      <section aria-label="Bilder fra hverdagen" className="pb-20 sm:pb-28">
-        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:justify-center sm:px-6 [scrollbar-width:none]">
-          {STRIPE.map((b, i) => (
-            <div
-              key={b.src}
-              className={cx(
-                "relative aspect-[4/5] w-[62vw] max-w-[300px] shrink-0 snap-center overflow-hidden rounded-[2rem] shadow-[0_20px_40px_-24px_rgba(0,0,0,0.5)]",
-                i % 2 ? "rotate-[1.5deg]" : "rotate-[-1.5deg]",
-              )}
-            >
-              <Image src={b.src} alt={b.alt} fill sizes="300px" className="object-cover" />
-            </div>
-          ))}
+      {/* 3. Rullende bildestripe */}
+      <section aria-label="Bilder fra hverdagen" className={cx("overflow-hidden pb-20 sm:pb-28", styles.rullPause)}>
+        <div className={cx("flex gap-4 py-2", styles.rull)} style={{ "--fart": "70s" } as CSSProperties}>
+          {[0, 1].map((kopi) =>
+            [...STRIPE, ...STRIPE].map((b, i) => (
+              <div
+                key={`${kopi}-${i}`}
+                aria-hidden={kopi === 1 || i >= STRIPE.length}
+                className={cx("relative aspect-[4/5] w-[46vw] max-w-[230px] shrink-0 overflow-hidden rounded-[1.75rem]", i % 2 ? "rotate-[1.5deg]" : "rotate-[-1.5deg]")}
+              >
+                <Image src={b.src} alt={kopi === 0 && i < STRIPE.length ? b.alt : ""} fill sizes="230px" className="object-cover" />
+              </div>
+            )),
+          )}
         </div>
       </section>
 
       {/* 4. Gjengen */}
       <section className="px-4 pb-20 text-center sm:px-6 sm:pb-28">
-        <div className="relative mx-auto inline-block">
-          <div className="flex justify-center -space-x-4">
-            {GJENG.map((k, i) => (
-              <span key={k} className={cx("rounded-full ring-4 ring-[#FBF7EE]", i % 2 ? "translate-y-2" : "-translate-y-1")}>
-                <KidAvatar avatarKey={k} size={64} />
-              </span>
-            ))}
-          </div>
+        <div className="flex justify-center -space-x-4">
+          {GJENG.map((k, i) => (
+            <Reveal key={k} variant="sprett" delay={i * 70} className={cx("rounded-full ring-4 ring-[#FBF7EE]", i % 2 ? "translate-y-2" : "-translate-y-1")}>
+              <KidAvatar avatarKey={k} size={64} />
+            </Reveal>
+          ))}
         </div>
-        <h2 className="mt-8 text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
-          Hvem blir <Merke farge={BLAA} vri="rotate-1">du</Merke>?
-        </h2>
-        <p className="mx-auto mt-4 max-w-lg text-lg text-[#17201a]/70">
-          Hvert barn velger sin egen figur – og samler trofeer, merker og uker på rad. Bygget for mestring, uten straff eller sammenligning med søsken.
-        </p>
+        <Reveal>
+          <h2 className={cx(h2, "mt-8")}>
+            Hvem blir{" "}
+            <Merke farge={BLAA} vri="rotate-1">
+              du
+            </Merke>
+            ?
+          </h2>
+          <p className="mx-auto mt-4 max-w-lg text-lg text-[#17201a]/70">
+            Hvert barn velger sin egen figur – og samler trofeer, merker og uker på rad. Bygget for mestring, uten straff eller sammenligning med søsken.
+          </p>
+        </Reveal>
       </section>
 
       {/* 5. Blå blokk: for deg */}
       <section className="px-3 pb-20 sm:px-6 sm:pb-28">
-        <div className="mx-auto max-w-6xl rounded-[2.5rem] bg-[#4F86F7] px-5 py-14 text-white sm:px-10 sm:py-20">
-          <h2 className="mx-auto max-w-2xl text-center text-4xl font-semibold leading-[1.08] tracking-[-0.035em] sm:text-5xl">
-            Slutt å holde regnskapet i hodet.
-          </h2>
+        <Reveal className="mx-auto max-w-6xl rounded-[2.5rem] bg-[#4F86F7] px-5 py-14 text-white sm:px-10 sm:py-20">
+          <h2 className={cx(h2, "mx-auto max-w-2xl text-center")}>Slutt å holde regnskapet i hodet.</h2>
           <div className="mt-12 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-            <div className="relative min-h-[320px] overflow-hidden rounded-[2rem]">
+            <div className="relative min-h-[340px] overflow-hidden rounded-[2rem]">
               <Image src="/forside/stripe-soppel.webp" alt="Gutt bærer søppelposen ut" fill sizes="(min-width: 1024px) 560px, 100vw" className="object-cover" />
-              <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-white/95 p-4 text-[#17201a] shadow-lg">
-                <p className="text-sm font-semibold text-[#17201a]/60">Varsel</p>
-                <p className="font-bold">Oliver har tatt ut søppel · 15 kr</p>
-              </div>
+              <Reveal delay={500} className="absolute inset-x-4 bottom-4">
+                <div className="flex items-center gap-3 rounded-2xl bg-white/95 p-4 text-[#17201a] shadow-lg">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                    <Bell className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#17201a]/60">Ukepenger · nå</p>
+                    <p className="font-bold">Oliver har tatt ut søppel · 10 kr</p>
+                  </div>
+                </div>
+              </Reveal>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
@@ -265,14 +392,14 @@ export default function NyForsideV2() {
                 { icon: Wallet, t: "Betal ut når du vil", d: "Hele beløpet eller en del – appen husker resten." },
                 { icon: PiggyBank, t: "Sparing av seg selv", d: "F.eks. 10 % av alt barnet tjener går rett i sparegrisen." },
                 { icon: Coins, t: "Faste ukepenger", d: "Legges til automatisk hver uke, på dagen dere velger." },
-              ].map(({ icon: Icon, t, d }) => (
-                <div key={t} className="rounded-[1.6rem] bg-white p-6 text-[#17201a]">
+              ].map(({ icon: Icon, t, d }, i) => (
+                <Reveal key={t} delay={150 + i * 100} className="h-full rounded-[1.6rem] bg-white p-6 text-[#17201a]">
                   <span className="flex size-10 items-center justify-center rounded-xl" style={{ background: LIME }}>
                     <Icon className="size-5" />
                   </span>
                   <p className="mt-4 text-lg font-bold">{t}</p>
                   <p className="mt-1 text-[#17201a]/65">{d}</p>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -281,18 +408,31 @@ export default function NyForsideV2() {
               Kom i gang – gratis <ArrowRight className="size-5" />
             </Link>
           </div>
-        </div>
+        </Reveal>
       </section>
 
-      {/* 6. Karusell med skjermbilder */}
+      {/* 6. Karusell med skjermbilder og skjermopptak */}
       <section className="pb-20 sm:pb-28">
-        <div className="px-4 text-center sm:px-6">
-          <h2 className="text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
+        <Reveal className="px-4 text-center sm:px-6">
+          <h2 className={h2}>
             Se <Merke>appen</Merke>
           </h2>
-          <p className="mt-3 text-lg text-[#17201a]/70">Ekte skjermbilder. Demofamilie med påfunne navn.</p>
-        </div>
-        <div className="relative mx-auto mt-10 flex h-[520px] max-w-5xl items-center justify-center sm:h-[600px]" aria-roledescription="karusell">
+          <p className="mt-3 text-lg text-[#17201a]/70">Ekte skjermopptak. Demofamilie med påfunne navn.</p>
+        </Reveal>
+        <div
+          className="relative mx-auto mt-10 flex h-[520px] max-w-5xl touch-pan-y items-center justify-center sm:h-[600px]"
+          aria-roledescription="karusell"
+          onTouchStart={(e) => {
+            sveip.current = e.touches[0].clientX;
+          }}
+          onTouchEnd={(e) => {
+            if (sveip.current === null) return;
+            const dx = e.changedTouches[0].clientX - sveip.current;
+            sveip.current = null;
+            if (dx > 40) forrige();
+            else if (dx < -40) neste();
+          }}
+        >
           {SKJERMER.map((s, i) => {
             const pos = ((i - aktiv + n + Math.floor(n / 2)) % n) - Math.floor(n / 2);
             const synlig = Math.abs(pos) <= 2;
@@ -312,12 +452,12 @@ export default function NyForsideV2() {
                   pointerEvents: synlig ? "auto" : "none",
                 }}
               >
-                <Phone src={s.src} alt={s.t} />
+                <Phone src={s.src} video={s.video} spill={pos === 0} alt={s.t} />
               </button>
             );
           })}
         </div>
-        <div className="mt-6 text-center" aria-live="polite">
+        <div className="mt-6 px-4 text-center" aria-live="polite">
           <p className="text-xl font-bold">{SKJERMER[aktiv].t}</p>
           <p className="text-[#17201a]/65">{SKJERMER[aktiv].d}</p>
         </div>
@@ -331,33 +471,51 @@ export default function NyForsideV2() {
         </div>
       </section>
 
-      {/* 7. Fersken-blokk: trygt + gjengen nederst */}
+      {/* 7. Fersken-blokk: trygt, rullende merkelapper og gjengen som spretter opp */}
       <section className="px-3 pb-20 sm:px-6 sm:pb-28">
-        <div className="mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-[#FFB38A] px-5 pt-14 sm:px-10 sm:pt-20">
-          <div className="grid gap-10 lg:grid-cols-2">
-            <h2 className="text-4xl font-semibold leading-[1.08] tracking-[-0.035em] sm:text-5xl">Laget med barn i tankene.</h2>
+        <div className="mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-[#FFB38A] pt-14 sm:pt-20">
+          <div className="grid gap-10 px-5 sm:px-10 lg:grid-cols-2">
+            <Reveal>
+              <h2 className={h2}>Laget med barn i tankene.</h2>
+              <p className="mt-4 max-w-md text-lg text-[#17201a]/75">
+                Barna har ingen konto – bare fornavn og en figur. Appen er et regnskap, ikke en bank: den flytter aldri penger.
+              </p>
+            </Reveal>
             <div className="grid gap-5 sm:grid-cols-2">
               {[
                 { icon: Lock, t: "Ingen konto for barna", d: "Bare fornavn og en figur." },
                 { icon: ShieldCheck, t: "Ingen reklame", d: "Og ingen sporing på barnesiden." },
                 { icon: Heart, t: "Uten mas og press", d: "Ingen lootbokser eller rangering." },
                 { icon: Coins, t: "Ekte kroner", d: "Ingen poeng eller spillpenger." },
-              ].map(({ icon: Icon, t, d }) => (
-                <div key={t} className="flex gap-3">
+              ].map(({ icon: Icon, t, d }, i) => (
+                <Reveal key={t} delay={i * 100} className="flex gap-3">
                   <Icon className="mt-0.5 size-6 shrink-0" />
                   <div>
                     <p className="font-bold">{t}</p>
                     <p className="text-[#17201a]/70">{d}</p>
                   </div>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
-          <div className="mt-14 flex items-end justify-center -space-x-6 sm:-space-x-8">
+
+          <div className={cx("mt-12 overflow-hidden", styles.rullPause)}>
+            <div className={cx("flex gap-3", styles.rullMotsatt)} style={{ "--fart": "45s" } as CSSProperties}>
+              {[0, 1].map((kopi) =>
+                TRYGT.map((t) => (
+                  <span key={`${kopi}-${t}`} aria-hidden={kopi === 1} className="shrink-0 rounded-full bg-white/60 px-4 py-2 text-sm font-bold">
+                    {t}
+                  </span>
+                )),
+              )}
+            </div>
+          </div>
+
+          <div className="mt-10 flex items-end justify-center -space-x-6 sm:-space-x-8">
             {GJENG.map((k, i) => (
-              <span key={k} className={cx("rounded-full ring-[6px] ring-[#FFB38A]", i === 3 ? "translate-y-[18%]" : "translate-y-[35%]")}>
+              <Reveal key={k} variant="sprett" delay={Math.abs(i - 3) * 110} className={cx("rounded-full ring-[6px] ring-[#FFB38A]", i === 3 ? "translate-y-[18%]" : "translate-y-[35%]")}>
                 <KidAvatar avatarKey={k} size={i === 3 ? 150 : 110} />
-              </span>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -366,7 +524,9 @@ export default function NyForsideV2() {
       {/* 8. Spørsmål */}
       <section id="sporsmal" className="scroll-mt-24 px-4 pb-20 sm:px-6 sm:pb-28">
         <div className="mx-auto max-w-3xl">
-          <h2 className="text-center text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">Det foreldre lurer på</h2>
+          <Reveal>
+            <h2 className={cx(h2, "text-center")}>Det foreldre lurer på</h2>
+          </Reveal>
           <div className="mt-10 space-y-3">
             {[
               ...sporsmal,
@@ -374,14 +534,16 @@ export default function NyForsideV2() {
                 sporsmal: "Kan besteforeldre være med?",
                 svar: "Ja. Besteforeldre, tanter og gudforeldre kan få en egen lenke. De ser hva barna sparer til, og kan gi en gave på Vipps til ønsket – dere godkjenner før den legges til. De kan ikke endre noe.",
               },
-            ].map((s) => (
-              <details key={s.sporsmal} className="group rounded-3xl bg-white px-6 py-5 ring-1 ring-black/5">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-bold">
-                  {s.sporsmal}
-                  <ChevronDown className="size-5 shrink-0 transition group-open:rotate-180" />
-                </summary>
-                <p className="mt-3 text-[#17201a]/70">{s.svar}</p>
-              </details>
+            ].map((s, i) => (
+              <Reveal key={s.sporsmal} delay={i * 50}>
+                <details className="group rounded-3xl bg-white px-6 py-5 ring-1 ring-black/5">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-bold">
+                    {s.sporsmal}
+                    <ChevronDown className="size-5 shrink-0 transition group-open:rotate-180" />
+                  </summary>
+                  <p className="mt-3 text-[#17201a]/70">{s.svar}</p>
+                </details>
+              </Reveal>
             ))}
           </div>
           <p className="mt-6 text-center text-[#17201a]/70">
@@ -395,16 +557,18 @@ export default function NyForsideV2() {
 
       {/* 9. Avslutning */}
       <section className="px-4 pb-20 text-center sm:px-6">
-        <h2 className="text-4xl font-semibold tracking-[-0.035em] sm:text-6xl">
-          Klar for en uke med <Merke farge={BLAA}>mindre mas</Merke>?
-        </h2>
-        <p className="mt-4 text-lg text-[#17201a]/70">Gratis. Ingen kredittkort. Oppe og går på fem minutter.</p>
-        <Link href="/login" className={cx(knapp, "mt-8")}>
-          Kom i gang – gratis <ArrowRight className="size-5" />
-        </Link>
+        <Reveal>
+          <h2 className="text-4xl font-semibold tracking-[-0.035em] sm:text-6xl">
+            Klar for en uke med <Merke farge={BLAA}>mindre mas</Merke>?
+          </h2>
+          <p className="mt-4 text-lg text-[#17201a]/70">Gratis. Ingen kredittkort. Oppe og går på fem minutter.</p>
+          <Link href="/login" className={cx(knapp, "mt-8")}>
+            Kom i gang – gratis <ArrowRight className="size-5" />
+          </Link>
+        </Reveal>
       </section>
 
-      <footer className="border-t border-black/5">
+      <footer className="overflow-hidden border-t border-black/5">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-[#17201a]/65 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Logo />
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
@@ -415,6 +579,10 @@ export default function NyForsideV2() {
           </nav>
           <p>© {new Date().getFullYear()} Ukepenger.no</p>
         </div>
+        {/* Stort ordmerke nederst, delvis skjult */}
+        <p aria-hidden className="font-num -mb-[0.28em] select-none text-center text-[19vw] font-bold leading-none tracking-[-0.07em] text-[#17201a] xl:text-[15rem]">
+          ukepenger
+        </p>
       </footer>
     </div>
   );
