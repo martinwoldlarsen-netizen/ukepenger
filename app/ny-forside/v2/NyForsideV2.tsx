@@ -10,9 +10,8 @@ import { supabase } from "@/lib/supabaseClient";
 import styles from "./v2.module.css";
 
 // Ny forside, versjon 2 (test). Inspirert av fotobaserte app-sider: stort
-// bilde øverst, «klistremerker» på nøkkelord, rullende bildestripe, fargede
+// kjøkkenbilde øverst, «klistremerker» på nøkkelord, rullende bildestripe, fargede
 // blokker, skjermopptak av appen og ting som glir inn når man scroller.
-// Barna på bildene vises bakfra eller uten ansikt – med vilje.
 // Besteforeldre nevnes bare under spørsmål.
 
 const LIME = "#D4F56C";
@@ -244,87 +243,82 @@ export default function NyForsideV2() {
         </div>
       </header>
 
-      {/* 1. Toppen: overskrift, stort bilde og skjermopptak av appen. Barnet vises bakfra. */}
-      <section className="px-3 pt-14 sm:px-6 sm:pt-20">
-        <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
-          <h1 className={cx("text-[2.9rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-7xl", styles.innLast)}>
-            Oppgavene blir <Merke pop={450}>gjort.</Merke>
-            <br />
-            Uten{" "}
-            <Merke farge={BLAA} vri="rotate-2" pop={650}>
-              mas.
-            </Merke>
-          </h1>
-          <p className={cx("mt-5 max-w-lg text-lg leading-relaxed text-[#17201a]/75 sm:text-xl", styles.innLast)} style={{ "--d": "120ms" } as CSSProperties}>
-            Barna trykker «Jeg har gjort det!». Du godkjenner på mobilen. Pengene holder appen styr på.
-          </p>
-          <div className={styles.innLast} style={{ "--d": "220ms" } as CSSProperties}>
-            <Link href="/login" className={cx(knapp, "mt-7")}>
-              Kom i gang – gratis <ArrowRight className="size-5" />
-            </Link>
-          </div>
-          <div className={cx("mt-5 h-7 overflow-hidden text-base font-semibold text-[#17201a]/70", styles.innLast)} style={{ "--d": "320ms" } as CSSProperties}>
-            <ul className={styles.veksle}>
-              {[...VEKSLE, VEKSLE[0]].map((t, i) => (
-                <li key={i} className="flex h-7 items-center justify-center gap-1.5" aria-hidden={i > 0}>
-                  <Check className="size-4 text-primary" strokeWidth={3} /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className={cx("relative mx-auto mt-10 max-w-6xl", styles.innLast)} style={{ "--d": "300ms" } as CSSProperties}>
-          <div className="relative aspect-[4/5] overflow-hidden rounded-[2.5rem] sm:aspect-[16/9] sm:rounded-[3rem]">
-            <Image
-              src="/forside/topp-tur.webp"
-              alt="Jente går tur med hunden på en høstvei, sett bakfra"
-              fill
-              priority
-              sizes="(min-width: 1200px) 1152px, 100vw"
-              className="object-cover object-[55%_60%]"
+      {/* 1. Toppen: stort kjøkkenbilde med overskriften oppå. */}
+      <section className="relative -mt-[60px]">
+        <div className="relative h-[88svh] min-h-[600px] max-h-[920px] overflow-hidden rounded-b-[2.5rem] sm:rounded-b-[3.5rem]">
+          <picture>
+            <source media="(min-width: 768px)" srcSet="/forside/topp-pc.webp" />
+            <img
+              src="/forside/topp-mobil.webp"
+              alt="Jente dekker bordet i kveldssola mens mamma lager middag"
+              className={cx("absolute inset-0 size-full object-cover object-[50%_70%] md:object-[60%_60%]", styles.zoomInn)}
+              fetchPriority="high"
             />
-            <div className={cx("absolute left-4 top-5 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:left-8 sm:top-8", styles.svev)}>
-              <span>✅</span> Lufte hunden · +15 kr
+          </picture>
+          <div className="absolute inset-x-0 top-0 h-[70%] bg-gradient-to-b from-[#FBF7EE]/90 via-[#FBF7EE]/60 to-transparent md:h-full md:w-[62%] md:bg-gradient-to-r md:from-[#FBF7EE]/90 md:via-[#FBF7EE]/55" />
+
+          <div className="relative mx-auto flex h-full max-w-6xl flex-col items-center px-4 pt-28 text-center sm:px-6 md:items-start md:justify-center md:pt-10 md:text-left">
+            <h1 className={cx("max-w-[12ch] text-[2.9rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-7xl", styles.innLast)}>
+              Oppgavene blir <Merke pop={450}>gjort.</Merke>
+              <br />
+              Uten{" "}
+              <Merke farge={BLAA} vri="rotate-2" pop={650}>
+                mas.
+              </Merke>
+            </h1>
+            <p className={cx("mt-5 max-w-md text-lg leading-relaxed text-[#17201a]/80 sm:text-xl", styles.innLast)} style={{ "--d": "120ms" } as CSSProperties}>
+              Barna trykker «Jeg har gjort det!». Du godkjenner på mobilen. Pengene holder appen styr på.
+            </p>
+            <div className={styles.innLast} style={{ "--d": "220ms" } as CSSProperties}>
+              <Link href="/login" className={cx(knapp, "mt-7")}>
+                Kom i gang – gratis <ArrowRight className="size-5" />
+              </Link>
             </div>
-            <div
-              className={cx(
-                "absolute right-4 top-20 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:bottom-8 sm:left-8 sm:right-auto sm:top-auto",
-                styles.svevSen,
-              )}
-            >
-              <span>🔥</span> 3 uker på rad!
+            <div className={cx("mt-5 h-7 overflow-hidden text-base font-semibold text-[#17201a]/75", styles.innLast)} style={{ "--d": "320ms" } as CSSProperties}>
+              <ul className={styles.veksle}>
+                {[...VEKSLE, VEKSLE[0]].map((t, i) => (
+                  <li key={i} className="flex h-7 items-center justify-center gap-1.5 md:justify-start" aria-hidden={i > 0}>
+                    <Check className="size-4 text-primary" strokeWidth={3} /> {t}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-          <div className={cx("absolute -bottom-[290px] left-1/2 w-[180px] -translate-x-1/2 sm:-bottom-20 sm:left-auto sm:right-[7%] sm:w-[230px] sm:translate-x-0", styles.innLast)} style={{ "--d": "650ms" } as CSSProperties}>
-            <Phone src="/forside/app-barn-poster.webp" video="/forside/app-barn.mp4" alt="Skjermopptak: Emma trykker «Jeg har gjort det!» og får konfetti" className="rotate-[3deg]" />
+
+          <div className={cx("absolute bottom-6 right-4 hidden items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-xl sm:right-8 sm:flex", styles.svev)}>
+            <span>✅</span> Dekke bordet · +10 kr
           </div>
         </div>
       </section>
 
-      {/* 2. Kort fortalt */}
-      <section id="slik" className="scroll-mt-24 px-4 pb-20 pt-[340px] sm:px-6 sm:pb-28 sm:pt-36">
-        <div className="mx-auto max-w-3xl text-center">
-          <Reveal>
-            <h2 className={h2}>
-              Små oppgaver. <Merke>Ekte kroner.</Merke> Stolte barn.
-            </h2>
+      {/* 2. Kort fortalt. Telefonen med skjermopptak stikker opp i toppbildet på mobil. */}
+      <section id="slik" className="scroll-mt-24 px-4 pb-20 sm:px-6 sm:pb-28">
+        <div className="mx-auto grid max-w-6xl items-center gap-x-16 lg:grid-cols-[1fr_270px] lg:pt-28">
+          <Reveal className="relative z-10 mx-auto -mt-28 w-[190px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:w-full">
+            <Phone src="/forside/app-barn-poster.webp" video="/forside/app-barn.mp4" alt="Skjermopptak: Emma trykker «Jeg har gjort det!» og får konfetti" className="rotate-[3deg]" />
           </Reveal>
-          <ScrollText
-            className="mt-8 text-xl leading-relaxed sm:text-2xl"
-            text="Du velger oppgavene og hva de er verdt. Barna ser alt på en iPad eller mobil hjemme, og trykker når de er ferdige. Du får et varsel og godkjenner med ett trykk. Dere betaler ut som før – med Vipps eller kontant."
-          />
+          <div className="mt-14 text-center lg:col-start-1 lg:row-start-1 lg:mt-0 lg:text-left">
+            <Reveal>
+              <h2 className={h2}>
+                Små oppgaver. <Merke>Ekte kroner.</Merke> Stolte barn.
+              </h2>
+            </Reveal>
+            <ScrollText
+              className="mt-8 text-xl leading-relaxed sm:text-2xl"
+              text="Du velger oppgavene og hva de er verdt. Barna ser alt på en iPad eller mobil hjemme, og trykker når de er ferdige. Du får et varsel og godkjenner med ett trykk. Dere betaler ut som før – med Vipps eller kontant."
+            />
+          </div>
+          <ol className="mt-12 grid gap-3 sm:grid-cols-3 lg:col-start-1 lg:row-start-2">
+            {["Velg oppgaver og beløp", "Barnet trykker «Ferdig»", "Du godkjenner"].map((t, i) => (
+              <li key={t} className="list-none">
+                <Reveal delay={i * 120} className="h-full rounded-3xl bg-white p-6 ring-1 ring-black/5">
+                  <span className="font-num text-sm font-bold text-primary">0{i + 1}</span>
+                  <p className="mt-1 text-lg font-bold">{t}</p>
+                </Reveal>
+              </li>
+            ))}
+          </ol>
         </div>
-        <ol className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-3">
-          {["Velg oppgaver og beløp", "Barnet trykker «Ferdig»", "Du godkjenner"].map((t, i) => (
-            <li key={t} className="list-none">
-              <Reveal delay={i * 120} className="h-full rounded-3xl bg-white p-6 ring-1 ring-black/5">
-                <span className="font-num text-sm font-bold text-primary">0{i + 1}</span>
-                <p className="mt-1 text-lg font-bold">{t}</p>
-              </Reveal>
-            </li>
-          ))}
-        </ol>
       </section>
 
       {/* 3. Rullende bildestripe */}

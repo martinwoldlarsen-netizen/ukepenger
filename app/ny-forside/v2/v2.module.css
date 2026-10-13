@@ -37,6 +37,16 @@
   animation-delay: var(--d, 0ms);
 }
 
+/* Toppbildet zoomer rolig inn ved lasting. */
+@keyframes zoomInn {
+  from {
+    transform: scale(1.08);
+  }
+}
+.zoomInn {
+  animation: zoomInn 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
 /* Elementer lenger ned glir inn når de kommer til syne (klassene settes av Reveal). */
 .skjult {
   opacity: 0;
@@ -127,6 +137,7 @@
   .svevSen,
   .innLast,
   .popLast,
+  .zoomInn,
   .rull,
   .rullMotsatt,
   .veksle {
