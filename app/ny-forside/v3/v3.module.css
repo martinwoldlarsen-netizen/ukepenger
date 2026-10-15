@@ -1,0 +1,100 @@
+/* Bevegelse på forside-test 3. Alt skrus av for dem som har bedt om mindre bevegelse. */
+
+/* Toppen: glir inn ved lasting (rent CSS, så ingenting blinker). */
+@keyframes innLast {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+.innLast {
+  animation: innLast 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Toppbildet zoomer rolig inn ved lasting. */
+@keyframes zoomInn {
+  from {
+    transform: scale(1.08);
+  }
+}
+.zoomInn {
+  animation: zoomInn 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Elementer lenger ned glir inn når de kommer til syne (klassene settes av Reveal). */
+.skjult {
+  opacity: 0;
+  transform: translateY(32px) scale(0.98);
+  transition:
+    opacity 0.8s ease,
+    transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: var(--d, 0ms);
+}
+.skjult.inn {
+  opacity: 1;
+  transform: none;
+}
+
+/* Figurer som spretter opp. */
+.sprett {
+  opacity: 0;
+  transform: translateY(60%) scale(0.8);
+  transition:
+    opacity 0.4s ease,
+    transform 0.75s cubic-bezier(0.3, 1.5, 0.5, 1);
+  transition-delay: var(--d, 0ms);
+}
+.sprett.inn {
+  opacity: 1;
+  transform: none;
+}
+
+/* Rullende bildestripe. Innholdet ligger dobbelt, så det går i ring. */
+@keyframes rull {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.rull {
+  width: max-content;
+  animation: rull var(--fart, 60s) linear infinite;
+}
+.rullPause:hover .rull {
+  animation-play-state: paused;
+}
+
+/* Linjen under knappen som bytter tekst (4 linjer + første igjen, så den går i ring). */
+@keyframes veksle {
+  0%,
+  20% {
+    transform: translateY(0);
+  }
+  25%,
+  45% {
+    transform: translateY(-20%);
+  }
+  50%,
+  70% {
+    transform: translateY(-40%);
+  }
+  75%,
+  95% {
+    transform: translateY(-60%);
+  }
+  100% {
+    transform: translateY(-80%);
+  }
+}
+.veksle {
+  animation: veksle 12s cubic-bezier(0.6, 0, 0.3, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .innLast,
+  .zoomInn,
+  .rull,
+  .veksle {
+    animation: none;
+  }
+}
