@@ -77,7 +77,7 @@ export async function GET(request: Request) {
   const [tasksRes, settingsRes, recentClaimsRes, balanceClaimsRes, familyRes] = await Promise.all([
     supabase
       .from("tasks")
-      .select("id, title, amount_ore, active")
+      .select("id, title, amount_ore, active, icon")
       .eq("family_id", auth.familyId)
       .eq("active", true)
       .is("archived_at", null)

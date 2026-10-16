@@ -135,6 +135,7 @@ Logikk i databasen (security definer, ikke kallbar fra klient der det ikke treng
 - `claims_trophies` (trigger): gir trofé-/milepælsbonus én gang, rangbasert.
 - `ensure_weekly_allowances(family_id)`: faste ukepenger, kalles lat fra API-ene.
 
+`tasks.icon` er bildet forelderen har valgt (navn på en tegning i `components/task-art.tsx` eller en emoji, null = gjettes ut fra navnet).
 `tasks.category` grupperer oppgaver (nøkler fra `lib/task-packs.ts`, null = gjettes
 ut fra navnet med `categoryOf`).
 

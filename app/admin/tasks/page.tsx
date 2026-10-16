@@ -1,6 +1,7 @@
 "use client";
 
 import { TaskIcon } from "@/components/TaskIcon";
+import { TaskIconPicker } from "@/components/TaskIconPicker";
 import { useState } from "react";
 import { Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
@@ -37,6 +38,7 @@ export default function AdminTasksPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editIcon, setEditIcon] = useState<string | null>(null);
 
   const list = tasks.data ?? [];
   const existingTitles = new Set(list.map((t) => t.title.toLowerCase()));
@@ -90,6 +92,7 @@ export default function AdminTasksPage() {
     setEditTitle(task.title);
     setEditAmount(String(task.amount_ore / 100).replace(".", ","));
     setEditCategory(categoryOf(task));
+    setEditIcon(task.icon ?? null);
   };
 
   const saveEdit = async (task: AdminTask) => {
@@ -97,7 +100,7 @@ export default function AdminTasksPage() {
     if (!editTitle.trim()) return toast({ kind: "error", text: "Skriv hva oppgaven er." });
     if (amountOre === null || amountOre === "invalid") return toast({ kind: "error", text: "Skriv beløpet som et tall, f.eks. 25." });
     setBusy(`edit-${task.id}`);
-    const patch = { title: editTitle.trim(), amount_ore: amountOre, category: editCategory };
+    const patch = { title: editTitle.trim(), amount_ore: amountOre, category: editCategory, icon: editIcon };
     const res = await supabase.from("tasks").update(patch).eq("id", task.id);
     setBusy(null);
     if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å lagre.") });
@@ -211,6 +214,10 @@ export default function AdminTasksPage() {
                             </Select>
                           </Field>
                         </div>
+                        <div>
+                          <span className="mb-1.5 block text-sm font-semibold text-foreground/85">Bilde</span>
+                          <TaskIconPicker title={editTitle || task.title} value={editIcon} onChange={setEditIcon} />
+                        </div>
                         <p className="text-xs text-muted-foreground">Krav som allerede er sendt, beholder den gamle prisen.</p>
                         <div className="flex gap-2">
                           <Button variant="ghost" className="flex-1" onClick={() => setEditing(null)}>
@@ -233,7 +240,7 @@ export default function AdminTasksPage() {
                         aria-label={`Endre ${task.title}`}
                         className={cx("flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl text-left", focusRing, !task.active && "opacity-60")}
                       >
-                        <TaskIcon title={task.title} size={44} />
+                        <TaskIcon title={task.title} icon={task.icon} size={44} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-semibold">{task.title}</span>
                           <span className="font-num block text-sm text-muted-foreground">{formatKr(task.amount_ore)}</span>

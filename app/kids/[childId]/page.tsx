@@ -28,6 +28,7 @@ type TaskRow = {
   title: string;
   amount_ore: number;
   active: boolean;
+  icon?: string | null;
 };
 
 type WishlistItem = {
@@ -474,7 +475,7 @@ export default function KidTaskPage() {
                     >
                       <span className="flex items-start gap-3">
                         {/* Bilde så barn som ikke kan lese ennå kjenner igjen oppgaven. */}
-                        <TaskIcon title={task.title} size={60} className="shadow-sm" />
+                        <TaskIcon title={task.title} icon={task.icon} size={60} className="shadow-sm" />
                         <span className="min-w-0 flex-1">
                           <span className="block text-2xl font-extrabold leading-tight tracking-tight [hyphens:auto] [overflow-wrap:break-word]" lang="nb">
                             {task.title}

@@ -33,6 +33,7 @@ export function levelFor(count: number) {
 export type TaskTrophy = {
   taskId: string;
   title: string;
+  icon?: string | null; // bildet forelderen har valgt for oppgaven
   name: string;
   count: number;
   level: number;
