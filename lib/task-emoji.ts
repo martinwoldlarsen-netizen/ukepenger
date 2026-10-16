@@ -44,3 +44,11 @@ export function taskEmoji(title: string) {
   for (const [re, emoji] of RULES) if (re.test(title)) return emoji;
   return "⭐";
 }
+
+// Emojier forelderen kan velge mellom når en oppgave ikke har et passende tegnet bilde.
+export const TASK_EMOJI_CHOICES = [
+  "⭐", "🧸", "🧹", "🧽", "🧺", "🧦", "👕", "🧥", "👟", "🛏️", "🚪", "🪟",
+  "🍽️", "🍴", "🍳", "🥪", "🥕", "🛒", "🗑️", "♻️", "🥤", "🪴", "🌷", "🍂",
+  "☃️", "🪵", "🚗", "🚲", "🐕", "🐈", "🐟", "🐇", "🐾", "📝", "📖", "🎒",
+  "🎵", "⚽", "🏊", "🪥", "🛁", "🚿", "🧻", "🤝", "💛", "🧒", "👶", "📦",
+] as const;

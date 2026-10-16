@@ -112,7 +112,7 @@ export function KidProgress({ childId }: { childId: string }) {
             {data.trophies!.map((t) => (
               <li key={t.taskId} className={`flex items-center gap-3 rounded-2xl p-3 ${t.level > 0 ? "bg-accent/60" : "bg-secondary"}`}>
                 <span className="relative shrink-0">
-                  <TaskIcon title={t.title} size={56} muted={t.level === 0} />
+                  <TaskIcon title={t.title} icon={t.icon} size={56} muted={t.level === 0} />
                   {t.level > 0 && (
                     <span className={`absolute -bottom-1.5 -right-1.5 flex min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${isBigLevel(t.level) ? "bg-amber-400 text-amber-950" : "bg-primary text-primary-foreground"}`}>
                       {t.level}

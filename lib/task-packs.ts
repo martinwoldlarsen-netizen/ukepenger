@@ -41,6 +41,7 @@ export const TASK_PACKS: TaskPack[] = [
       { title: "Vaske vinduer", kr: 40, emoji: "🪟" },
       { title: "Vanne blomstene", kr: 5, emoji: "🪴" },
       { title: "Rydde gangen", kr: 10, emoji: "🚪" },
+      { title: "Rydde opp etter seg", kr: 5, emoji: "🧺" },
       { title: "Lufte rommet", kr: 5, emoji: "🌬️" },
       { title: "Rydde skrivebordet", kr: 10, emoji: "🖥️" },
       { title: "Bytte lyspære", kr: 10, emoji: "💡" },

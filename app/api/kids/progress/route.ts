@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       .limit(5000),
     supabase.from("wishlist_items").select("id", { count: "exact", head: true }).eq("child_id", childId).eq("status", "PAID"),
     supabase.from("families").select("trophy_settings").eq("id", auth.familyId).maybeSingle(),
-    supabase.from("tasks").select("id, title, active").eq("family_id", auth.familyId).is("archived_at", null),
+    supabase.from("tasks").select("id, title, active, icon").eq("family_id", auth.familyId).is("archived_at", null),
   ]);
   if (claimsRes.error) return NextResponse.json({ error: "Klarte ikke å hente." }, { status: 400 });
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
   for (const c of claims) if (c.task_id) counts[c.task_id] = (counts[c.task_id] ?? 0) + 1;
   progress.trophies = (tasksRes.data ?? [])
     .filter((t) => t.active || counts[t.id])
-    .map((t) => taskTrophy(t.id, t.title, counts[t.id] ?? 0, settings))
+    .map((t) => ({ ...taskTrophy(t.id, t.title, counts[t.id] ?? 0, settings), icon: t.icon ?? null }))
     .sort((a, b) => b.level - a.level || b.count - a.count || a.name.localeCompare(b.name, "nb"));
   progress.trophiesPay = Boolean(settings.enabled);
   return NextResponse.json(progress);

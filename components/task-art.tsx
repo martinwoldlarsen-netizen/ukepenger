@@ -570,6 +570,85 @@ export const TASK_ART: Record<string, Art> = {
       </>
     ),
   },
+  gangen: {
+    bg: "#e0f5f1",
+    art: (
+      <>
+        {/* knaggrekke med jakke og sekk */}
+        <rect x={14} y={20} width={92} height={8} rx={4} fill={WOOD} />
+        <circle cx={36} cy={32} r={4} fill={STEEL} />
+        <circle cx={84} cy={32} r={4} fill={STEEL} />
+        <path d="M36 34 L24 42 L18 64 L25 66 V86 H47 V66 L54 64 L48 42 Z" fill="#ffd23f" />
+        <path d="M36 34 V86" stroke="#e8b400" strokeWidth={2.5} />
+        <path d="M76 36 q8 -10 16 0" stroke="#e85d75" strokeWidth={3.5} fill="none" />
+        <rect x={72} y={38} width={24} height={30} rx={8} fill="#ff8fa3" />
+        <rect x={77} y={52} width={14} height={9} rx={3} fill="#fff" opacity={0.55} />
+        {/* skohylle med sko på rad */}
+        <rect x={12} y={100} width={96} height={8} rx={4} fill={WOOD_DARK} />
+        <path d="M18 100 q0 -7 7 -8 l6 -1 q4 -5 8 -2 l5 5 q7 2 7 6 z" fill="#ff6b6b" />
+        <path d="M38 100 q0 -7 7 -8 l6 -1 q4 -5 8 -2 l5 5 q7 2 7 6 z" fill="#ff6b6b" />
+        <path d="M64 100 q0 -7 7 -8 l6 -1 q4 -5 8 -2 l5 5 q7 2 7 6 z" fill="#4e9ce8" />
+        <path d="M84 100 q0 -7 7 -8 l6 -1 q4 -5 8 -2 l3 4 v7 z" fill="#4e9ce8" />
+        <Sparkle x={62} y={78} s={8} />
+      </>
+    ),
+  },
+  "rydde-etter-seg": {
+    bg: "#ffe8f0",
+    art: (
+      <>
+        {/* kopp, sokk og bok på vei ned i kassen */}
+        <g transform="rotate(-12 34 34)">
+          <rect x={24} y={24} width={18} height={20} rx={5} fill="#ffd23f" />
+          <path d="M42 29 q8 0 8 6 q0 6 -8 6" stroke="#ffd23f" strokeWidth={4} fill="none" />
+        </g>
+        <path d="M58 16 v18 q0 6 6 6 h10 q5 0 5 -5 q0 -5 -5 -5 h-6 v-14 z" fill="#4ecdc4" />
+        <rect x={58} y={16} width={10} height={6} fill="#fff" opacity={0.6} />
+        <g transform="rotate(14 92 36)">
+          <rect x={82} y={24} width={22} height={26} rx={3} fill="#7c6cf0" />
+          <rect x={86} y={24} width={3} height={26} fill="#fff" opacity={0.5} />
+        </g>
+        <path d="M60 50 v10 m-6 -5 l6 6 l6 -6" stroke="#3aa76d" strokeWidth={4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M18 70 h84 l-7 30 a6 6 0 0 1 -6 5 h-58 a6 6 0 0 1 -6 -5 z" fill="#7cc4ff" />
+        <path d="M28 80 h64 M32 92 h56" stroke="#5aaef5" strokeWidth={3} strokeLinecap="round" />
+        <Sparkle x={104} y={62} s={8} />
+        <Sparkle x={16} y={56} s={6} />
+      </>
+    ),
+  },
+  feie: {
+    bg: "#fff1d6",
+    art: (
+      <>
+        {/* kost og feiebrett */}
+        <rect x={62} y={10} width={7} height={62} rx={3.5} fill={WOOD_DARK} transform="rotate(28 65 41)" />
+        <path d="M30 74 l30 -12 l14 22 l-34 14 z" fill="#ffd23f" />
+        <path d="M36 82 l8 16 M44 79 l8 16 M52 76 l8 16 M60 73 l8 16" stroke="#e8b400" strokeWidth={2.5} strokeLinecap="round" />
+        <path d="M74 104 h30 v-14 h-22 z" fill="#4ecdc4" />
+        <rect x={98} y={84} width={6} height={20} rx={3} fill="#3bb3aa" />
+        <circle cx={22} cy={100} r={3} fill="#c9a77c" />
+        <circle cx={30} cy={106} r={2.5} fill="#c9a77c" />
+        <circle cx={16} cy={92} r={2} fill="#c9a77c" />
+        <Sparkle x={96} y={24} s={8} />
+      </>
+    ),
+  },
+  vindu: {
+    bg: "#e3f1ff",
+    art: (
+      <>
+        {/* vindu som pusses */}
+        <rect x={16} y={16} width={70} height={84} rx={8} fill="#fff" stroke={WOOD} strokeWidth={6} />
+        <rect x={22} y={22} width={58} height={72} rx={4} fill="#cfeaff" />
+        <path d="M51 22 v72 M22 58 h58" stroke={WOOD} strokeWidth={5} />
+        <path d="M28 40 l12 -12 M30 50 l18 -18" stroke="#fff" strokeWidth={4} strokeLinecap="round" opacity={0.85} />
+        <rect x={84} y={58} width={22} height={40} rx={7} fill="#4ecdc4" />
+        <path d="M88 58 v-10 h14 l6 6" stroke="#3bb3aa" strokeWidth={5} fill="none" strokeLinejoin="round" />
+        <Sparkle x={66} y={76} s={9} color="#fff" />
+        <Sparkle x={100} y={30} s={8} />
+      </>
+    ),
+  },
 };
 
 // Hvilket bilde passer oppgaven? Rekkefølgen betyr noe (det mest spesifikke først).
@@ -581,8 +660,12 @@ const RULES: Array<[RegExp, string]> = [
   [/oppvask|vaske opp|tørke oppvask/i, "oppvask"],
   [/matpakk/i, "matpakke"],
   [/lage mat|middag|frokost|bake|matlag|salat|kokk|grønnsak|poteter/i, "lage-mat"],
+  [/\bgang(en)?\b|entr[eé]|ytterklær|ytterklaer/i, "gangen"],
   [/leke|lego|bamse|tegnesak/i, "leker"],
   [/rydde rom|rydd(e)? (på )?rommet|rydde i skap|rydde skap/i, "rydde-rommet"],
+  [/etter seg|^rydd(e)?( opp)?$/i, "rydde-etter-seg"],
+  [/feie|\bkost/i, "feie"],
+  [/vindu/i, "vindu"],
   [/seng/i, "seng"],
   [/støvsug|stovsug/i, "stovsuger"],
   [/pant|flaske/i, "pant"],
@@ -610,3 +693,42 @@ const RULES: Array<[RegExp, string]> = [
 export function taskArtKey(title: string): string | null {
   return RULES.find(([re]) => re.test(title))?.[1] ?? null;
 }
+
+// Navn på de tegnede bildene, brukt i bildevelgeren.
+export const TASK_ART_LABELS: Record<string, string> = {
+  "dekke-bordet": "Dekke bordet",
+  "rydde-bordet": "Rydde av bordet",
+  "torke-bord": "Tørke bordet",
+  oppvaskmaskin: "Oppvaskmaskin",
+  oppvask: "Oppvask",
+  matpakke: "Matpakke",
+  "lage-mat": "Lage mat",
+  leker: "Leker",
+  "rydde-rommet": "Rydde rommet",
+  "rydde-etter-seg": "Rydde etter seg",
+  gangen: "Gangen",
+  seng: "Re opp sengen",
+  stovsuger: "Støvsuge",
+  feie: "Feie",
+  vindu: "Vinduer",
+  soppel: "Søppel",
+  pant: "Pant",
+  klaer: "Klær",
+  brette: "Brette klær",
+  sko: "Sko",
+  hund: "Hund",
+  "mate-dyr": "Mate dyr",
+  lekser: "Lekser",
+  bok: "Lese",
+  musikk: "Øve",
+  sekk: "Sekk",
+  tannborste: "Tannpuss",
+  bad: "Bad",
+  sno: "Snø",
+  rake: "Rake løv",
+  gressklipper: "Klippe plenen",
+  bil: "Bil",
+  vannkanne: "Vanne",
+  handlepose: "Handle",
+  salg: "Salg",
+};
