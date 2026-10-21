@@ -4,7 +4,7 @@ import { TaskIcon } from "@/components/TaskIcon";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import useSWR, { useSWRConfig } from "swr";
+import useSWR, { unstable_serialize, useSWRConfig } from "swr";
 import { KidHistory, kidHistoryKey } from "../_components/KidHistory";
 import { KidProgress, kidProgressKey } from "../_components/KidProgress";
 import { ArrowLeft, ArrowRight, Check, Clock, PartyPopper, Pencil, Volume2, X } from "lucide-react";
@@ -16,48 +16,11 @@ import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
 import { formatKr } from "@/lib/money";
 import { kidColor } from "../_lib/palette";
-
-type ChildRow = {
-  id: string;
-  name: string;
-  avatar_key: string | null;
-};
-
-type TaskRow = {
-  id: string;
-  title: string;
-  amount_ore: number;
-  active: boolean;
-  icon?: string | null;
-};
-
-type WishlistItem = {
-  id: string;
-  title: string;
-  target_ore: number | null;
-  suggested_ore: number | null;
-  emoji?: string | null;
-  status: "PROPOSED" | "ACTIVE" | "PAID";
-  created_by: "PARENT" | "CHILD";
-  note: string | null;
-};
+import { type ChildRow, type KidPageData, type TaskRow, type WishlistItem, KIDS_BOOTSTRAP_KEY, fetchKidPage, kidPageKey } from "../_lib/kid-data";
 
 type Notice = { kind: "ok" | "error"; text: string } | null;
 
 
-type TasksPayload = {
-  error?: string;
-  child?: ChildRow;
-  tasks?: TaskRow[];
-  cooldowns?: Record<string, number>;
-  pending_ore?: number;
-  approved_ore?: number;
-  paid_ore?: number;
-  earned_ore?: number;
-  saved_ore?: number | null;
-  savings_percent?: number;
-  allowance?: { amount_ore: number; weekday: number } | null;
-};
 
 // Litt moro: nivå etter hvor mye barnet har tjent totalt.
 const LEVELS = [
@@ -77,26 +40,23 @@ function levelFor(earnedOre: number) {
   return { ...current, nextOre: next ? next.fromOre : null, progress };
 }
 
-type KidPageData = { tasks: TasksPayload; wishlist: WishlistItem[] | null };
-
-async function fetchKidPage(childId: string): Promise<KidPageData> {
-  const [tasksRes, wishlistRes] = await Promise.all([
-    fetch(`/api/kids/tasks?childId=${encodeURIComponent(childId)}`, { credentials: "include" }),
-    fetch(`/api/kids/wishlist?childId=${encodeURIComponent(childId)}`, { credentials: "include" }),
-  ]);
-  const tasks = (await tasksRes.json().catch(() => ({}))) as TasksPayload;
-  if (!tasksRes.ok || tasks.error || !tasks.child) throw new Error(tasks.error ?? "Klarte ikke laste oppgavene.");
-  const wishlist = (await wishlistRes.json().catch(() => ({}))) as { error?: string; items?: WishlistItem[] };
-  return { tasks, wishlist: wishlistRes.ok && !wishlist.error ? (wishlist.items ?? []) : null };
-}
-
+// Ny komponent per barn (key), så forrige barns navn og figur aldri blir
+// stående mens neste barn lastes.
 export default function KidTaskPage() {
   const params = useParams<{ childId: string }>();
-  const childId = params.childId;
+  return <KidTaskView key={params.childId} childId={params.childId} />;
+}
 
-  const [child, setChild] = useState<ChildRow | null>(null);
-  const [tasks, setTasks] = useState<TaskRow[]>([]);
-  const [loading, setLoading] = useState(true);
+function KidTaskView({ childId }: { childId: string }) {
+  const { mutate: mutateGlobal, cache } = useSWRConfig();
+  // Har vi data fra før (forhåndshentet fra profilvelgeren eller et tidligere
+  // besøk), vises den med én gang mens ny data hentes i bakgrunnen.
+  const [cached] = useState(() => cache.get(unstable_serialize(kidPageKey(childId)))?.data as KidPageData | undefined);
+  const first = cached?.tasks;
+
+  const [child, setChild] = useState<ChildRow | null>(first?.child ?? null);
+  const [tasks, setTasks] = useState<TaskRow[]>(first?.tasks ?? []);
+  const [loading, setLoading] = useState(!first);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
   // Pause etter et trykk: tidspunkt den slutter og hvor lang den er (for
@@ -106,17 +66,16 @@ export default function KidTaskPage() {
   // Kort bekreftelse inne i oppgavekortet barnet nettopp trykket på.
   const [cardMessages, setCardMessages] = useState<Record<string, Notice>>({});
   const timers = useRef<number[]>([]);
-  const [pendingOre, setPendingOre] = useState(0);
-  const [approvedOre, setApprovedOre] = useState(0);
-  const [paidOre, setPaidOre] = useState(0);
-  const [earnedOre, setEarnedOre] = useState(0);
+  const [pendingOre, setPendingOre] = useState(first?.pending_ore ?? 0);
+  const [approvedOre, setApprovedOre] = useState(first?.approved_ore ?? 0);
+  const [paidOre, setPaidOre] = useState(first?.paid_ore ?? 0);
+  const [earnedOre, setEarnedOre] = useState(first?.earned_ore ?? 0);
   // null = sparegrisen er skjult for barnet (eller sparing er av).
-  const [savedOre, setSavedOre] = useState<number | null>(null);
-  const [savingsPercent, setSavingsPercent] = useState(0);
-  const [allowance, setAllowance] = useState<{ amount_ore: number; weekday: number } | null>(null);
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [savedOre, setSavedOre] = useState<number | null>(first?.saved_ore ?? null);
+  const [savingsPercent, setSavingsPercent] = useState(first?.savings_percent ?? 0);
+  const [allowance, setAllowance] = useState<{ amount_ore: number; weekday: number } | null>(first?.allowance ?? null);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>(cached?.wishlist ?? []);
 
-  const { mutate: mutateGlobal } = useSWRConfig();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
 
@@ -181,7 +140,7 @@ export default function KidTaskPage() {
     [startCooldown]
   );
 
-  useSWR(["kid-page", childId], () => fetchKidPage(childId), {
+  useSWR(kidPageKey(childId), () => fetchKidPage(childId), {
     revalidateOnFocus: true,
     dedupingInterval: 2_000,
     shouldRetryOnError: false,
@@ -274,6 +233,13 @@ export default function KidTaskPage() {
       return;
     }
     setPickerOpen(false);
+    // Profilvelgeren og bufret side skal vise den nye figuren med en gang.
+    void mutateGlobal(KIDS_BOOTSTRAP_KEY, (list?: ChildRow[]) => list?.map((c) => (c.id === childId ? { ...c, avatar_key: avatarKey } : c)), { revalidate: false });
+    void mutateGlobal(
+      kidPageKey(childId),
+      (d?: KidPageData) => (d?.tasks.child ? { ...d, tasks: { ...d.tasks, child: { ...d.tasks.child, avatar_key: avatarKey } } } : d),
+      { revalidate: false }
+    );
   };
 
   if (loadError) {

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { TASK_ART, taskArtKey } from "./task-art";
 import { taskEmoji } from "@/lib/task-emoji";
 
@@ -10,17 +11,19 @@ export function TaskIcon({ title, icon, size = 48, className, muted }: { title: 
   const chosenEmoji = icon && !chosenArt ? icon : null;
   const key = chosenEmoji ? null : (chosenArt ?? taskArtKey(title));
   const art = key ? TASK_ART[key] : null;
+  // Egen id per bilde: like id-er på mange SVG-er på samme side gir feil og ekstra arbeid i Safari.
+  const clipId = `uk-task-clip-${useId().replace(/:/g, "")}`;
   const radius = Math.round(size * 0.28);
   const style = { width: size, height: size, borderRadius: radius, flexShrink: 0, ...(muted ? { opacity: 0.4, filter: "grayscale(1)" } : {}) };
   if (art) {
     return (
       <svg viewBox="0 0 120 120" width={size} height={size} className={className} style={style} aria-hidden="true">
         <defs>
-          <clipPath id="uk-task-clip">
+          <clipPath id={clipId}>
             <rect width={120} height={120} rx={30} />
           </clipPath>
         </defs>
-        <g clipPath="url(#uk-task-clip)">
+        <g clipPath={`url(#${clipId})`}>
           <rect width={120} height={120} fill={art.bg} />
           {art.art}
         </g>
