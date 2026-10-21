@@ -10,6 +10,7 @@ import { DEFAULT_WISH_EMOJI, PRICE_CHIPS, WISH_CATEGORIES, type WishCategory } f
 import { kidColor } from "../../_lib/palette";
 import { taskEmoji } from "@/lib/task-emoji";
 import { celebrate } from "../../_lib/celebrate";
+import { type KidPageData, fetchKidPage, kidPageKey } from "../../_lib/kid-data";
 
 type Wish = {
   id: string;
@@ -33,26 +34,16 @@ type ShopData = {
   wishes: Wish[];
 };
 
-async function fetchShop(childId: string): Promise<ShopData> {
-  const [tasksRes, wishRes] = await Promise.all([
-    fetch(`/api/kids/tasks?childId=${encodeURIComponent(childId)}`, { credentials: "include" }),
-    fetch(`/api/kids/wishlist?childId=${encodeURIComponent(childId)}`, { credentials: "include" }),
-  ]);
-  const t = (await tasksRes.json().catch(() => ({}))) as {
-    error?: string;
-    child?: { name: string };
-    tasks?: Task[];
-    approved_ore?: number;
-    savings_percent?: number;
-  };
-  if (!tasksRes.ok || t.error || !t.child) throw new Error(t.error ?? "Klarte ikke å laste.");
-  const w = (await wishRes.json().catch(() => ({}))) as { items?: Wish[] };
+// Butikken bruker samme data som barnets side (samme SWR-nøkkel), så den
+// åpnes med én gang når barnet kommer fra sin side.
+function toShop(d: KidPageData): ShopData {
+  const t = d.tasks;
   return {
-    name: t.child.name,
+    name: t.child?.name ?? "",
     balanceOre: t.approved_ore ?? 0,
     savingsPercent: t.savings_percent ?? 0,
     tasks: (t.tasks ?? []).filter((task) => task.active && task.amount_ore > 0),
-    wishes: wishRes.ok ? (w.items ?? []) : [],
+    wishes: (d.wishlist ?? []) as unknown as Wish[],
   };
 }
 
@@ -94,7 +85,8 @@ function ProgressBar({ pct, color, tall = false }: { pct: number; color: string;
 
 export default function WishShopPage() {
   const { childId } = useParams<{ childId: string }>();
-  const shop = useSWR(["kid-shop", childId], () => fetchShop(childId), { revalidateOnFocus: true, shouldRetryOnError: false });
+  const page = useSWR(kidPageKey(childId), () => fetchKidPage(childId), { revalidateOnFocus: true, shouldRetryOnError: false });
+  const shop = { data: page.data ? toShop(page.data) : undefined, error: page.error as Error | undefined, mutate: page.mutate };
 
   const [addOpen, setAddOpen] = useState(false);
   const [openWishId, setOpenWishId] = useState<string | null>(null);

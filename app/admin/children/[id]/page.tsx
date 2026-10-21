@@ -23,9 +23,13 @@ type WishlistItem = {
   created_at: string;
 };
 
+// Ny komponent per barn (key), så skjemaer og valg fra forrige barn ikke blir med.
 export default function AdminChildDetailPage() {
   const params = useParams<{ id: string }>();
-  const childId = params.id;
+  return <ChildDetail key={params.id} childId={params.id} />;
+}
+
+function ChildDetail({ childId }: { childId: string }) {
   const toast = useToast();
   const confirm = useConfirm();
   const router = useRouter();
