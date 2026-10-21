@@ -2,16 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import useSWR, { preload, unstable_serialize, useSWRConfig } from "swr";
 import { ArrowLeft, ChevronRight, Coins, ShoppingBag, X } from "lucide-react";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { kidColor } from "./_lib/palette";
+import { type ChildRow, KIDS_BOOTSTRAP_KEY, fetchKidPage, fetchKidsBootstrap, kidPageKey } from "./_lib/kid-data";
 
-type ChildRow = {
-  id: string;
-  name: string;
-  avatar_key: string | null;
-  color?: string | null;
-};
 
 const PRICE_OPTIONS = [
   { label: "5 kr", ore: 500 },
@@ -25,9 +21,13 @@ const PRICE_OPTIONS = [
 type ButikkStep = "price" | "child";
 
 export default function KidsPage() {
-  const [children, setChildren] = useState<ChildRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Profilene huskes mellom besøk (SWR), så listen vises med en gang når
+  // barnet går tilbake hit, og oppdateres i bakgrunnen.
+  const { cache } = useSWRConfig();
+  const boot = useSWR<ChildRow[], Error>(KIDS_BOOTSTRAP_KEY, fetchKidsBootstrap, { revalidateOnFocus: true, shouldRetryOnError: false });
+  const children = boot.data ?? [];
+  const loading = !boot.data && !boot.error;
+  const error = boot.data ? "" : (boot.error?.message ?? "");
 
   const [butikkOpen, setButikkOpen] = useState(false);
   const [butikkStep, setButikkStep] = useState<ButikkStep>("price");
@@ -35,26 +35,13 @@ export default function KidsPage() {
   const [butikkLoading, setButikkLoading] = useState(false);
   const [butikkStatus, setButikkStatus] = useState("");
 
+  // Hent barnas sider i forkant, så de åpnes uten venting.
   useEffect(() => {
-    const run = async () => {
-      const res = await fetch("/api/kids/bootstrap", {
-        method: "GET",
-        credentials: "include",
-      });
-      const payload = (await res.json().catch(() => ({}))) as { error?: string; children?: ChildRow[] };
-
-      if (!res.ok || payload.error) {
-        setError(payload.error ?? "Kiosk-session mangler eller er ugyldig.");
-        setLoading(false);
-        return;
-      }
-
-      setChildren(payload.children ?? []);
-      setLoading(false);
-    };
-
-    void run();
-  }, []);
+    for (const c of boot.data ?? []) {
+      const key = kidPageKey(c.id);
+      if (!cache.get(unstable_serialize(key))?.data) void preload(key, () => fetchKidPage(c.id)).catch(() => {});
+    }
+  }, [boot.data, cache]);
 
   const openButikk = () => {
     setButikkOpen(true);
