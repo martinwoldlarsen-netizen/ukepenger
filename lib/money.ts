@@ -1,8 +1,10 @@
+import { type Lang, localeOf } from "@/lib/i18n";
+
 // Barnevennlig beløpsvisning: "25 kr" for hele kroner, "25,50 kr" ellers.
-export function formatKr(ore: number) {
+export function formatKr(ore: number, lang: Lang = "nb") {
   const kr = ore / 100;
   const hasOre = Math.round(ore) % 100 !== 0;
-  return `${kr.toLocaleString("nb-NO", {
+  return `${kr.toLocaleString(localeOf(lang), {
     minimumFractionDigits: hasOre ? 2 : 0,
     maximumFractionDigits: 2,
   })} kr`;

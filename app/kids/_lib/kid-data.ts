@@ -6,6 +6,7 @@ export type ChildRow = {
   id: string;
   name: string;
   avatar_key: string | null;
+  language?: string | null;
   color?: string | null;
 };
 

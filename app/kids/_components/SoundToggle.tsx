@@ -11,7 +11,7 @@ const subscribe = (fn: () => void) => {
 };
 
 // Lyd av/på for denne enheten (huskes i nettleseren).
-export function SoundToggle() {
+export function SoundToggle({ labels = { on: "Skru på lyd", off: "Skru av lyd" } }: { labels?: { on: string; off: string } }) {
   const on = useSyncExternalStore(subscribe, soundEnabled, () => true);
   return (
     <button
@@ -21,7 +21,7 @@ export function SoundToggle() {
         listeners.forEach((fn) => fn());
         if (!on) playChime();
       }}
-      aria-label={on ? "Skru av lyd" : "Skru på lyd"}
+      aria-label={on ? labels.off : labels.on}
       aria-pressed={on}
       className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-border bg-card transition hover:bg-secondary"
     >

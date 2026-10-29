@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import useSWR from "swr";
-import { ArrowLeft, CalendarDays, Gift, ListChecks, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Gift, Languages, ListChecks, Plus, Trash2, X } from "lucide-react";
+import { LANGS, asLang } from "@/lib/i18n";
 import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
 import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
@@ -156,6 +157,8 @@ function ChildDetail({ childId }: { childId: string }) {
 
       <AllowanceCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />
 
+      <LanguageCard child={child} onSaved={() => void children.mutate()} />
+
       <Card className="space-y-4">
         <CardHeader icon={<ListChecks className="size-5" />} title="Oppgaver" description={`Velg hvilke oppgaver ${child.name} ser på barnesiden.`} />
         {tasks.isLoading && !tasks.data ? (
@@ -253,6 +256,56 @@ function ChildDetail({ childId }: { childId: string }) {
 const WEEKDAYS = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"];
 
 // Faste ukepenger: et fast beløp som legges til automatisk én gang i uka.
+// Språk på barnesiden for dette barnet: tekst, opplesning og forslag i Ønskebutikken.
+function LanguageCard({ child, onSaved }: { child: AdminChild; onSaved: () => void }) {
+  const toast = useToast();
+  const [lang, setLang] = useState(asLang(child.language));
+  const [saving, setSaving] = useState(false);
+  const save = async (next: string) => {
+    const previous = lang;
+    setLang(asLang(next));
+    setSaving(true);
+    const res = await supabase.from("children").update({ language: next }).eq("id", child.id);
+    setSaving(false);
+    if (res.error) {
+      setLang(previous);
+      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å lagre.") });
+      return;
+    }
+    toast({ text: `${child.name} ser nå barnesiden på ${LANGS.find((l) => l.code === next)?.label ?? next}` });
+    onSaved();
+  };
+  return (
+    <Card className="space-y-4">
+      <CardHeader
+        icon={<Languages className="size-5" />}
+        title="Språk"
+        description={`Hvilket språk ${child.name} ser og hører på barnesiden. Oppgavene vises slik du har skrevet dem.`}
+      />
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Språk">
+        {LANGS.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            role="radio"
+            aria-checked={lang === l.code}
+            disabled={saving}
+            onClick={() => lang !== l.code && void save(l.code)}
+            className={cx(
+              "flex min-h-14 flex-col items-center justify-center rounded-2xl border px-2 py-2 text-sm font-semibold transition",
+              focusRing,
+              lang === l.code ? "border-primary bg-primary/10 text-foreground ring-2 ring-primary" : "border-border bg-card hover:bg-secondary"
+            )}
+          >
+            <span className="text-xl" aria-hidden="true">{l.flag}</span>
+            {l.label}
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; familyId: string; onSaved: () => void }) {
   const toast = useToast();
   const current = child.weekly_allowance_ore ?? 0;

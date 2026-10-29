@@ -6,11 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ArrowLeft, Check, ChevronLeft, Clock, PartyPopper, Pencil, Plus, ShoppingCart, X } from "lucide-react";
 import { formatKr, parseKrToOre } from "@/lib/money";
-import { DEFAULT_WISH_EMOJI, PRICE_CHIPS, WISH_CATEGORIES, type WishCategory } from "@/lib/wish-catalog";
+import { DEFAULT_WISH_EMOJI, PRICE_CHIPS, type WishCategory, wishCategories } from "@/lib/wish-catalog";
 import { kidColor } from "../../_lib/palette";
 import { taskEmoji } from "@/lib/task-emoji";
 import { celebrate } from "../../_lib/celebrate";
 import { type KidPageData, fetchKidPage, kidPageKey } from "../../_lib/kid-data";
+import { type Lang, asLang } from "@/lib/i18n";
+import { type KidText, kidError, kidText } from "../../_lib/text";
 
 type Wish = {
   id: string;
@@ -28,6 +30,7 @@ type Task = { id: string; title: string; amount_ore: number; active: boolean };
 
 type ShopData = {
   name: string;
+  lang: Lang;
   balanceOre: number;
   savingsPercent: number;
   tasks: Task[];
@@ -40,6 +43,7 @@ function toShop(d: KidPageData): ShopData {
   const t = d.tasks;
   return {
     name: t.child?.name ?? "",
+    lang: asLang(t.child?.language),
     balanceOre: t.approved_ore ?? 0,
     savingsPercent: t.savings_percent ?? 0,
     tasks: (t.tasks ?? []).filter((task) => task.active && task.amount_ore > 0),
@@ -92,6 +96,9 @@ export default function WishShopPage() {
   const [openWishId, setOpenWishId] = useState<string | null>(null);
 
   const data = shop.data;
+  const lang = data?.lang ?? "nb";
+  const t = kidText(lang);
+  const kr = (ore: number) => formatKr(ore, lang);
   const open = data?.wishes.filter((w) => w.status !== "PAID") ?? [];
   const bought = data?.wishes.filter((w) => w.status === "PAID") ?? [];
   const openWish = data?.wishes.find((w) => w.id === openWishId) ?? null;
@@ -99,33 +106,33 @@ export default function WishShopPage() {
   if (shop.error && !data) {
     return (
       <main className="mx-auto max-w-xl px-5 py-12 text-center">
-        <p className="text-lg font-bold">Oi, noe gikk galt</p>
+        <p className="text-lg font-bold">{t.oops}</p>
         <Link href={`/kids/${childId}`} className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary">
-          <ArrowLeft className="size-4" /> Tilbake
+          <ArrowLeft className="size-4" /> {t.back}
         </Link>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-5 py-6 sm:px-8 sm:py-10">
+    <main lang={lang} className="mx-auto max-w-5xl px-5 py-6 sm:px-8 sm:py-10">
       <div className="flex items-center justify-between gap-3">
         <Link
           href={`/kids/${childId}`}
           className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition hover:bg-secondary"
         >
-          <ArrowLeft className="size-4" /> Tilbake
+          <ArrowLeft className="size-4" /> {t.back}
         </Link>
         <span className="font-num rounded-full bg-primary px-4 py-2 text-base font-bold text-primary-foreground shadow-sm">
-          {data ? `Du har ${formatKr(data.balanceOre)}` : "…"}
+          {data ? t.youHave(kr(data.balanceOre)) : "…"}
         </span>
       </div>
 
       <header className="mt-5">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-          <span aria-hidden="true">🎁</span> Ønskebutikken
+          <span aria-hidden="true">🎁</span> {t.wishShop}
         </h1>
-        <p className="mt-1 text-lg text-muted-foreground">Spar opp pengene dine og kjøp det du ønsker deg.</p>
+        <p className="mt-1 text-lg text-muted-foreground">{t.shopIntro}</p>
       </header>
 
       {!data ? (
@@ -159,18 +166,18 @@ export default function WishShopPage() {
                       <>
                         <ProgressBar pct={pct} color={color.ink} />
                         <span className="mt-1.5 flex items-center justify-between text-sm font-bold">
-                          <span>{enough && wish.status === "ACTIVE" ? "Klar! 🎉" : `${pct} %`}</span>
-                          <span className="font-num">{wish.status === "PROPOSED" ? "ca. " : ""}{formatKr(price)}</span>
+                          <span>{enough && wish.status === "ACTIVE" ? t.ready : `${pct} %`}</span>
+                          <span className="font-num">{wish.status === "PROPOSED" ? t.approx : ""}{kr(price)}</span>
                         </span>
                       </>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-xs font-bold">
-                        <Clock className="size-3.5" /> En voksen setter pris
+                        <Clock className="size-3.5" /> {t.adultSetsPrice}
                       </span>
                     )}
                     {wish.purchase_requested_at && enough && (
                       <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-bold">
-                        <ShoppingCart className="size-3.5" /> Kjøpt – venter på en voksen
+                        <ShoppingCart className="size-3.5" /> {t.boughtWaiting}
                       </span>
                     )}
                   </span>
@@ -186,17 +193,17 @@ export default function WishShopPage() {
               <span className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
                 <Plus className="size-8" strokeWidth={2.5} />
               </span>
-              <span className="text-lg font-extrabold">Nytt ønske</span>
+              <span className="text-lg font-extrabold">{t.newWish}</span>
             </button>
           </div>
 
           {open.length === 0 && (
-            <p className="mt-4 text-center text-muted-foreground">Du har ingen ønsker ennå. Trykk «Nytt ønske» for å finne noe!</p>
+            <p className="mt-4 text-center text-muted-foreground">{t.noWishes}</p>
           )}
 
           {bought.length > 0 && (
             <section className="mt-10">
-              <h2 className="text-2xl font-extrabold tracking-tight">Kjøpt 🎉</h2>
+              <h2 className="text-2xl font-extrabold tracking-tight">{t.bought}</h2>
               <ul className="mt-3 flex flex-wrap gap-2">
                 {bought.map((w) => (
                   <li key={w.id} className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 font-semibold shadow-sm ring-1 ring-border">
@@ -212,6 +219,8 @@ export default function WishShopPage() {
 
       {addOpen && data && (
         <AddWishSheet
+          t={t}
+          lang={lang}
           childId={childId}
           onClose={() => setAddOpen(false)}
           onAdded={async () => {
@@ -223,6 +232,7 @@ export default function WishShopPage() {
 
       {openWish && data && (
         <WishDetailSheet
+          t={t}
           wish={openWish}
           data={data}
           childId={childId}
@@ -237,18 +247,21 @@ export default function WishShopPage() {
 /* ---------- Detaljer + kjøp ---------- */
 
 function WishDetailSheet({
+  t,
   wish,
   data,
   childId,
   onClose,
   onBought,
 }: {
+  t: KidText;
   wish: Wish;
   data: ShopData;
   childId: string;
   onClose: () => void;
   onBought: () => void;
 }) {
+  const kr = (ore: number) => formatKr(ore, data.lang);
   const price = priceOf(wish);
   const pct = price ? Math.min(100, Math.round((data.balanceOre / price) * 100)) : 0;
   const shownPct = useCountUp(pct);
@@ -286,7 +299,7 @@ function WishDetailSheet({
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
     setBuying(false);
     if (!res.ok) {
-      setError(payload.error ?? "Det gikk ikke. Prøv igjen!");
+      setError(kidError(data.lang, payload.error, t.tryAgain));
       return;
     }
     setBought(true);
@@ -295,7 +308,7 @@ function WishDetailSheet({
   };
 
   return (
-    <Sheet onClose={onClose} label={wish.title}>
+    <Sheet onClose={onClose} label={wish.title} closeLabel={t.close}>
       <div className="text-center">
         <div className={`mx-auto flex size-28 items-center justify-center rounded-[2rem] bg-secondary text-7xl ${bought ? "animate-bounce" : ""}`} aria-hidden="true">
           {wish.emoji ?? DEFAULT_WISH_EMOJI}
@@ -305,7 +318,7 @@ function WishDetailSheet({
 
       {price === null ? (
         <p className="mt-5 rounded-2xl bg-secondary px-5 py-4 text-center font-semibold">
-          En voksen ser på ønsket ditt og finner ut hva det koster. ⏳
+          {t.adultLooking}
         </p>
       ) : (
         <div className="mt-6 rounded-[1.75rem] bg-secondary p-5">
@@ -313,21 +326,21 @@ function WishDetailSheet({
             <span className="font-num text-5xl font-bold tracking-tight">{shownPct}%</span>
             <span className="text-sm font-semibold text-muted-foreground sm:text-right">
               <span className="font-num block text-lg font-bold text-foreground">
-                {formatKr(Math.min(data.balanceOre, price))} / {formatKr(price)}
+                {kr(Math.min(data.balanceOre, price))} / {kr(price)}
               </span>
-              {wish.status === "PROPOSED" && "omtrentlig pris"}
+              {wish.status === "PROPOSED" && t.approxPrice}
             </span>
           </div>
           <div className="mt-3">
             <ProgressBar pct={pct} color="var(--primary)" tall />
           </div>
-          <p className="mt-3 text-center text-lg font-bold">{enough ? "Du har spart nok! 🎉" : `Du mangler ${formatKr(missing)}`}</p>
+          <p className="mt-3 text-center text-lg font-bold">{enough ? t.savedEnough : t.missing(kr(missing))}</p>
         </div>
       )}
 
       {plan.length > 0 && (
         <div className="mt-5">
-          <p className="font-bold">Så mye må du gjøre:</p>
+          <p className="font-bold">{t.howMuchToDo}</p>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {plan.map((p, i) => (
               <li key={p.title} className="flex items-center gap-3 rounded-2xl px-4 py-3 font-semibold" style={{ background: kidColor(i).bg, color: kidColor(i).ink }}>
@@ -337,14 +350,14 @@ function WishDetailSheet({
               </li>
             ))}
           </ul>
-          {plan.length > 1 && <p className="mt-2 text-sm text-muted-foreground">Eller en blanding – alt teller!</p>}
+          {plan.length > 1 && <p className="mt-2 text-sm text-muted-foreground">{t.orMix}</p>}
         </div>
       )}
 
       <div className="mt-6">
         {bought ? (
           <p className="animate-pop flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-4 text-center text-lg font-bold text-accent-foreground">
-            <PartyPopper className="size-5" /> Kjøpt! En voksen får beskjed.
+            <PartyPopper className="size-5" /> {t.boughtTold}
           </p>
         ) : wish.status === "ACTIVE" && enough ? (
           <button
@@ -353,10 +366,10 @@ function WishDetailSheet({
             onClick={() => void buy()}
             className="flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground shadow-lg transition hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
           >
-            <ShoppingCart className="size-6" /> {buying ? "Kjøper…" : `Kjøp for ${formatKr(price ?? 0)}`}
+            <ShoppingCart className="size-6" /> {buying ? t.buying : t.buyFor(kr(price ?? 0))}
           </button>
         ) : wish.status === "PROPOSED" ? (
-          <p className="text-center text-sm text-muted-foreground">Når en voksen har sagt ja, kan du kjøpe det her.</p>
+          <p className="text-center text-sm text-muted-foreground">{t.whenAdultSaysYes}</p>
         ) : null}
         {error && <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-center font-semibold text-red-800">{error}</p>}
       </div>
@@ -366,7 +379,8 @@ function WishDetailSheet({
 
 /* ---------- Legg til ønske ---------- */
 
-function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose: () => void; onAdded: () => void }) {
+function AddWishSheet({ t, lang, childId, onClose, onAdded }: { t: KidText; lang: Lang; childId: string; onClose: () => void; onAdded: () => void }) {
+  const categories = wishCategories(lang);
   const [category, setCategory] = useState<WishCategory | null>(null);
   const [draft, setDraft] = useState<{ title: string; emoji: string; kr: number | null } | null>(null);
   const [customPrice, setCustomPrice] = useState("");
@@ -377,7 +391,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
     if (!draft?.title.trim()) return;
     const typed = customPrice.trim() ? parseKrToOre(customPrice) : null;
     if (typed === "invalid") {
-      setError("Skriv prisen som et tall, f.eks. 49.");
+      setError(t.priceAsNumber);
       return;
     }
     const suggestedOre = typeof typed === "number" ? typed : draft.kr !== null ? draft.kr * 100 : null;
@@ -392,7 +406,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
     setSending(false);
     if (!res.ok) {
-      setError(payload.error ?? "Det gikk ikke. Prøv igjen!");
+      setError(kidError(lang, payload.error, t.tryAgain));
       return;
     }
     onAdded();
@@ -404,21 +418,21 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
   };
 
   return (
-    <Sheet onClose={onClose} label="Nytt ønske">
+    <Sheet onClose={onClose} label={t.newWish} closeLabel={t.close}>
       <div className="flex items-center gap-2">
         {(category || draft) && (
-          <button type="button" onClick={back} aria-label="Tilbake" className="flex size-11 items-center justify-center rounded-xl border border-border hover:bg-secondary">
+          <button type="button" onClick={back} aria-label={t.back} className="flex size-11 items-center justify-center rounded-xl border border-border hover:bg-secondary">
             <ChevronLeft className="size-5" />
           </button>
         )}
         <h2 className="text-2xl font-extrabold tracking-tight">
-          {draft ? "Ser dette riktig ut?" : category ? `${category.emoji} ${category.title}` : "Hva ønsker du deg?"}
+          {draft ? t.looksRight : category ? `${category.emoji} ${category.title}` : t.whatWish}
         </h2>
       </div>
 
       {!category && !draft && (
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {WISH_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
               key={c.key}
               type="button"
@@ -435,7 +449,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
             onClick={() => setDraft({ title: "", emoji: DEFAULT_WISH_EMOJI, kr: null })}
             className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-[1.5rem] border-2 border-dashed border-border p-3 text-center font-extrabold transition active:scale-95"
           >
-            <Pencil className="size-8 text-primary" /> Skriv selv
+            <Pencil className="size-8 text-primary" /> {t.writeYourself}
           </button>
         </div>
       )}
@@ -453,7 +467,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
               <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-3xl" aria-hidden="true">{item.emoji}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-lg font-extrabold leading-tight">{item.title}</span>
-                {item.kr !== null && <span className="font-num text-sm font-bold opacity-75">ca. {item.kr} kr</span>}
+                {item.kr !== null && <span className="font-num text-sm font-bold opacity-75">{t.approx}{formatKr(item.kr * 100, lang)}</span>}
               </span>
             </button>
           ))}
@@ -462,7 +476,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
             onClick={() => setDraft({ title: "", emoji: category.emoji, kr: null })}
             className="flex items-center gap-4 rounded-[1.5rem] border-2 border-dashed border-border p-4 text-left font-extrabold active:scale-[0.98]"
           >
-            <Pencil className="size-6 text-primary" /> Noe annet …
+            <Pencil className="size-6 text-primary" /> {t.somethingElse}
           </button>
         </div>
       )}
@@ -474,7 +488,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
             <input
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              placeholder="Hva heter det?"
+              placeholder={t.whatCalled}
               maxLength={80}
               autoFocus={!draft.title}
               className="min-h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-lg font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
@@ -482,7 +496,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
           </div>
 
           <div>
-            <p className="font-bold">Hva tror du det koster? <span className="font-normal text-muted-foreground">(kan hoppes over)</span></p>
+            <p className="font-bold">{t.whatCost} <span className="font-normal text-muted-foreground">{t.canSkip}</span></p>
             <div className="mt-2 flex flex-wrap gap-2">
               {[null, ...PRICE_CHIPS].map((kr) => {
                 const selected = !customPrice && draft.kr === kr;
@@ -497,7 +511,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
                     }}
                     className={`font-num min-h-11 rounded-full px-4 text-sm font-bold transition ${selected ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
                   >
-                    {kr === null ? "Vet ikke" : `${kr} kr`}
+                    {kr === null ? t.dontKnow : formatKr(kr * 100, lang)}
                   </button>
                 );
               })}
@@ -506,7 +520,7 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
               value={customPrice}
               onChange={(e) => setCustomPrice(e.target.value)}
               inputMode="decimal"
-              placeholder="Annen pris (kr)"
+              placeholder={t.otherPrice}
               className="mt-3 min-h-12 w-full rounded-xl border border-border bg-card px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </div>
@@ -519,16 +533,16 @@ function AddWishSheet({ childId, onClose, onAdded }: { childId: string; onClose:
             onClick={() => void send()}
             className="flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground shadow-lg transition hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
           >
-            {sending ? "Legger til…" : "Legg i ønskelisten 🎁"}
+            {sending ? t.adding : t.addToList}
           </button>
-          <p className="text-center text-sm text-muted-foreground">En voksen ser på ønsket og bestemmer prisen.</p>
+          <p className="text-center text-sm text-muted-foreground">{t.adultDecidesPrice}</p>
         </div>
       )}
     </Sheet>
   );
 }
 
-function Sheet({ children, onClose, label }: { children: React.ReactNode; onClose: () => void; label: string }) {
+function Sheet({ children, onClose, label, closeLabel }: { children: React.ReactNode; onClose: () => void; label: string; closeLabel: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-3 backdrop-blur-sm sm:items-center" onClick={onClose}>
       <div
@@ -538,7 +552,7 @@ function Sheet({ children, onClose, label }: { children: React.ReactNode; onClos
         className="animate-pop relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-card p-5 shadow-2xl sm:p-7"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" onClick={onClose} aria-label="Lukk" className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-xl border border-border bg-card hover:bg-secondary">
+        <button type="button" onClick={onClose} aria-label={closeLabel} className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-xl border border-border bg-card hover:bg-secondary">
           <X className="size-5" />
         </button>
         {children}
