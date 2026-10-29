@@ -145,6 +145,11 @@ Logikk i databasen (security definer, ikke kallbar fra klient der det ikke treng
 - `ensure_weekly_allowances(family_id)`: faste ukepenger, kalles lat fra API-ene.
 
 `tasks.icon` er bildet forelderen har valgt (navn på en tegning i `components/task-art.tsx` eller en emoji, null = gjettes ut fra navnet).
+`tasks.title_i18n` (jsonb, f.eks. `{"uk": "…"}`) er navnet på barnas andre språk, skrevet
+av forelderen. Barnet ser `localTaskTitle` (`lib/task-title.ts`): egen oversettelse →
+kjent forslag oversatt (`knownTaskTitle` i `lib/task-packs-i18n.ts`) → navnet som skrevet.
+Kiosk-API-ene (tasks, progress, history) oversetter på serveren. Bilde, emoji og
+kategori gjettes ut fra ord på norsk, engelsk og ukrainsk.
 `tasks.category` grupperer oppgaver (nøkler fra `lib/task-packs.ts`, null = gjettes
 ut fra navnet med `categoryOf`).
 

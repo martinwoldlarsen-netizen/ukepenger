@@ -2,6 +2,8 @@
 // BASIC_TASKS brukes i onboarding (det enkle startsettet). TASK_PACKS er
 // kategoriene på Oppgaver-siden der man kan hente flere.
 
+import { knownTaskKey } from "@/lib/task-packs-i18n";
+
 export type PackTask = { title: string; kr: number; emoji?: string };
 export type TaskPack = { key: string; title: string; emoji: string; tasks: PackTask[] };
 
@@ -220,27 +222,30 @@ export const TASK_PACKS: TaskPack[] = [
 // Oppgaver som ikke passer i noen kategori (f.eks. «Salg 10,-»).
 export const OTHER_CATEGORY = { key: "andre", title: "Andre oppgaver", emoji: "📦" } as const;
 
+// Norsk, engelsk og ukrainsk (kyrilliske ord står uten \b).
 const CATEGORY_RULES: Array<[RegExp, string]> = [
-  [/søppel|soppel|søpla|søppla|pant|flaske|resirk|handlepose/i, "avfall"],
-  [/hund|katt|dyr|mate |fisk|bur\b|hest|kanin/i, "dyr"],
-  [/\bbad(et)?\b|dusj|\bdo\b|toalett|håndkl|dopapir|vasken\b/i, "bad"],
-  [/snø|sno|måke|make|løv|rake|plen|gress|hage|luke|ved\b|bil|bod|trapp|garasje/i, "ute"],
-  [/oppvask|bord|mat|middag|frokost|lunsj|kjøkken|kjøleskap|bake|matpakk/i, "kjokken"],
-  [/klær|klaer|klesvask|brette|skittentøy|seng(e|a)?tøy|skifte på|sko/i, "klaer"],
-  [/lekse|les(e|ing)|skole|sekk|instrument|øve|piano|stå opp|legge seg/i, "skole"],
-  [/leke|tenn|kle på|sokk/i, "minste"],
-  [/søsken|passe|besteforeld|nabo|hjelpe/i, "snill"],
-  [/rydd|støvsug|vask|støv|gulv|bad|vindu|blomst|seng/i, "huset"],
+  [/søppel|soppel|søpla|søppla|pant|flaske|resirk|handlepose|rubbish|trash|garbage|\bbins?\b|recycl|bottle|смітт|сортува|пляшк/i, "avfall"],
+  [/hund|katt|dyr|mate |fisk|bur\b|hest|kanin|\bdogs?\b|\bcats?\b|\bpets?\b|\bfeed|\bfish|horse|rabbit|собак|кіт|кота|тварин|нагодува|рибк|кролик/i, "dyr"],
+  [/\bbad(et)?\b|dusj|\bdo$|vaske do|toalett|håndkl|dopapir|vasken\b|bathroom|toilet|shower|towel|\bsink\b|ванн|туалет|унітаз|душ|рушник|раковин/i, "bad"],
+  [/snø|sno|måke|make|løv|rake|plen|gress|hage|luke|ved\b|\bbil(en)?\b|bod|trapp|garasje|\bsnow|leaves|lawn|\bmow|garden|\bweed|\bcar\b|shed|garage|steps|сніг|листя|газон|сад|город|машин|авто|гараж|сходи/i, "ute"],
+  [/oppvask|bord|mat(?!te|h)|middag|frokost|lunsj|kjøkken|kjøleskap|bake|matpakk|dishes|table|\bcook|dinner|breakfast|lunch|kitchen|fridge|посуд|стіл|стол|готува|сніданок|вечер|обід|кухн|холодильник|пекти/i, "kjokken"],
+  [/klær|klaer|klesvask|brette|skittentøy|seng(e|a)?tøy|skifte på|sko(?!l)|cloth|laundry|washing|\bfold|sheets|\bshoes?\b|одяг|прання|білизн|склас|взутт/i, "klaer"],
+  [/lekse|les(e|ing)|skole|sekk|instrument|øve|piano|stå opp|legge seg|homework|\bread|school|\bbag\b|practi[sc]e|get up|go to bed|домашн|урок|читати|школ|рюкзак|інструмент|встати|лягти/i, "skole"],
+  [/leke|tenn|kle på|sokk|\btoys?\b|teeth|get dressed|\bsocks?\b|іграшк|зуб|одягнут|шкарпет/i, "minste"],
+  [/søsken|passe|besteforeld|nabo|hjelpe|sibling|look after|grandparent|neighbou?r|\bhelp|молодш|бабус|дідус|сусід|допомог/i, "snill"],
+  [/rydd|støvsug|vask|støv|gulv|bad|vindu|blomst|seng|\btidy|vacuum|\bclean|\bdust|floor|window|flower|\bbed\b|прибра|пилосос|помити|пил|підлог|вікн|квіт|ліжк/i, "huset"],
 ];
 
 // Kategori for en oppgave: lagret verdi, ellers eksakt treff i biblioteket,
 // ellers et gjett ut fra navnet.
 export function categoryOf(task: { title: string; category?: string | null }): string {
   if (task.category) return task.category;
-  const t = task.title.trim().toLowerCase();
+  // Kjente forslag på engelsk/ukrainsk slås opp via det norske navnet.
+  const text = knownTaskKey(task.title) ?? task.title;
+  const t = text.trim().toLowerCase();
   const exact = TASK_PACKS.find((p) => p.tasks.some((x) => x.title.toLowerCase() === t));
   if (exact) return exact.key;
-  return CATEGORY_RULES.find(([re]) => re.test(task.title))?.[1] ?? OTHER_CATEGORY.key;
+  return CATEGORY_RULES.find(([re]) => re.test(text))?.[1] ?? OTHER_CATEGORY.key;
 }
 
 // Fast bilde for oppgaver fra biblioteket (slås opp på navn).
