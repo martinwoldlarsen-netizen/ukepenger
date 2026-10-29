@@ -20,6 +20,7 @@ import {
 import { formatWhen } from "@/lib/dates";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { useLang, useText } from "@/lib/use-lang";
 
 type ApprovedClaim = {
   id: string;
@@ -42,19 +43,118 @@ type Payment = {
 };
 
 type PaymentMethod = "CASH" | "VIPPS" | "BANK" | "OTHER";
-const METHODS: Array<{ value: PaymentMethod; label: string }> = [
-  { value: "CASH", label: "Kontanter" },
-  { value: "VIPPS", label: "Vipps" },
-  { value: "BANK", label: "Bank" },
-  { value: "OTHER", label: "Annet" },
-];
-const methodLabel: Record<string, string> = {
-  VIPPS: "Vipps",
-  CASH: "Kontanter",
-  BANK: "Bank",
-  OTHER: "Annet",
-  // Satt av databasefunksjonen approve_wish når et ønske utbetales.
-  WISH: "Ønske",
+const METHODS: PaymentMethod[] = ["CASH", "VIPPS", "BANK", "OTHER"];
+
+const TEXT = {
+  nb: {
+    // WISH settes av databasefunksjonen approve_wish når et ønske utbetales.
+    methods: { VIPPS: "Vipps", CASH: "Kontanter", BANK: "Bank", OTHER: "Annet", WISH: "Ønske" } as Record<string, string>,
+    amountAsNumber: "Skriv beløpet som et tall, f.eks. 34,50.",
+    onlyOwed: (name: string, amount: string) => `${name} har bare ${amount} til gode.`,
+    theChild: "Barnet",
+    payTitle: (amount: string, name: string) => `Utbetale ${amount} til ${name}?`,
+    payText: (method: string, rest: string) => `${method}. ${rest} blir igjen.`,
+    payOut: "Utbetal",
+    tooMuch: "Beløpet er større enn det barnet har til gode.",
+    paidToast: (amount: string, name: string) => `${amount} utbetalt til ${name}`,
+    payFailed: "Klarte ikke å registrere utbetalingen.",
+    deleteTitle: "Slette utbetalingen?",
+    deleteWishText: (amount: string, name: string) => `${amount} går tilbake til ${name} sitt «til gode», og ønsket blir et sparemål igjen.`,
+    deleteText: (amount: string, name: string) => `${amount} går tilbake til ${name} sitt «til gode».`,
+    delete: "Slett",
+    deleted: "Utbetalingen er slettet",
+    deleteFailed: "Klarte ikke å slette utbetalingen.",
+    loadFailed: "Klarte ikke å hente utbetalinger",
+    tryAgain: "Prøv igjen",
+    owes: (name: string) => `${name} har til gode`,
+    nothingToPay: "Ingenting å utbetale akkurat nå.",
+    howMuch: "Hvor mye betaler du ut?",
+    all: (amount: string) => `Alt · ${amount}`,
+    leftInPot: (amount: string) => `${amount} blir igjen i potten.`,
+    whatFor: "Hva gjelder det?",
+    optional: "(valgfritt)",
+    notePlaceholder: "F.eks. Lego-sett, eller ukepenger",
+    paidWith: "Betalt med",
+    payAmount: (amount: string) => `Utbetal ${amount}`,
+    showSource: "Vis hva pengene kommer fra",
+    noChildrenTitle: "Ingen barn ennå",
+    noChildrenBody: "Legg til barn under Barn.",
+    recent: "Siste utbetalinger",
+    noPayments: "Ingen utbetalinger ennå",
+    deletePayment: "Slett utbetaling",
+  },
+  en: {
+    methods: { VIPPS: "Vipps", CASH: "Cash", BANK: "Bank", OTHER: "Other", WISH: "Wish" } as Record<string, string>,
+    amountAsNumber: "Write the amount as a number, e.g. 34.50.",
+    onlyOwed: (name: string, amount: string) => `${name} is only owed ${amount}.`,
+    theChild: "The child",
+    payTitle: (amount: string, name: string) => `Pay ${amount} to ${name}?`,
+    payText: (method: string, rest: string) => `${method}. ${rest} will be left.`,
+    payOut: "Pay out",
+    tooMuch: "The amount is more than the child is owed.",
+    paidToast: (amount: string, name: string) => `${amount} paid to ${name}`,
+    payFailed: "Couldn't record the payout.",
+    deleteTitle: "Delete the payout?",
+    deleteWishText: (amount: string, name: string) => `${amount} goes back to what ${name} is owed, and the wish becomes a savings goal again.`,
+    deleteText: (amount: string, name: string) => `${amount} goes back to what ${name} is owed.`,
+    delete: "Delete",
+    deleted: "The payout was deleted",
+    deleteFailed: "Couldn't delete the payout.",
+    loadFailed: "Couldn't load payouts",
+    tryAgain: "Try again",
+    owes: (name: string) => `${name} is owed`,
+    nothingToPay: "Nothing to pay out right now.",
+    howMuch: "How much are you paying out?",
+    all: (amount: string) => `All · ${amount}`,
+    leftInPot: (amount: string) => `${amount} will be left.`,
+    whatFor: "What is it for?",
+    optional: "(optional)",
+    notePlaceholder: "E.g. LEGO set, or pocket money",
+    paidWith: "Paid with",
+    payAmount: (amount: string) => `Pay out ${amount}`,
+    showSource: "Show where the money comes from",
+    noChildrenTitle: "No children yet",
+    noChildrenBody: "Add children under Children.",
+    recent: "Recent payouts",
+    noPayments: "No payouts yet",
+    deletePayment: "Delete payout",
+  },
+  uk: {
+    methods: { VIPPS: "Vipps", CASH: "Готівка", BANK: "Банк", OTHER: "Інше", WISH: "Бажання" } as Record<string, string>,
+    amountAsNumber: "Напишіть суму числом, наприклад 34,50.",
+    onlyOwed: (name: string, amount: string) => `${name}: належить лише ${amount}.`,
+    theChild: "Дитина",
+    payTitle: (amount: string, name: string) => `Виплатити ${amount} — ${name}?`,
+    payText: (method: string, rest: string) => `${method}. Залишиться ${rest}.`,
+    payOut: "Виплатити",
+    tooMuch: "Сума більша, ніж належить дитині.",
+    paidToast: (amount: string, name: string) => `${amount} виплачено — ${name}`,
+    payFailed: "Не вдалося зареєструвати виплату.",
+    deleteTitle: "Видалити виплату?",
+    deleteWishText: (amount: string, name: string) => `${amount} повернеться до суми, що належить: ${name}, а бажання знову стане ціллю накопичення.`,
+    deleteText: (amount: string, name: string) => `${amount} повернеться до суми, що належить: ${name}.`,
+    delete: "Видалити",
+    deleted: "Виплату видалено",
+    deleteFailed: "Не вдалося видалити виплату.",
+    loadFailed: "Не вдалося завантажити виплати",
+    tryAgain: "Спробувати ще раз",
+    owes: (name: string) => `${name}: належить`,
+    nothingToPay: "Зараз нічого виплачувати.",
+    howMuch: "Скільки ви виплачуєте?",
+    all: (amount: string) => `Усе · ${amount}`,
+    leftInPot: (amount: string) => `Залишиться ${amount}.`,
+    whatFor: "За що це?",
+    optional: "(необов’язково)",
+    notePlaceholder: "Напр. набір LEGO або кишенькові",
+    paidWith: "Спосіб оплати",
+    payAmount: (amount: string) => `Виплатити ${amount}`,
+    showSource: "Показати, звідки гроші",
+    noChildrenTitle: "Ще немає дітей",
+    noChildrenBody: "Додайте дітей у розділі «Діти».",
+    recent: "Останні виплати",
+    noPayments: "Ще немає виплат",
+    deletePayment: "Видалити виплату",
+  },
 };
 
 function check<T>(res: { data: T | null; error: { message: string } | null }): T {
@@ -110,6 +210,11 @@ async function loadPayments(familyId: string) {
 }
 
 export default function AdminPaymentsPage() {
+  const t = useText(TEXT);
+  const lang = useLang();
+  const kr = (ore: number) => formatKr(ore, lang);
+  const when = (d: string) => formatWhen(d, undefined, lang);
+  const methodLabel = t.methods;
   const toast = useToast();
   const confirm = useConfirm();
   const { familyId } = useAdminIdentity();
@@ -140,16 +245,16 @@ export default function AdminPaymentsPage() {
   const parsed = amount.trim() ? parseKrToOre(amount) : balance;
   const payOre = typeof parsed === "number" ? parsed : 0;
   const amountError =
-    amount.trim() && typeof parsed !== "number" ? "Skriv beløpet som et tall, f.eks. 34,50." : payOre > balance ? `${child?.name ?? "Barnet"} har bare ${formatKr(balance)} til gode.` : null;
+    amount.trim() && typeof parsed !== "number" ? t.amountAsNumber : payOre > balance ? t.onlyOwed(child?.name ?? t.theChild, kr(balance)) : null;
 
   const loading = !familyId || (data.isLoading && !data.data) || (children.isLoading && !children.data);
 
   const pay = async () => {
     if (!child || payOre <= 0 || amountError || submitting) return;
     const ok = await confirm({
-      title: `Utbetale ${formatKr(payOre)} til ${child.name}?`,
-      text: `${methodLabel[method]}${note.trim() ? ` · ${note.trim()}` : ""}. ${formatKr(balance - payOre)} blir igjen.`,
-      confirmLabel: "Utbetal",
+      title: t.payTitle(kr(payOre), child.name),
+      text: t.payText(`${methodLabel[method]}${note.trim() ? ` · ${note.trim()}` : ""}`, kr(balance - payOre)),
+      confirmLabel: t.payOut,
     });
     if (!ok) return;
 
@@ -157,15 +262,15 @@ export default function AdminPaymentsPage() {
     try {
       const res = await supabase.rpc("pay_out_amount", { p_child_id: child.id, p_amount_ore: payOre, p_method: method, p_note: note.trim() || null });
       if (res.error) {
-        if (/NOT_ENOUGH|BALANCE_CHANGED/.test(res.error.message)) throw new UserFacingError("Beløpet er større enn det barnet har til gode.");
+        if (/NOT_ENOUGH|BALANCE_CHANGED/.test(res.error.message)) throw new UserFacingError(t.tooMuch);
         throw new Error(res.error.message);
       }
-      toast({ text: `${formatKr(payOre)} utbetalt til ${child.name}` });
+      toast({ text: t.paidToast(kr(payOre), child.name) });
       setAmount("");
       setNote("");
       await data.mutate();
     } catch (error) {
-      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å registrere utbetalingen.") });
+      toast({ kind: "error", text: friendlyError(error, t.payFailed) });
     } finally {
       setSubmitting(false);
     }
@@ -174,21 +279,18 @@ export default function AdminPaymentsPage() {
   const deletePayment = async (payment: Payment) => {
     const who = childOf(payment.child_id).name;
     const ok = await confirm({
-      title: "Slette utbetalingen?",
-      text:
-        payment.method === "WISH"
-          ? `${formatKr(payment.amount_ore)} går tilbake til ${who} sitt «til gode», og ønsket blir et sparemål igjen.`
-          : `${formatKr(payment.amount_ore)} går tilbake til ${who} sitt «til gode».`,
-      confirmLabel: "Slett",
+      title: t.deleteTitle,
+      text: payment.method === "WISH" ? t.deleteWishText(kr(payment.amount_ore), who) : t.deleteText(kr(payment.amount_ore), who),
+      confirmLabel: t.delete,
       danger: true,
     });
     if (!ok) return;
     try {
       await adminFetch("/api/payments/delete", { method: "POST", body: JSON.stringify({ paymentId: payment.id }) });
-      toast({ text: "Utbetalingen er slettet" });
+      toast({ text: t.deleted });
       await data.mutate();
     } catch (error) {
-      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å slette utbetalingen.") });
+      toast({ kind: "error", text: friendlyError(error, t.deleteFailed) });
     }
   };
 
@@ -196,9 +298,9 @@ export default function AdminPaymentsPage() {
 
   if (data.error && !data.data) {
     return (
-      <EmptyState emoji="😕" title="Klarte ikke å hente utbetalinger">
+      <EmptyState emoji="😕" title={t.loadFailed}>
         <Button variant="secondary" className="mt-3" onClick={() => void data.mutate()}>
-          Prøv igjen
+          {t.tryAgain}
         </Button>
       </EmptyState>
     );
@@ -231,7 +333,7 @@ export default function AdminPaymentsPage() {
               <KidAvatar avatarKey={c.avatar_key} size={44} />
               <span className="min-w-0">
                 <span className="block truncate font-bold">{c.name}</span>
-                <span className="font-num block text-sm font-bold">{formatKr(dueByChild[c.id] ?? 0)}</span>
+                <span className="font-num block text-sm font-bold">{kr(dueByChild[c.id] ?? 0)}</span>
               </span>
             </button>
           );
@@ -243,18 +345,18 @@ export default function AdminPaymentsPage() {
           <div className="flex items-center gap-3">
             <Avatar avatarKey={child.avatar_key} />
             <div>
-              <p className="text-sm font-semibold text-muted-foreground">{child.name} har til gode</p>
-              <p className="font-num text-3xl font-bold tracking-tight">{formatKr(dueByChild[child.id] ?? 0)}</p>
+              <p className="text-sm font-semibold text-muted-foreground">{t.owes(child.name)}</p>
+              <p className="font-num text-3xl font-bold tracking-tight">{kr(dueByChild[child.id] ?? 0)}</p>
             </div>
           </div>
 
           {childClaims.length === 0 ? (
-            <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">Ingenting å utbetale akkurat nå.</p>
+            <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">{t.nothingToPay}</p>
           ) : (
             <>
               <div>
                 <label htmlFor="pay-amount" className="mb-2 block text-sm font-semibold text-foreground/85">
-                  Hvor mye betaler du ut?
+                  {t.howMuch}
                 </label>
                 <span className="relative block">
                   <Input
@@ -274,56 +376,56 @@ export default function AdminPaymentsPage() {
                     onClick={() => setAmount("")}
                     className={cx("min-h-10 rounded-full px-4 text-sm font-semibold transition", focusRing, !amount.trim() ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent")}
                   >
-                    Alt · {formatKr(balance)}
+                    {t.all(kr(balance))}
                   </button>
                 </div>
                 {amountError ? (
                   <p className="mt-2 text-sm font-semibold text-red-700">{amountError}</p>
                 ) : (
-                  amount.trim() && <p className="mt-2 text-sm text-muted-foreground">{formatKr(balance - payOre)} blir igjen i potten.</p>
+                  amount.trim() && <p className="mt-2 text-sm text-muted-foreground">{t.leftInPot(kr(balance - payOre))}</p>
                 )}
               </div>
 
               <div>
                 <label htmlFor="pay-note" className="mb-2 block text-sm font-semibold text-foreground/85">
-                  Hva gjelder det? <span className="font-normal text-muted-foreground">(valgfritt)</span>
+                  {t.whatFor} <span className="font-normal text-muted-foreground">{t.optional}</span>
                 </label>
-                <Input id="pay-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="F.eks. Lego-sett, eller ukepenger" maxLength={120} />
+                <Input id="pay-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.notePlaceholder} maxLength={120} />
               </div>
 
               <div>
-                <p className="mb-2 text-sm font-semibold text-foreground/85">Betalt med</p>
+                <p className="mb-2 text-sm font-semibold text-foreground/85">{t.paidWith}</p>
                 <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-secondary p-1.5">
                   {METHODS.map((m) => (
                     <button
-                      key={m.value}
+                      key={m}
                       type="button"
-                      aria-pressed={method === m.value}
-                      onClick={() => setMethod(m.value)}
-                      className={cx("min-h-10 rounded-xl px-1 text-sm font-semibold transition", focusRing, method === m.value ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                      aria-pressed={method === m}
+                      onClick={() => setMethod(m)}
+                      className={cx("min-h-10 rounded-xl px-1 text-sm font-semibold transition", focusRing, method === m ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground")}
                     >
-                      {m.label}
+                      {methodLabel[m]}
                     </button>
                   ))}
                 </div>
               </div>
 
               <Button size="lg" block loading={submitting} disabled={payOre <= 0 || Boolean(amountError)} onClick={() => void pay()} icon={<Wallet className="size-5" />}>
-                Utbetal {formatKr(payOre)}
+                {t.payAmount(kr(payOre))}
               </Button>
 
               <details className="group">
                 <summary className={cx("flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-xl text-sm font-semibold text-muted-foreground", focusRing)}>
-                  <ChevronDown className="size-4 transition group-open:rotate-180" /> Vis hva pengene kommer fra
+                  <ChevronDown className="size-4 transition group-open:rotate-180" /> {t.showSource}
                 </summary>
                 <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border text-sm">
                   {childClaims.map((claim) => (
                     <li key={claim.id} className="flex items-center gap-3 px-4 py-2.5">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{taskTitleOf(claim)}</span>
-                        <span className="block text-muted-foreground">{formatWhen(claim.created_at)}</span>
+                        <span className="block text-muted-foreground">{when(claim.created_at)}</span>
                       </span>
-                      <span className="font-num font-bold">{formatKr(claim.amount_ore)}</span>
+                      <span className="font-num font-bold">{kr(claim.amount_ore)}</span>
                     </li>
                   ))}
                 </ul>
@@ -334,18 +436,18 @@ export default function AdminPaymentsPage() {
       )}
 
       {activeChildren.length === 0 && (
-        <EmptyState emoji="👶" title="Ingen barn ennå">
-          Legg til barn under Barn.
+        <EmptyState emoji="👶" title={t.noChildrenTitle}>
+          {t.noChildrenBody}
         </EmptyState>
       )}
 
       {/* Historikk */}
       <div className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <Receipt className="size-5 text-muted-foreground" /> Siste utbetalinger
+          <Receipt className="size-5 text-muted-foreground" /> {t.recent}
         </h2>
         {payments.length === 0 ? (
-          <EmptyState emoji="🧾" title="Ingen utbetalinger ennå" />
+          <EmptyState emoji="🧾" title={t.noPayments} />
         ) : (
           <ul className="space-y-2">
             {payments.map((payment) => {
@@ -361,22 +463,22 @@ export default function AdminPaymentsPage() {
                           {payment.note ? ` · ${payment.note}` : ""}
                         </span>
                         <span className="block text-sm text-muted-foreground">
-                          {formatWhen(payment.created_at)} · {methodLabel[payment.method] ?? payment.method}
+                          {when(payment.created_at)} · {methodLabel[payment.method] ?? payment.method}
                         </span>
                       </span>
-                      <span className="font-num font-bold text-primary">{formatKr(payment.amount_ore)}</span>
+                      <span className="font-num font-bold text-primary">{kr(payment.amount_ore)}</span>
                       <ChevronDown className="size-4 text-muted-foreground transition group-open:rotate-180" />
                     </summary>
                     <div className="space-y-2 border-t border-border px-4 pb-4 pt-3">
                       {payment.claims.map((claim) => (
                         <div key={claim.id} className="flex items-center justify-between text-sm">
                           <span>{claim.title}</span>
-                          <span className="font-num font-semibold">{formatKr(claim.amount_ore)}</span>
+                          <span className="font-num font-semibold">{kr(claim.amount_ore)}</span>
                         </div>
                       ))}
                       
                       <Button variant="dangerSoft" size="sm" className="mt-2" icon={<Trash2 className="size-4" />} onClick={() => void deletePayment(payment)}>
-                        Slett utbetaling
+                        {t.deletePayment}
                       </Button>
                     </div>
                   </details>

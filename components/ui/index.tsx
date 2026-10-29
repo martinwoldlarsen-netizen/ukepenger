@@ -4,6 +4,7 @@
 // kopier av knapper, kort, felter og meldinger, slik at alt ser likt ut og
 // alle trykkflater er store nok (minst 40 px) og har synlig fokus.
 
+import { currentLang } from "@/lib/use-lang";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { forwardRef } from "react";
@@ -195,7 +196,7 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function ListSkeleton({ rows = 3, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cx("space-y-3", className)} role="status" aria-label="Laster">
+    <div className={cx("space-y-3", className)} role="status" aria-label={{ nb: "Laster", en: "Loading", uk: "Завантаження" }[currentLang()]}>
       {Array.from({ length: rows }, (_, i) => (
         <Skeleton key={i} className="h-24" />
       ))}

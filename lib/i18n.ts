@@ -24,3 +24,17 @@ export function plural(lang: Lang, n: number, forms: { one: string; few?: string
   if (rule === "many") return forms.many ?? forms.other;
   return forms.other;
 }
+
+// Språket den voksne har valgt (forside, innlogging og foreldredelen) huskes i
+// en vanlig cookie, så det også kan leses av serveren.
+export const LANG_COOKIE = "uk_lang";
+
+export function langFromCookieString(cookie: string | undefined | null): Lang {
+  const m = (cookie ?? "").match(/(?:^|;\s*)uk_lang=(nb|en|uk)\b/);
+  return asLang(m?.[1]);
+}
+
+// Velg riktig språkversjon av en ordliste ({ nb, en, uk }).
+export function pick<T>(dict: Record<Lang, T>, lang: Lang): T {
+  return dict[lang] ?? dict.nb;
+}

@@ -11,27 +11,44 @@ import { FeedbackProvider } from "@/components/ui/feedback";
 import { adminFetch, useAdminIdentity, usePendingClaims, usePendingWishes } from "@/lib/admin-data";
 import { clearAdminIdentityCache, getAdminSetupStatus, getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useText } from "@/lib/use-lang";
 
-type NavItem = { href: string; label: string; short?: string; icon: typeof CheckCheck };
+type NavItem = { href: string; key: keyof (typeof TEXT)["nb"]["nav"]; icon: typeof CheckCheck };
+
+const TEXT = {
+  nb: {
+    nav: { inbox: "Krav", payments: "Utbetalinger", paymentsShort: "Penger", tasks: "Oppgaver", children: "Barn", trophies: "Trofeer", history: "Historikk", family: "Familie", devices: "Enheter", settings: "Innstillinger", owner: "Eier-oversikt" },
+    mainMenu: "Hovedmeny", signingOut: "Logger ut…", signOut: "Logg ut", loading: "Laster", more: "Mer", close: "Lukk", language: "Språk",
+  },
+  en: {
+    nav: { inbox: "Requests", payments: "Payouts", paymentsShort: "Money", tasks: "Tasks", children: "Children", trophies: "Trophies", history: "History", family: "Family", devices: "Devices", settings: "Settings", owner: "Owner overview" },
+    mainMenu: "Main menu", signingOut: "Signing out…", signOut: "Sign out", loading: "Loading", more: "More", close: "Close", language: "Language",
+  },
+  uk: {
+    nav: { inbox: "Запити", payments: "Виплати", paymentsShort: "Гроші", tasks: "Завдання", children: "Діти", trophies: "Трофеї", history: "Історія", family: "Сім’я", devices: "Пристрої", settings: "Налаштування", owner: "Огляд власника" },
+    mainMenu: "Головне меню", signingOut: "Вихід…", signOut: "Вийти", loading: "Завантаження", more: "Більше", close: "Закрити", language: "Мова",
+  },
+};
 
 // Fire hovedvalg i bunnmenyen på mobil; resten ligger under "Mer".
 const primaryNav: NavItem[] = [
-  { href: "/admin/inbox", label: "Krav", icon: CheckCheck },
-  { href: "/admin/payments", label: "Utbetalinger", short: "Penger", icon: Wallet },
-  { href: "/admin/tasks", label: "Oppgaver", icon: ListChecks },
-  { href: "/admin/children", label: "Barn", icon: Users },
+  { href: "/admin/inbox", key: "inbox", icon: CheckCheck },
+  { href: "/admin/payments", key: "payments", icon: Wallet },
+  { href: "/admin/tasks", key: "tasks", icon: ListChecks },
+  { href: "/admin/children", key: "children", icon: Users },
 ];
 
 const baseSecondaryNav: NavItem[] = [
-  { href: "/admin/trophies", label: "Trofeer", icon: Trophy },
-  { href: "/admin/history", label: "Historikk", icon: History },
-  { href: "/admin/family", label: "Familie", icon: Heart },
-  { href: "/admin/devices", label: "Enheter", icon: Smartphone },
-  { href: "/admin/settings", label: "Innstillinger", icon: Settings },
+  { href: "/admin/trophies", key: "trophies", icon: Trophy },
+  { href: "/admin/history", key: "history", icon: History },
+  { href: "/admin/family", key: "family", icon: Heart },
+  { href: "/admin/devices", key: "devices", icon: Smartphone },
+  { href: "/admin/settings", key: "settings", icon: Settings },
 ];
 
 // Eier-oversikten vises bare for eieren av tjenesten (sjekkes på serveren).
-const ownerNav: NavItem = { href: "/admin/eier", label: "Eier-oversikt", icon: BarChart3 };
+const ownerNav: NavItem = { href: "/admin/eier", key: "owner", icon: BarChart3 };
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -48,6 +65,7 @@ function AdminShell({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const t = useText(TEXT);
 
   const { familyId } = useAdminIdentity();
   const isOwner = useSWR(ready ? "is-owner" : null, () => adminFetch<{ owner: boolean }>("/api/admin/owner?check=1").then((r) => r.owner).catch(() => false), {
@@ -60,7 +78,8 @@ function AdminShell({ children }: { children: ReactNode }) {
   const wishes = usePendingWishes(ready ? familyId : null);
   const pendingCount = (claims.data?.length ?? 0) + (wishes.data?.length ?? 0);
 
-  const currentPageTitle = allNav.find((item) => pathname.startsWith(item.href))?.label ?? "Admin";
+  const currentNav = allNav.find((item) => pathname.startsWith(item.href));
+  const currentPageTitle = currentNav ? t.nav[currentNav.key] : "Admin";
 
   useEffect(() => {
     const run = async () => {
@@ -103,7 +122,7 @@ function AdminShell({ children }: { children: ReactNode }) {
           </span>
           <span className="font-num text-[17px] font-bold tracking-[-0.06em]">ukepenger</span>
         </Link>
-        <nav className="mt-8 space-y-1" aria-label="Hovedmeny">
+        <nav className="mt-8 space-y-1" aria-label={t.mainMenu}>
           {allNav.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -120,7 +139,7 @@ function AdminShell({ children }: { children: ReactNode }) {
                 )}
               >
                 <Icon className="size-[18px]" strokeWidth={2.25} />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1">{t.nav[item.key]}</span>
                 {showBadge && (
                   <span className={cx("font-num min-w-6 rounded-full px-1.5 text-center text-xs font-bold leading-6", active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground")}>
                     {pendingCount}
@@ -130,14 +149,17 @@ function AdminShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+        <div className="mt-auto px-1 pb-2">
+          <LanguageSwitcher full align="left" />
+        </div>
         <button
           type="button"
           disabled={signingOut}
           onClick={() => void signOut()}
-          className={cx("mt-auto flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-60", focusRing)}
+          className={cx("flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-60", focusRing)}
         >
           <LogOut className="size-[18px]" strokeWidth={2.25} />
-          {signingOut ? "Logger ut…" : "Logg ut"}
+          {signingOut ? t.signingOut : t.signOut}
         </button>
       </aside>
 
@@ -150,7 +172,7 @@ function AdminShell({ children }: { children: ReactNode }) {
           {ready ? (
             children
           ) : (
-            <div className="space-y-3" role="status" aria-label="Laster">
+            <div className="space-y-3" role="status" aria-label={t.loading}>
               <Skeleton className="h-32" />
               <Skeleton className="h-24" />
               <Skeleton className="h-24" />
@@ -161,7 +183,7 @@ function AdminShell({ children }: { children: ReactNode }) {
 
       {/* Bunnmeny på mobil: fire valg + Mer */}
       <nav
-        aria-label="Hovedmeny"
+        aria-label={t.mainMenu}
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5 backdrop-blur md:hidden"
       >
         {primaryNav.map((item) => {
@@ -183,7 +205,7 @@ function AdminShell({ children }: { children: ReactNode }) {
                   </span>
                 )}
               </span>
-              <span className="truncate">{item.short ?? item.label}</span>
+              <span className="truncate">{item.key === "payments" ? t.nav.paymentsShort : t.nav[item.key]}</span>
             </Link>
           );
         })}
@@ -200,7 +222,7 @@ function AdminShell({ children }: { children: ReactNode }) {
           <span className={cx("flex h-8 w-14 items-center justify-center rounded-full", secondaryNav.some((i) => isActive(i.href)) && "bg-primary/12")}>
             <MoreHorizontal className="size-[22px]" />
           </span>
-          Mer
+          {t.more}
         </button>
       </nav>
 
@@ -210,14 +232,14 @@ function AdminShell({ children }: { children: ReactNode }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Mer"
+            aria-label={t.more}
             className="animate-pop w-full rounded-t-[2rem] bg-card px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border" />
             <div className="flex items-center justify-between px-2 pb-2">
-              <p className="text-lg font-bold">Mer</p>
-              <button type="button" aria-label="Lukk" onClick={() => setMoreOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
+              <p className="text-lg font-bold">{t.more}</p>
+              <button type="button" aria-label={t.close} onClick={() => setMoreOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
                 <X className="size-5" />
               </button>
             </div>
@@ -234,10 +256,13 @@ function AdminShell({ children }: { children: ReactNode }) {
                     <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary">
                       <Icon className="size-5" />
                     </span>
-                    {item.label}
+                    {t.nav[item.key]}
                   </Link>
                 );
               })}
+              <div className="px-1 py-1">
+                <LanguageSwitcher full align="left" />
+              </div>
               <button
                 type="button"
                 disabled={signingOut}
@@ -247,7 +272,7 @@ function AdminShell({ children }: { children: ReactNode }) {
                 <span className="flex size-10 items-center justify-center rounded-xl bg-red-50">
                   <LogOut className="size-5" />
                 </span>
-                {signingOut ? "Logger ut…" : "Logg ut"}
+                {signingOut ? t.signingOut : t.signOut}
               </button>
             </div>
           </div>

@@ -12,6 +12,46 @@ import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { useLang, useText } from "@/lib/use-lang";
+
+const TEXT = {
+  nb: {
+    pickAmount: "Velg eller skriv et beløp.", bonusFailed: "Klarte ikke å gi bonus.", bonusGiven: (amount: string, name: string) => `🎁 ${amount} i bonus til ${name}`,
+    addFailed: "Klarte ikke å legge til barnet.", added: (name: string) => `${name} er lagt til`,
+    removeTitle: (name: string) => `Fjerne ${name}?`, removeText: "Barnet forsvinner fra barnesiden. Historikken beholdes, og du kan hente barnet tilbake senere.", remove: "Fjern",
+    back: (name: string) => `${name} er tilbake`, removed: (name: string) => `${name} er fjernet`,
+    addChild: "Legg til barn", close: "Lukk", name: "Navn", namePlaceholder: "F.eks. Nora", pickFigure: "Velg figur (barnet kan bytte selv senere)", add: "Legg til",
+    noneTitle: "Ingen barn ennå", noneBody: "Legg til det første barnet, så dukker det opp på barnesiden.",
+    family: "Hele familien", owed: "Til gode", saved: "Spart", paid: "Utbetalt", lastWeek: "Tjent siste 7 dager",
+    changeFigure: (name: string) => `Bytt figur for ${name}`, pending: (n: number) => `${n} venter på godkjenning`,
+    bonusTo: (name: string) => `🎁 Bonus til ${name}`, otherAmount: "Annet beløp (kr)", why: "Hvorfor? F.eks. hjalp til ekstra", cancel: "Avbryt", giveBonus: "Gi bonus",
+    bonus: "🎁 Bonus", details: "Detaljer", hideRemoved: "Skjul fjernede barn", showRemoved: (n: number) => `Vis fjernede barn (${n})`, restore: "Hent tilbake", bonusNote: "Bonus",
+  },
+  en: {
+    pickAmount: "Choose or write an amount.", bonusFailed: "Couldn't give the bonus.", bonusGiven: (amount: string, name: string) => `🎁 ${amount} bonus for ${name}`,
+    addFailed: "Couldn't add the child.", added: (name: string) => `${name} was added`,
+    removeTitle: (name: string) => `Remove ${name}?`, removeText: "The child disappears from the children's page. The history is kept, and you can bring the child back later.", remove: "Remove",
+    back: (name: string) => `${name} is back`, removed: (name: string) => `${name} was removed`,
+    addChild: "Add a child", close: "Close", name: "Name", namePlaceholder: "E.g. Nora", pickFigure: "Choose a character (the child can change it later)", add: "Add",
+    noneTitle: "No children yet", noneBody: "Add the first child and they will appear on the children's page.",
+    family: "The whole family", owed: "Owed", saved: "Saved", paid: "Paid out", lastWeek: "Earned in the last 7 days",
+    changeFigure: (name: string) => `Change character for ${name}`, pending: (n: number) => `${n} waiting for approval`,
+    bonusTo: (name: string) => `🎁 Bonus for ${name}`, otherAmount: "Other amount (kr)", why: "Why? E.g. helped out extra", cancel: "Cancel", giveBonus: "Give bonus",
+    bonus: "🎁 Bonus", details: "Details", hideRemoved: "Hide removed children", showRemoved: (n: number) => `Show removed children (${n})`, restore: "Bring back", bonusNote: "Bonus",
+  },
+  uk: {
+    pickAmount: "Оберіть або впишіть суму.", bonusFailed: "Не вдалося нарахувати бонус.", bonusGiven: (amount: string, name: string) => `🎁 Бонус ${amount} — ${name}`,
+    addFailed: "Не вдалося додати дитину.", added: (name: string) => `${name}: додано`,
+    removeTitle: (name: string) => `Прибрати ${name}?`, removeText: "Дитина зникне зі сторінки для дітей. Історія збережеться, і дитину можна буде повернути пізніше.", remove: "Прибрати",
+    back: (name: string) => `${name}: повернуто`, removed: (name: string) => `${name}: прибрано`,
+    addChild: "Додати дитину", close: "Закрити", name: "Ім’я", namePlaceholder: "Напр. Софія", pickFigure: "Оберіть персонажа (дитина зможе змінити його пізніше)", add: "Додати",
+    noneTitle: "Ще немає дітей", noneBody: "Додайте першу дитину, і вона з’явиться на сторінці для дітей.",
+    family: "Уся сім’я", owed: "Належить", saved: "Відкладено", paid: "Виплачено", lastWeek: "Зароблено за 7 днів",
+    changeFigure: (name: string) => `Змінити персонажа: ${name}`, pending: (n: number) => `Очікують схвалення: ${n}`,
+    bonusTo: (name: string) => `🎁 Бонус для: ${name}`, otherAmount: "Інша сума (kr)", why: "За що? Напр. допомога понад звичне", cancel: "Скасувати", giveBonus: "Нарахувати бонус",
+    bonus: "🎁 Бонус", details: "Докладніше", hideRemoved: "Сховати прибраних дітей", showRemoved: (n: number) => `Показати прибраних дітей (${n})`, restore: "Повернути", bonusNote: "Бонус",
+  },
+};
 
 type ChildStats = { dueOre: number; paidOre: number; savedOre: number; pendingCount: number; weekOre: number };
 const EMPTY_STATS: ChildStats = { dueOre: 0, paidOre: 0, savedOre: 0, pendingCount: 0, weekOre: 0 };
@@ -42,6 +82,9 @@ export default function AdminChildrenPage() {
   const children = useChildren(familyId);
   const stats = useSWR(familyId ? ["child-stats", familyId] : null, () => loadStats(familyId as string), swrDefaults);
 
+  const t = useText(TEXT);
+  const lang = useLang();
+  const kr = (ore: number) => formatKr(ore, lang);
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
   const [avatarKey, setAvatarKey] = useState(DEFAULT_AVATAR_KEY);
@@ -59,7 +102,7 @@ export default function AdminChildrenPage() {
   const giveBonus = async (child: AdminChild) => {
     const amountOre = parseKrToOre(bonusAmount);
     if (typeof amountOre !== "number" || amountOre <= 0) {
-      toast({ kind: "error", text: "Velg eller skriv et beløp." });
+      toast({ kind: "error", text: t.pickAmount });
       return;
     }
     if (!familyId || bonusSaving) return;
@@ -71,16 +114,16 @@ export default function AdminChildrenPage() {
       task_id: null,
       amount_ore: amountOre,
       status: "APPROVED",
-      note: bonusText.trim().slice(0, 120) || "Bonus",
+      note: bonusText.trim().slice(0, 120) || t.bonusNote,
       decided_at: now,
       decided_by: userId,
     });
     setBonusSaving(false);
     if (res.error) {
-      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å gi bonus.") });
+      toast({ kind: "error", text: friendlyError(res.error.message, t.bonusFailed) });
       return;
     }
-    toast({ text: `🎁 ${formatKr(amountOre)} i bonus til ${child.name}` });
+    toast({ text: t.bonusGiven(kr(amountOre), child.name) });
     setBonusFor(null);
     setBonusAmount("");
     setBonusText("");
@@ -94,13 +137,13 @@ export default function AdminChildrenPage() {
   const createChild = async () => {
     if (!familyId || saving || !name.trim()) return;
     setSaving(true);
-    const res = await supabase.from("children").insert({ family_id: familyId, name: name.trim(), avatar_key: avatarKey, active: true });
+    const res = await supabase.from("children").insert({ family_id: familyId, name: name.trim(), avatar_key: avatarKey, active: true, language: lang });
     setSaving(false);
     if (res.error) {
-      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å legge til barnet.") });
+      toast({ kind: "error", text: friendlyError(res.error.message, t.addFailed) });
       return;
     }
-    toast({ text: `${name.trim()} er lagt til` });
+    toast({ text: t.added(name.trim()) });
     setName("");
     setAvatarKey(DEFAULT_AVATAR_KEY);
     setFormOpen(false);
@@ -110,9 +153,9 @@ export default function AdminChildrenPage() {
   const setActive = async (child: AdminChild, nextActive: boolean) => {
     if (!nextActive) {
       const ok = await confirm({
-        title: `Fjerne ${child.name}?`,
-        text: "Barnet forsvinner fra barnesiden. Historikken beholdes, og du kan hente barnet tilbake senere.",
-        confirmLabel: "Fjern",
+        title: t.removeTitle(child.name),
+        text: t.removeText,
+        confirmLabel: t.remove,
         danger: true,
       });
       if (!ok) return;
@@ -122,7 +165,7 @@ export default function AdminChildrenPage() {
       toast({ kind: "error", text: friendlyError(res.error.message) });
       return;
     }
-    toast({ text: nextActive ? `${child.name} er tilbake` : `${child.name} er fjernet` });
+    toast({ text: nextActive ? t.back(child.name) : t.removed(child.name) });
     await children.mutate();
   };
 
@@ -143,8 +186,8 @@ export default function AdminChildrenPage() {
       {formOpen ? (
         <Card className="animate-pop space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold tracking-tight">Legg til barn</h2>
-            <button type="button" aria-label="Lukk" onClick={() => setFormOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
+            <h2 className="text-lg font-bold tracking-tight">{t.addChild}</h2>
+            <button type="button" aria-label={t.close} onClick={() => setFormOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
               <X className="size-5" />
             </button>
           </div>
@@ -155,43 +198,43 @@ export default function AdminChildrenPage() {
               void createChild();
             }}
           >
-            <Field label="Navn">
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="F.eks. Nora" autoFocus maxLength={40} />
+            <Field label={t.name}>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.namePlaceholder} autoFocus maxLength={40} />
             </Field>
             <div>
-              <p className="mb-2 text-sm font-semibold text-foreground/85">Velg figur (barnet kan bytte selv senere)</p>
-              <FigurePicker value={avatarKey} onChange={setAvatarKey} />
+              <p className="mb-2 text-sm font-semibold text-foreground/85">{t.pickFigure}</p>
+              <FigurePicker lang={lang} value={avatarKey} onChange={setAvatarKey} />
             </div>
             <Button type="submit" block size="lg" loading={saving} disabled={!name.trim()}>
-              Legg til
+              {t.add}
             </Button>
           </form>
         </Card>
       ) : (
         <Button size="lg" block icon={<Plus className="size-5" />} onClick={() => setFormOpen(true)}>
-          Legg til barn
+          {t.addChild}
         </Button>
       )}
 
       {active.length === 0 && (
-        <EmptyState emoji="👶" title="Ingen barn ennå">
-          Legg til det første barnet, så dukker det opp på barnesiden.
+        <EmptyState emoji="👶" title={t.noneTitle}>
+          {t.noneBody}
         </EmptyState>
       )}
 
       {active.length > 0 && stats.data && (
         <div className="rounded-[2rem] bg-primary p-5 text-primary-foreground shadow-lg sm:p-6">
-          <p className="text-sm font-semibold opacity-80">Hele familien</p>
+          <p className="text-sm font-semibold opacity-80">{t.family}</p>
           <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Til gode", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.dueOre ?? 0), 0)],
-              ["Spart", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.savedOre ?? 0), 0)],
-              ["Utbetalt", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.paidOre ?? 0), 0)],
-              ["Tjent siste 7 dager", active.reduce((sum, c) => sum + (stats.data?.[c.id]?.weekOre ?? 0), 0)],
+              [t.owed, active.reduce((sum, c) => sum + (stats.data?.[c.id]?.dueOre ?? 0), 0)],
+              [t.saved, active.reduce((sum, c) => sum + (stats.data?.[c.id]?.savedOre ?? 0), 0)],
+              [t.paid, active.reduce((sum, c) => sum + (stats.data?.[c.id]?.paidOre ?? 0), 0)],
+              [t.lastWeek, active.reduce((sum, c) => sum + (stats.data?.[c.id]?.weekOre ?? 0), 0)],
             ].map(([label, ore]) => (
               <div key={label as string} className="rounded-2xl bg-primary-foreground/12 px-3 py-2.5">
                 <dt className="text-xs font-semibold opacity-80">{label}</dt>
-                <dd className="font-num mt-0.5 text-lg font-bold">{formatKr(ore as number)}</dd>
+                <dd className="font-num mt-0.5 text-lg font-bold">{kr(ore as number)}</dd>
               </div>
             ))}
           </dl>
@@ -207,32 +250,32 @@ export default function AdminChildrenPage() {
                 <button
                   type="button"
                   onClick={() => setEditingAvatarFor(editingAvatarFor === child.id ? null : child.id)}
-                  aria-label={`Bytt figur for ${child.name}`}
+                  aria-label={t.changeFigure(child.name)}
                   className={cx("shrink-0 rounded-full transition hover:scale-105", focusRing)}
                 >
                   <KidAvatar avatarKey={child.avatar_key} size={56} />
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-2xl font-extrabold tracking-tight">{child.name}</p>
-                  {s.pendingCount > 0 && <p className="text-sm font-semibold">{s.pendingCount} venter på godkjenning</p>}
+                  {s.pendingCount > 0 && <p className="text-sm font-semibold">{t.pending(s.pendingCount)}</p>}
                 </div>
               </div>
 
               {editingAvatarFor === child.id && (
                 <div className="animate-pop border-b border-border p-4">
-                  <FigurePicker value={child.avatar_key} onChange={(key) => void updateAvatar(child, key)} />
+                  <FigurePicker lang={lang} value={child.avatar_key} onChange={(key) => void updateAvatar(child, key)} />
                 </div>
               )}
 
               <dl className="grid grid-cols-3 gap-2 p-4">
                 {[
-                  ["Til gode", s.dueOre, "text-primary"],
-                  ["Spart", s.savedOre, ""],
-                  ["Utbetalt", s.paidOre, ""],
+                  [t.owed, s.dueOre, "text-primary"],
+                  [t.saved, s.savedOre, ""],
+                  [t.paid, s.paidOre, ""],
                 ].map(([label, ore, tone]) => (
                   <div key={label as string} className="rounded-2xl bg-secondary/70 px-3 py-2.5">
                     <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
-                    <dd className={cx("font-num mt-0.5 text-base font-bold", tone as string)}>{stats.data ? formatKr(ore as number) : "…"}</dd>
+                    <dd className={cx("font-num mt-0.5 text-base font-bold", tone as string)}>{stats.data ? kr(ore as number) : "…"}</dd>
                   </div>
                 ))}
               </dl>
@@ -245,32 +288,32 @@ export default function AdminChildrenPage() {
                     void giveBonus(child);
                   }}
                 >
-                  <p className="font-bold">🎁 Bonus til {child.name}</p>
+                  <p className="font-bold">{t.bonusTo(child.name)}</p>
                   <div className="grid grid-cols-4 gap-2">
-                    {BONUS_AMOUNTS.map((kr) => (
+                    {BONUS_AMOUNTS.map((n) => (
                       <button
-                        key={kr}
+                        key={n}
                         type="button"
-                        aria-pressed={bonusAmount === String(kr)}
-                        onClick={() => setBonusAmount(String(kr))}
+                        aria-pressed={bonusAmount === String(n)}
+                        onClick={() => setBonusAmount(String(n))}
                         className={cx(
                           "font-num min-h-11 rounded-xl border text-sm font-bold transition",
                           focusRing,
-                          bonusAmount === String(kr) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-secondary"
+                          bonusAmount === String(n) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-secondary"
                         )}
                       >
-                        {kr} kr
+                        {kr(n * 100)}
                       </button>
                     ))}
                   </div>
-                  <Input value={bonusAmount} onChange={(e) => setBonusAmount(e.target.value)} inputMode="decimal" placeholder="Annet beløp (kr)" />
-                  <Input value={bonusText} onChange={(e) => setBonusText(e.target.value)} maxLength={120} placeholder="Hvorfor? F.eks. hjalp til ekstra" />
+                  <Input value={bonusAmount} onChange={(e) => setBonusAmount(e.target.value)} inputMode="decimal" placeholder={t.otherAmount} />
+                  <Input value={bonusText} onChange={(e) => setBonusText(e.target.value)} maxLength={120} placeholder={t.why} />
                   <div className="grid grid-cols-2 gap-2">
                     <Button variant="secondary" onClick={() => setBonusFor(null)}>
-                      Avbryt
+                      {t.cancel}
                     </Button>
                     <Button type="submit" loading={bonusSaving} disabled={!bonusAmount.trim()}>
-                      Gi bonus
+                      {t.giveBonus}
                     </Button>
                   </div>
                 </form>
@@ -285,16 +328,16 @@ export default function AdminChildrenPage() {
                     setBonusText("");
                   }}
                 >
-                  🎁 Bonus
+                  {t.bonus}
                 </Button>
                 <Link
                   href={`/admin/children/${child.id}`}
                   className={cx("inline-flex min-h-11 flex-1 items-center justify-between gap-2 rounded-2xl border border-border px-4 text-[15px] font-semibold transition hover:bg-secondary", focusRing)}
                 >
-                  Detaljer <ChevronRight className="size-4" />
+                  {t.details} <ChevronRight className="size-4" />
                 </Link>
                 <Button variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" onClick={() => void setActive(child, false)}>
-                  Fjern
+                  {t.remove}
                 </Button>
               </div>
             </li>
@@ -305,7 +348,7 @@ export default function AdminChildrenPage() {
       {inactive.length > 0 && (
         <div>
           <button type="button" onClick={() => setShowInactive((v) => !v)} className={cx("min-h-10 rounded-xl px-1 text-sm font-semibold text-muted-foreground hover:text-foreground", focusRing)}>
-            {showInactive ? "Skjul fjernede barn" : `Vis fjernede barn (${inactive.length})`}
+            {showInactive ? t.hideRemoved : t.showRemoved(inactive.length)}
           </button>
           {showInactive && (
             <ul className="mt-2 space-y-2">
@@ -314,7 +357,7 @@ export default function AdminChildrenPage() {
                   <span className="opacity-70"><KidAvatar avatarKey={child.avatar_key} size={40} /></span>
                   <span className="flex-1 font-semibold text-muted-foreground">{child.name}</span>
                   <Button variant="secondary" size="sm" onClick={() => void setActive(child, true)}>
-                    Hent tilbake
+                    {t.restore}
                   </Button>
                 </li>
               ))}
