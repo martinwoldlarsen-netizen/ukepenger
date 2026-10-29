@@ -3,6 +3,7 @@
 import type { User } from "@supabase/supabase-js";
 import { getDeviceSessionFromDocument } from "@/lib/device-session.shared";
 import { supabase } from "@/lib/supabaseClient";
+import { currentLang } from "@/lib/use-lang";
 
 export type ApprovalMode = "REQUIRE_APPROVAL" | "AUTO_APPROVE";
 
@@ -73,7 +74,10 @@ export async function ensureFamilyForUser(user: { id: string; email?: string | n
   if (existing.familyId) return { familyId: existing.familyId, error: null };
 
   const familyNameSeed = user.email?.split("@")[0]?.trim();
-  const familyName = familyNameSeed ? `${familyNameSeed} sin familie` : "Min familie";
+  const lang = currentLang();
+  const familyName = familyNameSeed
+    ? { nb: `${familyNameSeed} sin familie`, en: `${familyNameSeed}'s family`, uk: `Родина ${familyNameSeed}` }[lang]
+    : { nb: "Min familie", en: "My family", uk: "Моя родина" }[lang];
 
   // Vi lager id-en selv og ber ikke om raden tilbake: sikkerhetsreglene lar
   // deg bare lese familier du er med i, og det er du ikke før profilen under

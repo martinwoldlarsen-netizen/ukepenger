@@ -47,6 +47,15 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
 Språk i UI: norsk bokmål, enkelt og barnevennlig (4–18 år). Kommentarer i
 koden er også på norsk.
 
+**Flere språk (nb/en/uk)**: de voksne velger med flaggknappen
+(`components/LanguageSwitcher.tsx`) på forsiden, innlogging, besteforeldre og i
+foreldredelen. Valget ligger i cookien `uk_lang` (`lib/i18n.ts`, `lib/use-lang.ts`;
+på serveren `lib/server-lang.ts`). Hver side har en `TEXT = { nb, en, uk }`-ordliste
+og `useText(TEXT)`. Barnas språk velges per barn (`children.language`, ordliste i
+`app/kids/_lib/text.ts`). Ukrainsk: unngå kjønnede verb (skriv «завдання виконано»).
+Bare norsk: fulle personvern-/vilkårstekster (merknad vises), `/admin/eier`,
+push-varsler og feilmeldinger fra API-ene.
+
 ## Teknologi
 
 - Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind v4

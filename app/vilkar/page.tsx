@@ -12,7 +12,7 @@ export default function VilkarPage() {
     <LegalPage
       eyebrow="Vilkår"
       title="Brukervilkår"
-      updated="5. oktober 2026"
+      updated="2026-10-05"
       intro={
         <p>
           Disse vilkårene gjelder når du bruker Ukepenger. Hvordan vi behandler personopplysninger står i{" "}

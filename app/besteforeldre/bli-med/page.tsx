@@ -5,11 +5,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearPendingGuest, rememberPendingGuest } from "@/lib/after-auth";
 import { supabase } from "@/lib/supabaseClient";
+import { currentLang, useText } from "@/lib/use-lang";
+
+const TEXT = {
+  nb: { failed: "Klarte ikke å koble kontoen.", title: "Det gikk ikke helt", back: "Til besteforeldre-siden", linking: "Kobler profilen din …" },
+  en: { failed: "Couldn't link the account.", title: "That didn't quite work", back: "To the grandparents' page", linking: "Linking your profile …" },
+  uk: { failed: "Не вдалося підключити акаунт.", title: "Щось пішло не так", back: "До сторінки бабусь і дідусів", linking: "Підключаємо ваш профіль …" },
+};
 
 // Kobler besteforelder-lenken (cookien) til kontoen. Ikke innlogget ennå →
 // til innlogging/ny konto først, så tilbake hit.
 export default function LinkGuestAccountPage() {
   const router = useRouter();
+  const t = useText(TEXT);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -31,7 +39,7 @@ export default function LinkGuestAccountPage() {
       if (!alive) return;
       clearPendingGuest();
       if (!res.ok) {
-        setError(payload.error ?? "Klarte ikke å koble kontoen.");
+        setError(payload.error ?? TEXT[currentLang()].failed);
         return;
       }
       router.replace("/besteforeldre?profil=ok");
@@ -46,14 +54,14 @@ export default function LinkGuestAccountPage() {
       {error ? (
         <>
           <div className="text-6xl" aria-hidden="true">🔗</div>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight">Det gikk ikke helt</h1>
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{t.title}</h1>
           <p className="mt-2 text-muted-foreground">{error}</p>
           <Link href="/besteforeldre" className="mt-6 rounded-2xl bg-primary px-6 py-4 font-bold text-primary-foreground">
-            Til besteforeldre-siden
+            {t.back}
           </Link>
         </>
       ) : (
-        <p role="status" className="text-muted-foreground">Kobler profilen din …</p>
+        <p role="status" className="text-muted-foreground">{t.linking}</p>
       )}
     </main>
   );
