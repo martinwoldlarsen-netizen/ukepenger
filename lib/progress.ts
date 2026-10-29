@@ -9,12 +9,13 @@ import { TOTAL_MILESTONES, type TaskTrophy } from "@/lib/trophies";
 export const totalBadgeKey = (n: number) => ({ 10: "ten", 50: "fifty", 100: "hundred" })[n] ?? `tasks${n}`;
 const TOTAL_EMOJI: Record<number, string> = { 10: "💪", 25: "⚡", 50: "🏅", 100: "🏆", 250: "🚀", 500: "🌈", 1000: "👑" };
 
-export type Badge = { key: string; emoji: string; title: string; hint: string; earned: boolean; progress?: number; bonusOre?: number };
+// need/task gjør at barnesiden kan vise merket på barnets språk.
+export type Badge = { key: string; emoji: string; title: string; hint: string; earned: boolean; progress?: number; bonusOre?: number; need?: number; task?: string | null };
 export type Progress = {
   badges: Badge[];
   streakWeeks: number;
   streakDoneThisWeek: boolean;
-  month: { label: string; earnedOre: number; tasks: number; topTask: string | null };
+  month: { label: string; index: number; earnedOre: number; tasks: number; topTask: string | null };
   trophies?: TaskTrophy[];
   trophiesPay?: boolean;
 };
@@ -79,6 +80,7 @@ export function computeProgress(claims: ClaimLike[], wishesBought: number, at = 
     hint,
     earned: have >= need,
     progress: pct(have, need),
+    need,
   });
 
   const badges: Badge[] = [
@@ -91,7 +93,7 @@ export function computeProgress(claims: ClaimLike[], wishesBought: number, at = 
     badge("wish", "🎁", "Ønske oppfylt", "Kjøp ditt første ønske", wishesBought, 1),
     badge("streak4", "🔥", "4 uker på rad", "Gjør oppgaver 4 uker på rad", streak, 4),
     bestTask
-      ? badge("expert", "🎓", `Ekspert: ${bestTask}`, `Gjør samme oppgave 10 ganger`, bestCount, 10)
+      ? { ...badge("expert", "🎓", `Ekspert: ${bestTask}`, `Gjør samme oppgave 10 ganger`, bestCount, 10), task: bestTask }
       : badge("expert", "🎓", "Ekspert", "Gjør samme oppgave 10 ganger", 0, 10),
   ];
 
@@ -110,6 +112,7 @@ export function computeProgress(claims: ClaimLike[], wishesBought: number, at = 
     streakDoneThisWeek: doneThisWeek,
     month: {
       label: MONTHS[now.getMonth()],
+      index: now.getMonth(),
       earnedOre: inMonth.reduce((s, c) => s + c.amount_ore + (c.saved_ore ?? 0), 0),
       tasks: inMonth.filter((c) => c.task_id).length,
       topTask: monthTop,

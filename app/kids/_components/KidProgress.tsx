@@ -9,12 +9,16 @@ import { taskEmoji } from "@/lib/task-emoji";
 import { isBigLevel } from "@/lib/trophies";
 import { celebrate } from "../_lib/celebrate";
 import { readAloud } from "../_lib/read-aloud";
+import { type Lang, localeOf } from "@/lib/i18n";
+import { badgeText, kidText } from "../_lib/text";
 
 export const kidProgressKey = (childId: string) => ["kid-progress", childId] as const;
 
 // Månedsoppsummering, uke-streak og merker. Nye merker feires én gang
 // (husket per barn på enheten).
-export function KidProgress({ childId }: { childId: string }) {
+export function KidProgress({ childId, lang = "nb" }: { childId: string; lang?: Lang }) {
+  const t = kidText(lang);
+  const kr = (ore: number) => formatKr(ore, lang);
   const { data } = useSWR(
     kidProgressKey(childId),
     async () => {
@@ -43,19 +47,19 @@ export function KidProgress({ childId }: { childId: string }) {
     const newTrophy = (data.trophies ?? []).find((t) => t.level > 0 && !seen?.includes(`t:${t.taskId}:${t.level}`));
     const newBadge = data.badges.find((b) => b.earned && !seen?.includes(b.key));
     const newOne = newTrophy
-      ? { emoji: taskEmoji(newTrophy.title), title: `${newTrophy.name} nivå ${newTrophy.level}`, label: isBigLevel(newTrophy.level) ? "Stort trofé!" : "Nytt nivå!", bonusOre: newTrophy.levelBonusOre || undefined }
+      ? { emoji: taskEmoji(newTrophy.title), title: t.trophyTitle(newTrophy.name, newTrophy.level), label: isBigLevel(newTrophy.level) ? t.bigTrophy : t.newLevel, bonusOre: newTrophy.levelBonusOre || undefined }
       : newBadge
-        ? { emoji: newBadge.emoji, title: newBadge.title, label: "Nytt merke!", bonusOre: newBadge.bonusOre }
+        ? { emoji: newBadge.emoji, title: badgeText(t, newBadge)[0], label: t.newBadge, bonusOre: newBadge.bonusOre }
         : null;
     if (newOne) {
       const id = window.setTimeout(() => {
         setFresh(newOne);
         celebrate("big");
-        readAloud(`${newOne.label} ${newOne.title}${newOne.bonusOre ? `. Du fikk ${formatKr(newOne.bonusOre)} i bonus!` : ""}`);
+        readAloud(`${newOne.label} ${newOne.title}${newOne.bonusOre ? `. ${t.bonusSpoken(kr(newOne.bonusOre))}` : ""}`, lang);
       }, 0);
       return () => window.clearTimeout(id);
     }
-  }, [data, childId]);
+  }, [data, childId, t, lang]);
 
   if (!data) return null;
   const earned = data.badges.filter((b) => b.earned);
@@ -73,31 +77,31 @@ export function KidProgress({ childId }: { childId: string }) {
           <span>
             <span className="block text-sm font-bold opacity-80">{fresh.label}</span>
             <span className="block text-2xl font-extrabold leading-tight">{fresh.title}</span>
-            {fresh.bonusOre ? <span className="block text-base font-bold">+{formatKr(fresh.bonusOre)} i bonus!</span> : null}
+            {fresh.bonusOre ? <span className="block text-base font-bold">{t.bonus(kr(fresh.bonusOre))}</span> : null}
           </span>
         </button>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-[1.75rem] bg-card p-5 shadow-sm ring-1 ring-border">
-          <p className="text-sm font-bold text-muted-foreground">I {data.month.label}</p>
-          <p className="font-num mt-1 text-3xl font-bold">{formatKr(data.month.earnedOre)}</p>
+          <p className="text-sm font-bold text-muted-foreground">{t.inMonth(lang === "nb" ? data.month.label : new Intl.DateTimeFormat(localeOf(lang), { month: "long" }).format(new Date(2026, data.month.index ?? 0, 15)))}</p>
+          <p className="font-num mt-1 text-3xl font-bold">{kr(data.month.earnedOre)}</p>
           <p className="text-sm text-muted-foreground">
-            {data.month.tasks} {data.month.tasks === 1 ? "oppgave" : "oppgaver"}
-            {data.month.topTask ? ` · mest: ${data.month.topTask}` : ""}
+            {t.taskCount(data.month.tasks)}
+            {data.month.topTask ? t.mostOften(data.month.topTask) : ""}
           </p>
         </div>
         <div className="rounded-[1.75rem] bg-card p-5 shadow-sm ring-1 ring-border">
-          <p className="text-sm font-bold text-muted-foreground">Uker på rad</p>
+          <p className="text-sm font-bold text-muted-foreground">{t.weeksInRow}</p>
           <p className="mt-1 text-3xl font-extrabold">
             <span aria-hidden="true">🔥</span> {data.streakWeeks}
           </p>
           <p className="text-sm text-muted-foreground">
             {data.streakDoneThisWeek
-              ? "Denne uka er klar. Kjempebra!"
+              ? t.weekDone
               : data.streakWeeks > 0
-                ? "Gjør én oppgave denne uka for å fortsette!"
-                : "Gjør én oppgave i uka for å starte."}
+                ? t.keepGoing
+                : t.startStreak}
           </p>
         </div>
       </div>
@@ -105,34 +109,34 @@ export function KidProgress({ childId }: { childId: string }) {
       {(data.trophies?.length ?? 0) > 0 && (
         <div className="rounded-[1.75rem] bg-card p-5 shadow-sm ring-1 ring-border sm:p-6">
           <h2 className="text-2xl font-extrabold tracking-tight">
-            Trofeskapet <span aria-hidden="true">🏆</span>
+            {t.trophyCase} <span aria-hidden="true">🏆</span>
           </h2>
-          <p className="text-sm text-muted-foreground">Hver oppgave gir nivåer. {data.trophiesPay ? "Hvert nivå gir bonus, og hvert 5. nivå gir en stor bonus!" : "Hvor høyt kommer du?"}</p>
+          <p className="text-sm text-muted-foreground">{t.levelsIntro} {data.trophiesPay ? t.levelsPay : t.howHigh}</p>
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-            {data.trophies!.map((t) => (
-              <li key={t.taskId} className={`flex items-center gap-3 rounded-2xl p-3 ${t.level > 0 ? "bg-accent/60" : "bg-secondary"}`}>
+            {data.trophies!.map((tr) => (
+              <li key={tr.taskId} className={`flex items-center gap-3 rounded-2xl p-3 ${tr.level > 0 ? "bg-accent/60" : "bg-secondary"}`}>
                 <span className="relative shrink-0">
-                  <TaskIcon title={t.title} icon={t.icon} size={56} muted={t.level === 0} />
-                  {t.level > 0 && (
-                    <span className={`absolute -bottom-1.5 -right-1.5 flex min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${isBigLevel(t.level) ? "bg-amber-400 text-amber-950" : "bg-primary text-primary-foreground"}`}>
-                      {t.level}
+                  <TaskIcon title={tr.title} icon={tr.icon} size={56} muted={tr.level === 0} />
+                  {tr.level > 0 && (
+                    <span className={`absolute -bottom-1.5 -right-1.5 flex min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${isBigLevel(tr.level) ? "bg-amber-400 text-amber-950" : "bg-primary text-primary-foreground"}`}>
+                      {tr.level}
                     </span>
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-bold leading-tight">{t.name}</span>
+                  <span className="block truncate font-bold leading-tight">{tr.name}</span>
                   <span className="block text-xs font-semibold text-muted-foreground">
-                    {t.maxed ? `Toppnivå! ${t.count} ganger` : t.level > 0 ? `Nivå ${t.level} · ${t.nextAt! - t.count} til neste` : `Gjør ${t.nextAt! - t.count} ganger for nivå 1`}
+                    {tr.maxed ? t.topLevel(tr.count) : tr.level > 0 ? t.levelProgress(tr.level, tr.nextAt! - tr.count) : t.forLevel1(tr.nextAt! - tr.count)}
                   </span>
-                  {!t.maxed && (
+                  {!tr.maxed && (
                     <span className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-white">
-                      <span className="block h-full rounded-full bg-primary" style={{ width: `${t.progress}%` }} />
+                      <span className="block h-full rounded-full bg-primary" style={{ width: `${tr.progress}%` }} />
                     </span>
                   )}
                 </span>
-                {t.nextBonusOre > 0 && (
-                  <span className={`font-num shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ${t.nextIsBig ? "bg-amber-400 text-amber-950" : "bg-primary text-primary-foreground"}`}>
-                    +{formatKr(t.nextBonusOre)}
+                {tr.nextBonusOre > 0 && (
+                  <span className={`font-num shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ${tr.nextIsBig ? "bg-amber-400 text-amber-950" : "bg-primary text-primary-foreground"}`}>
+                    +{kr(tr.nextBonusOre)}
                   </span>
                 )}
               </li>
@@ -143,7 +147,7 @@ export function KidProgress({ childId }: { childId: string }) {
 
       <div className="rounded-[1.75rem] bg-card p-5 shadow-sm ring-1 ring-border sm:p-6">
         <h2 id="merker-title" className="text-2xl font-extrabold tracking-tight">
-          Merkene mine <span className="text-base font-bold text-muted-foreground">{earned.length}/{data.badges.length}</span>
+          {t.myBadges} <span className="text-base font-bold text-muted-foreground">{earned.length}/{data.badges.length}</span>
         </h2>
         <ul className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
           {[...earned, ...next].map((b) => (
@@ -151,11 +155,11 @@ export function KidProgress({ childId }: { childId: string }) {
               <span className={`text-4xl ${b.earned ? "" : "opacity-30 grayscale"}`} aria-hidden="true">
                 {b.emoji}
               </span>
-              <span className="mt-1 text-xs font-bold leading-tight">{b.earned ? b.title : b.hint}</span>
+              <span className="mt-1 text-xs font-bold leading-tight">{badgeText(t, b)[b.earned ? 0 : 1]}</span>
               {b.bonusOre ? (
                 <span className={`font-num mt-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ${b.earned ? "bg-white/70" : "bg-primary text-primary-foreground"}`}>
                   {b.earned ? "✓ " : "+"}
-                  {formatKr(b.bonusOre)}
+                  {kr(b.bonusOre)}
                 </span>
               ) : null}
               {!b.earned && (

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 import { HISTORY_CLAIM_SELECT, HISTORY_PAYMENT_SELECT, buildHistory } from "@/lib/history";
+import { asLang } from "@/lib/i18n";
 
 // Barnets egen historikk: hva det har gjort, tjent og fått utbetalt.
 export async function GET(request: Request) {
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   const supabase = getServiceSupabaseClient();
   if (!supabase) return NextResponse.json({ error: "Server mangler service role key." }, { status: 500 });
 
-  const childRes = await supabase.from("children").select("family_id").eq("id", childId).maybeSingle();
+  const childRes = await supabase.from("children").select("family_id, language").eq("id", childId).maybeSingle();
   if (childRes.error || !childRes.data || childRes.data.family_id !== auth.familyId) {
     return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   }
@@ -28,6 +29,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Klarte ikke å hente historikken." }, { status: 400 });
   }
 
-  const events = buildHistory(claimsRes.data ?? [], paymentsRes.data ?? []).slice(0, 40);
+  const events = buildHistory(claimsRes.data ?? [], paymentsRes.data ?? [], asLang(childRes.data.language)).slice(0, 40);
   return NextResponse.json({ events });
 }

@@ -10,6 +10,7 @@ type ChildRow = {
   active: boolean;
   weekly_allowance_ore: number;
   allowance_weekday: number;
+  language: string | null;
 };
 
 type TaskRow = {
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
 
   const childRes = await supabase
     .from("children")
-    .select("id, family_id, name, avatar_key, active, weekly_allowance_ore, allowance_weekday")
+    .select("id, family_id, name, avatar_key, active, weekly_allowance_ore, allowance_weekday, language")
     .eq("id", childId)
     .maybeSingle();
 
@@ -140,7 +141,7 @@ export async function GET(request: Request) {
   const show_savings = familyRes.data?.show_savings_to_kids ?? true;
 
   return NextResponse.json({
-    child: { id: child.id, name: child.name, avatar_key: child.avatar_key },
+    child: { id: child.id, name: child.name, avatar_key: child.avatar_key, language: child.language ?? "nb" },
     tasks: visibleTasks,
     cooldowns,
     pending_ore,

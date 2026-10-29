@@ -6,6 +6,7 @@ type ChildRow = {
   id: string;
   name: string;
   avatar_key: string | null;
+  language?: string | null;
   color?: string | null;
 };
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
 
   const childrenRes = await supabase
     .from("children")
-    .select("id, name, avatar_key")
+    .select("id, name, avatar_key, language")
     .eq("family_id", auth.familyId)
     .eq("active", true)
     .order("name", { ascending: true });

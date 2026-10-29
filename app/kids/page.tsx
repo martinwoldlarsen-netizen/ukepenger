@@ -6,17 +6,13 @@ import useSWR, { preload, unstable_serialize, useSWRConfig } from "swr";
 import { ArrowLeft, ChevronRight, Coins, ShoppingBag, X } from "lucide-react";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { kidColor } from "./_lib/palette";
+import { asLang } from "@/lib/i18n";
+import { formatKr } from "@/lib/money";
+import { kidError, kidText } from "./_lib/text";
 import { type ChildRow, KIDS_BOOTSTRAP_KEY, fetchKidPage, fetchKidsBootstrap, kidPageKey } from "./_lib/kid-data";
 
 
-const PRICE_OPTIONS = [
-  { label: "5 kr", ore: 500 },
-  { label: "10 kr", ore: 1000 },
-  { label: "20 kr", ore: 2000 },
-  { label: "30 kr", ore: 3000 },
-  { label: "40 kr", ore: 4000 },
-  { label: "50 kr", ore: 5000 },
-];
+const PRICE_OPTIONS = [500, 1000, 2000, 3000, 4000, 5000];
 
 type ButikkStep = "price" | "child";
 
@@ -28,6 +24,11 @@ export default function KidsPage() {
   const children = boot.data ?? [];
   const loading = !boot.data && !boot.error;
   const error = boot.data ? "" : (boot.error?.message ?? "");
+  // Velgeren vises på barnas språk når alle har samme; ellers norsk.
+  const langs = new Set(children.map((c) => asLang(c.language)));
+  const lang = langs.size === 1 ? [...langs][0] : "nb";
+  const t = kidText(lang);
+  const [saleError, setSaleError] = useState(false);
 
   const [butikkOpen, setButikkOpen] = useState(false);
   const [butikkStep, setButikkStep] = useState<ButikkStep>("price");
@@ -77,13 +78,14 @@ export default function KidsPage() {
     setButikkLoading(false);
 
     if (!res.ok || payload.error) {
-      setButikkStatus(`Feil: ${payload.error ?? "Noe gikk galt."}`);
+      setSaleError(true);
+      setButikkStatus(kidError(lang, payload.error, t.tryAgain));
       return;
     }
 
     const child = children.find((c) => c.id === childId);
-    const priceLabel = PRICE_OPTIONS.find((p) => p.ore === selectedPrice)?.label ?? "";
-    setButikkStatus(`${priceLabel} lagt til ${child?.name ?? "barnet"}!`);
+    setSaleError(false);
+    setButikkStatus(t.saleAdded(formatKr(selectedPrice, lang), child?.name ?? ""));
 
     setTimeout(() => {
       setButikkOpen(false);
@@ -92,7 +94,7 @@ export default function KidsPage() {
   };
 
   return (
-    <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
+    <main lang={lang} className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
       <div className="flex items-center gap-2.5">
         <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <Coins className="size-5" strokeWidth={2.5} />
@@ -100,8 +102,8 @@ export default function KidsPage() {
         <span className="font-num text-[17px] font-bold tracking-[-0.06em]">ukepenger</span>
       </div>
 
-      <h1 className="mt-10 text-4xl font-extrabold tracking-tight sm:text-5xl">Hvem er du?</h1>
-      <p className="mt-2 text-lg text-muted-foreground">Trykk på deg selv for å se oppgavene dine.</p>
+      <h1 className="mt-10 text-4xl font-extrabold tracking-tight sm:text-5xl">{t.whoAreYou}</h1>
+      <p className="mt-2 text-lg text-muted-foreground">{t.tapYourself}</p>
 
       {loading && (
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
@@ -113,11 +115,11 @@ export default function KidsPage() {
 
       {error && (
         <div className="mt-8 rounded-[1.75rem] border border-border bg-card p-6 shadow-sm">
-          <p className="text-lg font-bold">Denne enheten er ikke koblet til en familie</p>
-          <p className="mt-1 text-muted-foreground">Be en voksen skanne QR-koden fra Enheter i admin.</p>
+          <p className="text-lg font-bold">{t.notConnectedTitle}</p>
+          <p className="mt-1 text-muted-foreground">{t.notConnectedBody}</p>
           <p className="mt-3 text-sm text-muted-foreground">({error})</p>
           <Link href="/kiosk" className="mt-4 inline-flex font-semibold text-primary underline underline-offset-4">
-            Gå til kiosk
+            {t.goToKiosk}
           </Link>
         </div>
       )}
@@ -154,8 +156,8 @@ export default function KidsPage() {
                 <ShoppingBag className="size-9" strokeWidth={2} />
               </span>
               <span className="mt-4">
-                <span className="block text-3xl font-extrabold tracking-tight">Butikk</span>
-                <span className="text-sm font-semibold text-muted-foreground">Registrer et salg</span>
+                <span className="block text-3xl font-extrabold tracking-tight">{t.shop}</span>
+                <span className="text-sm font-semibold text-muted-foreground">{t.registerSale}</span>
               </span>
             </button>
           )}
@@ -164,7 +166,7 @@ export default function KidsPage() {
 
       {!loading && !error && children.length === 0 && (
         <div className="mt-8 rounded-[1.75rem] border border-border bg-card p-8 text-center text-muted-foreground">
-          Ingen aktive barn ennå. En voksen kan legge til barn i admin.
+          {t.noKids}
         </div>
       )}
 
@@ -183,15 +185,15 @@ export default function KidsPage() {
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <h2 id="butikk-title" className="text-2xl font-extrabold tracking-tight">
-                  Butikk
+                  {t.shop}
                 </h2>
-                <p className="mt-0.5 text-muted-foreground">{butikkStep === "price" ? "Hvor mye solgte du for?" : "Hvem solgte?"}</p>
+                <p className="mt-0.5 text-muted-foreground">{butikkStep === "price" ? t.howMuchSold : t.whoSold}</p>
               </div>
               <button
                 type="button"
                 onClick={closeButikk}
                 disabled={butikkLoading}
-                aria-label="Lukk"
+                aria-label={t.close}
                 className="flex size-11 items-center justify-center rounded-xl border border-border transition hover:bg-secondary disabled:opacity-40"
               >
                 <X className="size-5" />
@@ -200,14 +202,14 @@ export default function KidsPage() {
 
             {butikkStep === "price" && (
               <div className="grid grid-cols-3 gap-3">
-                {PRICE_OPTIONS.map((option) => (
+                {PRICE_OPTIONS.map((ore) => (
                   <button
-                    key={option.ore}
+                    key={ore}
                     type="button"
-                    onClick={() => selectPrice(option.ore)}
+                    onClick={() => selectPrice(ore)}
                     className="font-num rounded-2xl bg-secondary py-5 text-xl font-bold transition hover:bg-accent active:scale-95"
                   >
-                    {option.label}
+                    {formatKr(ore, lang)}
                   </button>
                 ))}
               </div>
@@ -223,7 +225,7 @@ export default function KidsPage() {
                   }}
                   className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
                 >
-                  <ArrowLeft className="size-4" /> Endre beløp ({PRICE_OPTIONS.find((p) => p.ore === selectedPrice)?.label})
+                  <ArrowLeft className="size-4" /> {t.changeAmount} ({formatKr(selectedPrice ?? 0, lang)})
                 </button>
                 <div className="grid grid-cols-2 gap-3">
                   {children.map((child, index) => {
@@ -250,14 +252,14 @@ export default function KidsPage() {
               <p
                 role="status"
                 className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${
-                  butikkStatus.startsWith("Feil:") ? "bg-red-50 text-red-800" : "bg-secondary text-primary"
+                  saleError ? "bg-red-50 text-red-800" : "bg-secondary text-primary"
                 }`}
               >
                 {butikkStatus}
               </p>
             )}
 
-            {butikkLoading && <p className="mt-4 text-center text-sm text-muted-foreground">Registrerer…</p>}
+            {butikkLoading && <p className="mt-4 text-center text-sm text-muted-foreground">{t.saving}</p>}
           </div>
         </div>
       )}

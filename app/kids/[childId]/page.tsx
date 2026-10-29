@@ -16,6 +16,8 @@ import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
 import { formatKr } from "@/lib/money";
 import { kidColor } from "../_lib/palette";
+import { asLang } from "@/lib/i18n";
+import { kidError, kidText } from "../_lib/text";
 import { type ChildRow, type KidPageData, type TaskRow, type WishlistItem, KIDS_BOOTSTRAP_KEY, fetchKidPage, kidPageKey } from "../_lib/kid-data";
 
 type Notice = { kind: "ok" | "error"; text: string } | null;
@@ -24,11 +26,11 @@ type Notice = { kind: "ok" | "error"; text: string } | null;
 
 // Litt moro: nivå etter hvor mye barnet har tjent totalt.
 const LEVELS = [
-  { fromOre: 0, title: "Nybegynner", emoji: "🌱" },
-  { fromOre: 5_000, title: "Hjelper", emoji: "⭐" },
-  { fromOre: 20_000, title: "Superhjelper", emoji: "🚀" },
-  { fromOre: 50_000, title: "Mester", emoji: "🏆" },
-  { fromOre: 100_000, title: "Legende", emoji: "👑" },
+  { fromOre: 0, emoji: "🌱" },
+  { fromOre: 5_000, emoji: "⭐" },
+  { fromOre: 20_000, emoji: "🚀" },
+  { fromOre: 50_000, emoji: "🏆" },
+  { fromOre: 100_000, emoji: "👑" },
 ];
 
 function levelFor(earnedOre: number) {
@@ -37,7 +39,7 @@ function levelFor(earnedOre: number) {
   const current = LEVELS[index];
   const next = LEVELS[index + 1];
   const progress = next ? Math.round(((earnedOre - current.fromOre) / (next.fromOre - current.fromOre)) * 100) : 100;
-  return { ...current, nextOre: next ? next.fromOre : null, progress };
+  return { ...current, index, nextOre: next ? next.fromOre : null, progress };
 }
 
 // Ny komponent per barn (key), så forrige barns navn og figur aldri blir
@@ -147,17 +149,21 @@ function KidTaskView({ childId }: { childId: string }) {
     onSuccess: applyData,
     onError: (error: Error) => {
       // En bakgrunnsoppdatering som feiler skal ikke ta bort siden.
-      if (!child) setLoadError(error.message || "Klarte ikke laste oppgavene.");
+      if (!child) setLoadError(error.message || "load");
       setLoading(false);
     },
   });
 
   const visibleTasks = useMemo(() => tasks.filter((task) => task.active), [tasks]);
+  // Barnets språk (valgt av forelderen). Før barnet er lastet: norsk.
+  const lang = asLang(child?.language);
+  const t = kidText(lang);
+  const kr = (ore: number) => formatKr(ore, lang);
 
   const submitClaim = async (taskId: string) => {
     const task = tasks.find((entry) => entry.id === taskId);
     if (!task) {
-      setNotice({ kind: "error", text: "Fant ikke oppgaven." });
+      setNotice({ kind: "error", text: t.taskNotFound });
       return;
     }
 
@@ -180,7 +186,7 @@ function KidTaskView({ childId }: { childId: string }) {
         delete next[taskId];
         return next;
       });
-      showCardMessage(taskId, { kind: "error", text: payload.error ?? "Det gikk ikke. Prøv igjen!" });
+      showCardMessage(taskId, { kind: "error", text: kidError(lang, payload.error, t.tryAgain) });
       return;
     }
 
@@ -193,14 +199,14 @@ function KidTaskView({ childId }: { childId: string }) {
       setApprovedOre((prev) => prev + task.amount_ore - savedPart);
       setSavedOre((prev) => (prev === null ? null : prev + savedPart));
       setEarnedOre((prev) => prev + task.amount_ore);
-      showCardMessage(taskId, { kind: "ok", text: `Bra jobba! +${formatKr(task.amount_ore)}` });
+      showCardMessage(taskId, { kind: "ok", text: t.goodJobAmount(kr(task.amount_ore)) });
       celebrate();
-      readAloud("Bra jobba!");
+      readAloud(t.goodJob, lang);
       return;
     }
-    showCardMessage(taskId, { kind: "ok", text: "Bra jobba! En voksen sjekker snart." });
+    showCardMessage(taskId, { kind: "ok", text: t.goodJobWait });
     celebrate();
-    readAloud("Bra jobba!");
+    readAloud(t.goodJob, lang);
   };
 
   // Ønsket barnet er nærmest å ha råd til, vist på gave-knappen.
@@ -229,7 +235,7 @@ function KidTaskView({ childId }: { childId: string }) {
     setAvatarSaving(false);
     if (!res.ok) {
       setChild((current) => (current ? { ...current, avatar_key: previous } : current));
-      setNotice({ kind: "error", text: "Klarte ikke å bytte figur. Prøv igjen." });
+      setNotice({ kind: "error", text: t.figureFailed });
       return;
     }
     setPickerOpen(false);
@@ -246,10 +252,10 @@ function KidTaskView({ childId }: { childId: string }) {
     return (
       <main className="mx-auto max-w-xl px-5 py-12">
         <div className="rounded-[1.75rem] border border-border bg-card p-6 shadow-sm">
-          <p className="text-lg font-bold">Oi, noe gikk galt</p>
-          <p className="mt-1 text-muted-foreground">{loadError}</p>
+          <p className="text-lg font-bold">{t.oops}</p>
+          <p className="mt-1 text-muted-foreground">{loadError === "load" ? t.loadFailed : kidError(lang, loadError, t.loadFailed)}</p>
           <Link href="/kids" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary">
-            <ArrowLeft className="size-4" /> Tilbake til profiler
+            <ArrowLeft className="size-4" /> {t.backToProfiles}
           </Link>
         </div>
       </main>
@@ -257,14 +263,14 @@ function KidTaskView({ childId }: { childId: string }) {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-10">
+    <main lang={lang} className="mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-10">
       <div className="flex justify-end gap-2">
-        <SoundToggle />
+        <SoundToggle labels={{ on: t.soundOn, off: t.soundOff }} />
         <Link
           href="/kids"
           className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition hover:bg-secondary"
         >
-          <ArrowLeft className="size-4" /> Bytt profil
+          <ArrowLeft className="size-4" /> {t.switchProfile}
         </Link>
       </div>
 
@@ -276,7 +282,7 @@ function KidTaskView({ childId }: { childId: string }) {
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          aria-label="Bytt figur"
+          aria-label={t.changeFigure}
           className="group relative shrink-0 rounded-full bg-white/70 p-1.5 shadow-sm transition hover:-rotate-3 hover:scale-105 active:scale-95"
         >
           <KidAvatar avatarKey={child?.avatar_key} size={96} />
@@ -285,17 +291,17 @@ function KidTaskView({ childId }: { childId: string }) {
           </span>
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold opacity-70">Hei,</p>
+          <p className="text-sm font-semibold opacity-70">{t.hi}</p>
           <h1 className="truncate text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{child ? `${child.name}!` : "…"}</h1>
           <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-sm font-bold">
-            <span aria-hidden="true">{level.emoji}</span> {level.title}
+            <span aria-hidden="true">{level.emoji}</span> {t.levels[level.index]}
           </p>
           {level.nextOre !== null && (
             <div className="mt-2 max-w-56">
               <div className="h-2 overflow-hidden rounded-full bg-white/60">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${level.progress}%` }} />
               </div>
-              <p className="mt-1 text-xs font-semibold opacity-70">{formatKr(level.nextOre - earnedOre)} til neste nivå</p>
+              <p className="mt-1 text-xs font-semibold opacity-70">{t.toNextLevel(kr(level.nextOre - earnedOre))}</p>
             </div>
           )}
         </div>
@@ -312,18 +318,18 @@ function KidTaskView({ childId }: { childId: string }) {
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 id="figur-title" className="text-2xl font-extrabold tracking-tight">
-                Velg figuren din
+                {t.chooseFigure}
               </h2>
               <button
                 type="button"
                 onClick={() => setPickerOpen(false)}
-                aria-label="Lukk"
+                aria-label={t.close}
                 className="flex size-11 items-center justify-center rounded-xl border border-border transition hover:bg-secondary"
               >
                 <X className="size-5" />
               </button>
             </div>
-            <FigurePicker size="lg" value={child?.avatar_key} disabled={avatarSaving} onChange={(key) => void chooseFigure(key)} />
+            <FigurePicker size="lg" lang={lang} value={child?.avatar_key} disabled={avatarSaving} onChange={(key) => void chooseFigure(key)} />
           </div>
         </div>
       )}
@@ -331,29 +337,28 @@ function KidTaskView({ childId }: { childId: string }) {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           {/* Saldo */}
-          <section className="rounded-[2rem] bg-primary p-6 text-primary-foreground shadow-lg sm:p-7" aria-label="Pengene dine">
-            <p className="text-sm font-semibold opacity-80">Til gode</p>
+          <section className="rounded-[2rem] bg-primary p-6 text-primary-foreground shadow-lg sm:p-7" aria-label={t.yourMoney}>
+            <p className="text-sm font-semibold opacity-80">{t.owed}</p>
             <p className="font-num mt-1 text-5xl font-bold tracking-tight sm:text-6xl">
-              {loading ? "…" : formatKr(approvedOre)}
+              {loading ? "…" : kr(approvedOre)}
             </p>
-            <p className="mt-1 text-sm opacity-75">Penger du har tjent, men ikke fått ennå</p>
+            <p className="mt-1 text-sm opacity-75">{t.owedHint}</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-primary-foreground/12 px-4 py-3">
-                <p className="text-xs font-semibold opacity-75">Venter på en voksen</p>
-                <p className="font-num mt-0.5 text-xl font-bold">{formatKr(pendingOre)}</p>
+                <p className="text-xs font-semibold opacity-75">{t.waitingAdult}</p>
+                <p className="font-num mt-0.5 text-xl font-bold">{kr(pendingOre)}</p>
               </div>
               <div className="rounded-2xl bg-primary-foreground/12 px-4 py-3">
-                <p className="text-xs font-semibold opacity-75">Utbetalt</p>
-                <p className="font-num mt-0.5 text-xl font-bold">{formatKr(paidOre)}</p>
+                <p className="text-xs font-semibold opacity-75">{t.paidOut}</p>
+                <p className="font-num mt-0.5 text-xl font-bold">{kr(paidOre)}</p>
               </div>
             </div>
             <p className="mt-4 text-sm opacity-75">
-              Tjent totalt: <span className="font-num font-bold opacity-100">{formatKr(earnedOre)}</span>
+              {t.earnedTotal} <span className="font-num font-bold opacity-100">{kr(earnedOre)}</span>
             </p>
             {allowance && (
               <p className="mt-1 text-sm opacity-75">
-                📅 Ukepenger: <span className="font-num font-bold opacity-100">{formatKr(allowance.amount_ore)}</span> hver{" "}
-                {["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"][allowance.weekday - 1]}
+                📅 {t.allowance} <span className="font-num font-bold opacity-100">{kr(allowance.amount_ore)}</span> {t.everyWeekday[allowance.weekday - 1]}
               </p>
             )}
           </section>
@@ -361,16 +366,16 @@ function KidTaskView({ childId }: { childId: string }) {
           {savedOre !== null && (savedOre > 0 || savingsPercent > 0) && (
             <section
               className="flex items-center gap-4 rounded-[1.75rem] bg-accent p-5 text-accent-foreground shadow-sm ring-1 ring-black/5"
-              aria-label="Sparegrisen din"
+              aria-label={t.piggy}
             >
               <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-white/80 text-3xl" aria-hidden="true">
                 🐷
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold opacity-80">Sparegrisen din</p>
-                <p className="font-num text-3xl font-bold tracking-tight">{loading ? "…" : formatKr(savedOre)}</p>
+                <p className="text-sm font-semibold opacity-80">{t.piggy}</p>
+                <p className="font-num text-3xl font-bold tracking-tight">{loading ? "…" : kr(savedOre ?? 0)}</p>
                 {savingsPercent > 0 && (
-                  <p className="text-sm opacity-80">{savingsPercent} % av alt du tjener blir spart her.</p>
+                  <p className="text-sm opacity-80">{t.piggyPercent(savingsPercent)}</p>
                 )}
               </div>
             </section>
@@ -396,11 +401,11 @@ function KidTaskView({ childId }: { childId: string }) {
               🎁
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-xl font-extrabold leading-tight">Ønskebutikken</span>
+              <span className="block text-xl font-extrabold leading-tight">{t.wishShop}</span>
               <span className="block truncate text-sm font-semibold opacity-80">
                 {nextWish && nextWish.price !== null
                   ? `${nextWish.title}: ${Math.min(100, Math.round((approvedOre / nextWish.price) * 100))} %`
-                  : "Finn noe du ønsker deg"}
+                  : t.findWish}
               </span>
             </span>
             <ArrowRight className="size-6 shrink-0" />
@@ -409,9 +414,9 @@ function KidTaskView({ childId }: { childId: string }) {
           {/* Oppgaver */}
           <section aria-labelledby="oppgaver-title">
             <h2 id="oppgaver-title" className="text-2xl font-extrabold tracking-tight">
-              Oppgaver
+              {t.tasks}
             </h2>
-            <p className="text-muted-foreground">Trykk når du er ferdig.</p>
+            <p className="text-muted-foreground">{t.tapWhenDone}</p>
 
             {loading ? (
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-hidden="true">
@@ -421,7 +426,7 @@ function KidTaskView({ childId }: { childId: string }) {
               </div>
             ) : visibleTasks.length === 0 ? (
               <div className="mt-4 rounded-[1.75rem] border border-border bg-card p-8 text-center text-muted-foreground">
-                Ingen oppgaver akkurat nå. Spør en voksen!
+                {t.noTasks}
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -443,11 +448,11 @@ function KidTaskView({ childId }: { childId: string }) {
                         {/* Bilde så barn som ikke kan lese ennå kjenner igjen oppgaven. */}
                         <TaskIcon title={task.title} icon={task.icon} size={60} className="shadow-sm" />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-2xl font-extrabold leading-tight tracking-tight [hyphens:auto] [overflow-wrap:break-word]" lang="nb">
+                          <span className="block text-2xl font-extrabold leading-tight tracking-tight [hyphens:auto] [overflow-wrap:break-word]" lang={lang}>
                             {task.title}
                           </span>
                           <span className="font-num mt-1.5 inline-block rounded-full bg-white/80 px-3 py-1 text-base font-bold">
-                            +{formatKr(task.amount_ore)}
+                            +{kr(task.amount_ore)}
                           </span>
                         </span>
                       </span>
@@ -464,7 +469,7 @@ function KidTaskView({ childId }: { childId: string }) {
                       ) : cooldown ? (
                         <span className="mt-4 block pr-14">
                           <span className="inline-flex items-center gap-1.5 text-sm font-bold">
-                            <Clock className="size-4" /> Vent litt …
+                            <Clock className="size-4" /> {t.waitABit}
                           </span>
                           <span className="mt-2 block h-2 overflow-hidden rounded-full bg-white/60">
                             <span
@@ -476,14 +481,14 @@ function KidTaskView({ childId }: { childId: string }) {
                         </span>
                       ) : (
                         <span className="mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white/85 px-4 py-2 text-sm font-bold">
-                          <Check className="size-4" strokeWidth={3} /> Jeg har gjort det!
+                          <Check className="size-4" strokeWidth={3} /> {t.iDidIt}
                         </span>
                       )}
                     </button>
                     <button
                       type="button"
-                      onClick={() => readAloud(`${task.title}. Du får ${formatKr(task.amount_ore).replace(" kr", " kroner")}.`)}
-                      aria-label={`Les opp: ${task.title}`}
+                      onClick={() => readAloud(t.readAloudTask(task.title, Math.round(task.amount_ore / 100)), lang)}
+                      aria-label={t.readAloudLabel(task.title)}
                       className="absolute bottom-4 right-4 flex size-11 items-center justify-center rounded-full bg-white/85 shadow-sm transition active:scale-90"
                       style={{ color: color.ink }}
                     >
@@ -496,9 +501,9 @@ function KidTaskView({ childId }: { childId: string }) {
             )}
           </section>
 
-          <KidProgress childId={childId} />
+          <KidProgress childId={childId} lang={lang} />
 
-          <KidHistory childId={childId} />
+          <KidHistory childId={childId} lang={lang} />
         </div>
 
         {/* Ønskebutikken */}
@@ -511,8 +516,8 @@ function KidTaskView({ childId }: { childId: string }) {
               🎁
             </span>
             <span className="relative block max-w-[65%]">
-              <span className="block text-3xl font-extrabold leading-tight tracking-tight">Ønskebutikken</span>
-              <span className="mt-1 block font-semibold opacity-80">Kjøp det du ønsker deg med pengene dine</span>
+              <span className="block text-3xl font-extrabold leading-tight tracking-tight">{t.wishShop}</span>
+              <span className="mt-1 block font-semibold opacity-80">{t.buyWithMoney}</span>
             </span>
             {nextWish && nextWish.price !== null && (
               <span className="relative mt-5 block rounded-2xl bg-white/70 p-3">
@@ -531,12 +536,12 @@ function KidTaskView({ childId }: { childId: string }) {
               </span>
             )}
             <span className="relative mt-4 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-5 font-extrabold text-primary-foreground shadow-sm">
-              Gå til butikken <ArrowRight className="size-5" />
+              {t.goToShop} <ArrowRight className="size-5" />
             </span>
           </Link>
           {openWishCount > 0 && (
             <p className="px-2 text-center text-sm font-semibold text-muted-foreground">
-              Du har {openWishCount} {openWishCount === 1 ? "ønske" : "ønsker"} i butikken
+              {t.wishesInShop(openWishCount)}
             </p>
           )}
         </aside>

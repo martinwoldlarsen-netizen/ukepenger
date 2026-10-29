@@ -80,6 +80,7 @@ export type AdminChild = {
   created_at?: string;
   weekly_allowance_ore?: number;
   allowance_weekday?: number;
+  language?: string | null;
   emoji: string;
   color: { bg: string; ink: string };
 };
@@ -93,7 +94,7 @@ export function useChildren(familyId: string | null) {
       const rows = check(
         await supabase
           .from("children")
-          .select("id, name, avatar_key, active, created_at, weekly_allowance_ore, allowance_weekday")
+          .select("id, name, avatar_key, active, created_at, weekly_allowance_ore, allowance_weekday, language")
           .eq("family_id", familyId as string)
           .order("name", { ascending: true })
       ) as Omit<AdminChild, "emoji" | "color">[];
