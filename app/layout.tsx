@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Space_Mono } from "next/font/google";
 import RegistrerServiceWorker from "./_components/RegistrerServiceWorker";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
+import { HtmlLang } from "@/components/HtmlLang";
 import "./globals.css";
 
 // Samme skrifter som forsiden: DM Sans til tekst, Space Mono til beløp.
@@ -41,6 +42,7 @@ export default function RootLayout({
         {children}
         <RegistrerServiceWorker />
         <SiteAnalytics />
+        <HtmlLang />
       </body>
     </html>
   );

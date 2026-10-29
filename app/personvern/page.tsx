@@ -12,7 +12,7 @@ export default function PersonvernPage() {
     <LegalPage
       eyebrow="Personvern"
       title="Personvernerklæring"
-      updated="9. oktober 2026"
+      updated="2026-10-09"
       intro={
         <p>
           Ukepenger er laget for barn. Derfor vil vi si tydelig hva vi behandler, hvorfor, og hvem som hjelper oss. Det finnes også en{" "}

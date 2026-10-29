@@ -8,6 +8,71 @@ import { Button } from "@/components/ui";
 import { clearAdminIdentityCache } from "@/lib/family-client";
 import { clearPendingInvite, rememberPendingInvite } from "@/lib/pending-invite";
 import { supabase } from "@/lib/supabaseClient";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useText } from "@/lib/use-lang";
+
+const TEXT = {
+  nb: {
+    joinFailed: "Klarte ikke å bli med. Prøv igjen.",
+    family: (name: string) => `familien ${name.replace(/^familien\s+/i, "")}`,
+    aFamily: "en familie",
+    loading: "Laster",
+    status: {
+      accepted: "Denne invitasjonen er allerede brukt.",
+      revoked: "Invitasjonen er trukket tilbake.",
+      expired: "Invitasjonen er utløpt. Be den som inviterte deg om en ny lenke.",
+      not_found: "Fant ikke invitasjonen. Sjekk at du har hele lenken.",
+    },
+    toLogin: "Til innlogging",
+    invited: "Du er invitert!",
+    join: (family: string) => `Bli med i ${family} på Ukepenger, så kan dere begge godkjenne oppgaver og betale ut.`,
+    sentTo: (email: string) => `Invitasjonen er sendt til ${email}.`,
+    joinButton: "Bli med i familien",
+    loggedInAs: (email: string) => `Logget inn som ${email}`,
+    loginOrSignup: "Logg inn eller lag konto",
+    useEmail: "Bruk e-posten invitasjonen ble sendt til.",
+  },
+  en: {
+    joinFailed: "Couldn't join. Please try again.",
+    family: (name: string) => `the ${name.replace(/^familien\s+/i, "")} family`,
+    aFamily: "a family",
+    loading: "Loading",
+    status: {
+      accepted: "This invitation has already been used.",
+      revoked: "The invitation has been withdrawn.",
+      expired: "The invitation has expired. Ask the person who invited you for a new link.",
+      not_found: "Couldn't find the invitation. Check that you have the whole link.",
+    },
+    toLogin: "Go to login",
+    invited: "You're invited!",
+    join: (family: string) => `Join ${family} on Ukepenger so you can both approve tasks and pay out.`,
+    sentTo: (email: string) => `The invitation was sent to ${email}.`,
+    joinButton: "Join the family",
+    loggedInAs: (email: string) => `Logged in as ${email}`,
+    loginOrSignup: "Log in or create an account",
+    useEmail: "Use the email address the invitation was sent to.",
+  },
+  uk: {
+    joinFailed: "Не вдалося приєднатися. Спробуйте ще раз.",
+    family: (name: string) => `родини «${name.replace(/^familien\s+/i, "")}»`,
+    aFamily: "родини",
+    loading: "Завантаження",
+    status: {
+      accepted: "Це запрошення вже використано.",
+      revoked: "Запрошення відкликано.",
+      expired: "Термін дії запрошення минув. Попросіть того, хто вас запросив, надіслати нове посилання.",
+      not_found: "Запрошення не знайдено. Перевірте, чи посилання повне.",
+    },
+    toLogin: "До входу",
+    invited: "Вас запрошено!",
+    join: (family: string) => `Приєднуйтеся до ${family} в Ukepenger, щоб ви обоє могли схвалювати завдання й робити виплати.`,
+    sentTo: (email: string) => `Запрошення надіслано на ${email}.`,
+    joinButton: "Приєднатися до родини",
+    loggedInAs: (email: string) => `Ви ввійшли як ${email}`,
+    loginOrSignup: "Увійти або створити акаунт",
+    useEmail: "Використайте е-пошту, на яку надіслано запрошення.",
+  },
+};
 
 type InviteInfo = { status: "pending" | "accepted" | "revoked" | "expired" | "not_found"; email?: string; familyName?: string | null };
 
@@ -16,6 +81,7 @@ type InviteInfo = { status: "pending" | "accepted" | "revoked" | "expired" | "no
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
   const router = useRouter();
+  const t = useText(TEXT);
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [userEmail, setUserEmail] = useState<string | null | undefined>(undefined);
   const [accepting, setAccepting] = useState(false);
@@ -55,7 +121,7 @@ export default function InvitePage() {
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
     setAccepting(false);
     if (!res.ok) {
-      setError(payload.error ?? "Klarte ikke å bli med. Prøv igjen.");
+      setError(payload.error ?? t.joinFailed);
       return;
     }
     clearPendingInvite();
@@ -63,24 +129,19 @@ export default function InvitePage() {
     router.replace("/admin/inbox");
   };
 
-  const familyLabel = info?.familyName ? `familien ${info.familyName.replace(/^familien\s+/i, "")}` : "en familie";
+  const familyLabel = info?.familyName ? t.family(info.familyName) : t.aFamily;
 
   let body: React.ReactNode;
   if (!info || userEmail === undefined) {
-    body = <div className="mx-auto size-10 animate-spin rounded-full border-4 border-secondary border-t-primary" role="status" aria-label="Laster" />;
+    body = <div className="mx-auto size-10 animate-spin rounded-full border-4 border-secondary border-t-primary" role="status" aria-label={t.loading} />;
   } else if (info.status !== "pending") {
-    const text = {
-      accepted: "Denne invitasjonen er allerede brukt.",
-      revoked: "Invitasjonen er trukket tilbake.",
-      expired: "Invitasjonen er utløpt. Be den som inviterte deg om en ny lenke.",
-      not_found: "Fant ikke invitasjonen. Sjekk at du har hele lenken.",
-    }[info.status];
+    const text = t.status[info.status];
     body = (
       <>
         <div className="text-5xl" aria-hidden="true">✉️</div>
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight">{text}</h1>
         <Link href="/login" className="mt-6 inline-flex font-semibold text-primary underline underline-offset-4">
-          Til innlogging
+          {t.toLogin}
         </Link>
       </>
     );
@@ -88,18 +149,18 @@ export default function InvitePage() {
     body = (
       <>
         <div className="text-5xl" aria-hidden="true">👨‍👩‍👧</div>
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight">Du er invitert!</h1>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{t.invited}</h1>
         <p className="mt-2 text-muted-foreground">
-          Bli med i {familyLabel} på Ukepenger, så kan dere begge godkjenne oppgaver og betale ut.
+          {t.join(familyLabel)}
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">Invitasjonen er sendt til {info.email}.</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t.sentTo(info.email ?? "")}</p>
 
         {userEmail ? (
           <div className="mt-6 space-y-3">
             <Button size="lg" block loading={accepting} onClick={() => void accept()}>
-              Bli med i familien
+              {t.joinButton}
             </Button>
-            <p className="text-sm text-muted-foreground">Logget inn som {userEmail}</p>
+            <p className="text-sm text-muted-foreground">{t.loggedInAs(userEmail)}</p>
           </div>
         ) : (
           <div className="mt-6 space-y-3">
@@ -111,9 +172,9 @@ export default function InvitePage() {
                 router.push("/login");
               }}
             >
-              Logg inn eller lag konto
+              {t.loginOrSignup}
             </Button>
-            <p className="text-sm text-muted-foreground">Bruk e-posten invitasjonen ble sendt til.</p>
+            <p className="text-sm text-muted-foreground">{t.useEmail}</p>
           </div>
         )}
         {error && <p role="alert" className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-800">{error}</p>}
@@ -122,7 +183,8 @@ export default function InvitePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10 text-foreground">
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10 text-foreground">
+      <LanguageSwitcher className="absolute right-3 top-3" />
       <Link href="/" className="mb-8 flex items-center gap-2.5">
         <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <Coins className="size-5" strokeWidth={2.5} />

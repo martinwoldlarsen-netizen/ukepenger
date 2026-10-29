@@ -1,14 +1,69 @@
 import Link from "next/link";
 import { ArrowLeft, Coins } from "lucide-react";
 import styles from "./LandingClient.module.css";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { localeOf, pick } from "@/lib/i18n";
+import { serverLang } from "@/lib/server-lang";
 
 // Felles oppsett for personvern, vilkår og barneversjonen.
 
-export function LegalPage({ eyebrow, title, intro, updated, children }: { eyebrow: string; title: string; intro: React.ReactNode; updated: string; children: React.ReactNode }) {
+const TEXT = {
+  nb: {
+    home: "Ukepenger forside",
+    back: "Tilbake",
+    updated: (d: string) => `Sist oppdatert ${d}.`,
+    privacy: "Personvern",
+    kids: "Personvern for barn",
+    terms: "Brukervilkår",
+    onlyNb: "",
+    contact: "",
+  },
+  en: {
+    home: "Ukepenger front page",
+    back: "Back",
+    updated: (d: string) => `Last updated ${d}.`,
+    privacy: "Privacy",
+    kids: "Privacy for children",
+    terms: "Terms of use",
+    onlyNb: "This page is only available in Norwegian for now, and the Norwegian text is the one that applies. Questions about it?",
+    contact: "Write to us",
+  },
+  uk: {
+    home: "Ukepenger – головна",
+    back: "Назад",
+    updated: (d: string) => `Оновлено: ${d}`,
+    privacy: "Конфіденційність",
+    kids: "Конфіденційність для дітей",
+    terms: "Умови користування",
+    onlyNb: "Наразі ця сторінка доступна лише норвезькою, і чинним є саме норвезький текст. Маєте запитання?",
+    contact: "Напишіть нам",
+  },
+};
+
+// `updated` er en dato (ÅÅÅÅ-MM-DD). `translated`: siden finnes på alle språk;
+// ellers vises en merknad om at teksten bare er på norsk.
+export async function LegalPage({
+  eyebrow,
+  title,
+  intro,
+  updated,
+  translated = false,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  intro: React.ReactNode;
+  updated: string;
+  translated?: boolean;
+  children: React.ReactNode;
+}) {
+  const lang = await serverLang();
+  const t = pick(TEXT, lang);
+  const date = new Date(`${updated}T12:00:00`).toLocaleDateString(localeOf(lang), { day: "numeric", month: "long", year: "numeric" });
   return (
     <main className={`${styles.landingPage} min-h-screen`}>
       <nav className="mx-auto flex max-w-3xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Ukepenger forside">
+        <Link href="/" className="flex items-center gap-2.5" aria-label={t.home}>
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <Coins className="size-5" strokeWidth={2.5} />
           </span>
@@ -16,22 +71,34 @@ export function LegalPage({ eyebrow, title, intro, updated, children }: { eyebro
             ukepenger.no
           </span>
         </Link>
-        <Link href="/" className={`${styles.navLink} flex items-center gap-2`}>
-          <ArrowLeft className="size-4" /> Tilbake
-        </Link>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <Link href="/" className={`${styles.navLink} flex items-center gap-2`}>
+            <ArrowLeft className="size-4" /> {t.back}
+          </Link>
+        </div>
       </nav>
       <article className="mx-auto max-w-3xl px-5 pb-24 pt-8 sm:px-8 sm:pt-14">
+        {lang !== "nb" && !translated && (
+          <p lang={lang} className="mb-8 rounded-2xl bg-card p-4 text-sm leading-6 text-muted-foreground shadow-sm ring-1 ring-border">
+            {t.onlyNb}{" "}
+            <Link href="/kontakt?emne=personvern" className="font-semibold text-foreground underline underline-offset-4">
+              {t.contact}
+            </Link>
+            .
+          </p>
+        )}
         <p className={styles.eyebrow}>{eyebrow}</p>
-        <h1 className="mt-4 text-balance text-[clamp(2.25rem,6vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.07em]" style={{ fontFamily: "var(--font-mono)" }}>
+        <h1 className="mt-4 text-balance break-words text-[clamp(2.25rem,6vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.07em]" style={{ fontFamily: "var(--font-mono)" }}>
           {title}
         </h1>
         <div className="mt-5 text-lg leading-8 text-muted-foreground">{intro}</div>
         {children}
         <div className="mt-12 flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-6 text-sm text-muted-foreground">
-          <span>Sist oppdatert {updated}.</span>
-          <Link href="/personvern" className="underline underline-offset-4">Personvern</Link>
-          <Link href="/personvern/barn" className="underline underline-offset-4">Personvern for barn</Link>
-          <Link href="/vilkar" className="underline underline-offset-4">Brukervilkår</Link>
+          <span>{t.updated(date)}</span>
+          <Link href="/personvern" className="underline underline-offset-4">{t.privacy}</Link>
+          <Link href="/personvern/barn" className="underline underline-offset-4">{t.kids}</Link>
+          <Link href="/vilkar" className="underline underline-offset-4">{t.terms}</Link>
         </div>
       </article>
     </main>
@@ -49,6 +116,7 @@ export function Avsnitt({ tittel, id, children }: { tittel: string; id?: string;
   );
 }
 
+// Del av selve teksten, så overskriften står på norsk som resten.
 export function KortFortalt({ children }: { children: React.ReactNode }) {
   return (
     <div className="mt-10 rounded-2xl bg-card p-6 shadow-sm ring-1 ring-border">
