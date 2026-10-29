@@ -83,4 +83,6 @@ export function buildHistory(claims: ClaimLike[], payments: PaymentLike[], lang:
 }
 
 export const HISTORY_CLAIM_SELECT = "id, child_id, task_id, status, amount_ore, saved_ore, note, created_at, decided_at, tasks(title)";
+// Barnesiden: også forelderens oversettelser av oppgavenavnet.
+export const HISTORY_CLAIM_SELECT_KIDS = "id, child_id, task_id, status, amount_ore, saved_ore, note, created_at, decided_at, tasks(title, title_i18n)";
 export const HISTORY_PAYMENT_SELECT = "id, child_id, method, amount_ore, note, created_at";

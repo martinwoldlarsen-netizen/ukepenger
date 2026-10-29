@@ -5,6 +5,7 @@
 // ikke kan lese kjenner igjen oppgaven. Oppgaver uten eget bilde får emoji.
 
 import type { ReactNode } from "react";
+import { knownTaskKey } from "@/lib/task-packs-i18n";
 
 const INK = "#2b2238";
 const WOOD = "#d9a066";
@@ -652,46 +653,51 @@ export const TASK_ART: Record<string, Art> = {
 };
 
 // Hvilket bilde passer oppgaven? Rekkefølgen betyr noe (det mest spesifikke først).
+// Kan norsk, engelsk og ukrainsk. (\b virker ikke for kyrillisk, så de ordene
+// står uten.)
 const RULES: Array<[RegExp, string]> = [
-  [/dekke|dekk på/i, "dekke-bordet"],
-  [/oppvaskmaskin/i, "oppvaskmaskin"],
-  [/rydde av bord|av bordet|rydde bord|rydd(e)? (opp )?bordet/i, "rydde-bordet"],
-  [/tørke av|tørk(e)? (av )?(bord|benk)/i, "torke-bord"],
-  [/oppvask|vaske opp|tørke oppvask/i, "oppvask"],
-  [/matpakk/i, "matpakke"],
-  [/lage mat|middag|frokost|bake|matlag|salat|kokk|grønnsak|poteter/i, "lage-mat"],
-  [/\bgang(en)?\b|entr[eé]|ytterklær|ytterklaer/i, "gangen"],
-  [/leke|lego|bamse|tegnesak/i, "leker"],
-  [/rydde rom|rydd(e)? (på )?rommet|rydde i skap|rydde skap/i, "rydde-rommet"],
-  [/etter seg|^rydd(e)?( opp)?$/i, "rydde-etter-seg"],
-  [/feie|\bkost/i, "feie"],
-  [/vindu/i, "vindu"],
-  [/seng/i, "seng"],
-  [/støvsug|stovsug/i, "stovsuger"],
-  [/pant|flaske/i, "pant"],
-  [/søppel|søppl|søpla|soppel|avfall|ta ut (papir|plast|glass)/i, "soppel"],
-  [/brett/i, "brette"],
-  [/sko/i, "sko"],
-  [/klær|klaer|klesvask|skittentøy|jakk|kles/i, "klaer"],
-  [/hund/i, "hund"],
-  [/katt|mate |mate$|dyr|fisk|fugl|bur\b/i, "mate-dyr"],
-  [/lekse|gangetabell|skrive/i, "lekser"],
-  [/\bles(e|ing)?\b|bok/i, "bok"],
-  [/instrument|øve|piano|gitar|fiolin/i, "musikk"],
-  [/sekk|treningsbag/i, "sekk"],
-  [/tann|pusse tenn/i, "tannborste"],
-  [/\bbad(et)?\b|\bdo\b|dusj|toalett|vasken\b|håndkl|dopapir/i, "bad"],
-  [/snø|sno\b/i, "sno"],
-  [/løv|rake/i, "rake"],
-  [/plen|gress/i, "gressklipper"],
-  [/bil\b|bilen/i, "bil"],
-  [/blomst|vanne|plante|hage|luke/i, "vannkanne"],
-  [/handle|pose/i, "handlepose"],
-  [/salg|selge/i, "salg"],
+  [/dekke|dekk på|set the table|lay the table|накри/i, "dekke-bordet"],
+  [/oppvaskmaskin|dishwasher|посудомий/i, "oppvaskmaskin"],
+  [/rydde av bord|av bordet|rydde bord|rydd(e)? (opp )?bordet|clear the table|tidy the table|прибрати (зі|на) стол/i, "rydde-bordet"],
+  [/tørke av|tørk(e)? (av )?(bord|benk)|\bwipe|витерти (стіл|стільниц)/i, "torke-bord"],
+  [/oppvask|vaske opp|tørke oppvask|\bdishes\b|washing.up|посуд/i, "oppvask"],
+  [/matpakk|packed lunch|lunch ?box|бутерброд|з собою/i, "matpakke"],
+  [/lage mat|middag|frokost|bake|matlag|salat|kokk|grønnsak|poteter|\bcook|dinner|breakfast|\bbake|salad|vegetable|potato|готува|сніданок|вечер|обід|пекти|спекти|салат|овоч|картопл/i, "lage-mat"],
+  [/\bgang(en)?\b|entr[eé]|ytterklær|ytterklaer|hallway|\bhall\b|передпок|коридор/i, "gangen"],
+  [/leke|lego|bamse|tegnesak|\btoys?\b|tedd|drawing things|\bplay|іграшк|лего|ведмедик|малюва|погра|ігров/i, "leker"],
+  [/rydde rom|rydd(e)? (på )?rommet|rydde i skap|rydde skap|tidy (your|the) (room|bedroom|cupboard)|clean (your|the) room|прибрати (в|у) кімнат|прибрати (в|у) шаф/i, "rydde-rommet"],
+  [/etter seg|^rydd(e)?( opp)?$|after yourself|^tidy( up)?$|за собою|^прибрати$/i, "rydde-etter-seg"],
+  [/feie|\bkost|\bsweep|broom|підмест|підмітати|вінник|віник/i, "feie"],
+  [/vindu|window|вікн/i, "vindu"],
+  [/seng|\bbed\b|bed sheets|ліжк|постіл/i, "seng"],
+  [/støvsug|stovsug|vacuum|hoover|пилосос/i, "stovsuger"],
+  [/pant|flaske|bottle|deposit|пляшк/i, "pant"],
+  [/søppel|søppl|søpla|soppel|avfall|ta ut (papir|plast|glass)|rubbish|trash|garbage|\bbins?\b|recycl|\btake out|смітт|смітник|відход|винести/i, "soppel"],
+  [/brett|\bfold|склас|складати/i, "brette"],
+  [/sko(?!l)|\bshoes?\b|взутт|черевик/i, "sko"],
+  [/klær|klaer|klesvask|skittentøy|jakk|kles|cloth|laundry|washing|jacket|wardrobe|одяг|прання|білизн|куртк/i, "klaer"],
+  [/hund|\bdogs?\b|собак|пса|песик/i, "hund"],
+  [/katt|mate |mate$|dyr|fisk|fugl|\bbur(et)?\b|\bcats?\b|\bfeed|\bpets?\b|\bfish|\bbirds?\b|\bcage|litter|кіт|кота|кішк|нагодува|тварин|рибк|птах|пташ|клітк|лоток/i, "mate-dyr"],
+  [/lekse|gangetabell|skrive|homework|times tables?|\bwrite|diary|\bdesk|письмов|домашн|урок|таблиц|писати|щоденник/i, "lekser"],
+  [/\bles(e|ing)?\b|bok|\bread(ing)?\b|\bbook|читати|книж|книг/i, "bok"],
+  [/instrument|øve|piano|gitar|fiolin|practi[sc]e|guitar|violin|інструмент|піаніно|гітар|скрипк|позайматися/i, "musikk"],
+  [/sekk|treningsbag|\bbag\b|backpack|school bag|sports bag|рюкзак|портфел|сумк/i, "sekk"],
+  [/tann|pusse tenn|teeth|tooth|зуб/i, "tannborste"],
+  [/\bbad(et)?\b|\bdo$|vaske do|dusj|toalett|vasken\b|håndkl|dopapir|bathroom|toilet|shower|\bsink\b|towel|ванн|туалет|унітаз|душ|раковин|рушник/i, "bad"],
+  [/snø|sno\b|\bsnow|сніг/i, "sno"],
+  [/løv|rake|leaves|листя/i, "rake"],
+  [/plen|gress|\blawn|\bmow|\bgrass|газон|трав/i, "gressklipper"],
+  [/\bbil(en)?\b|\bcar\b|машин|авто/i, "bil"],
+  [/blomst|vanne|plante|hage|luke|flower|\bwater the|\bplants?\b|garden|\bweed|квіт|полити|рослин|сад|город|прополо/i, "vannkanne"],
+  [/handle|pose|shopping|покуп|пакет|магазин/i, "handlepose"],
+  [/salg|selge|\bsell|\bsale|прода/i, "salg"],
 ];
 
 export function taskArtKey(title: string): string | null {
-  return RULES.find(([re]) => re.test(title))?.[1] ?? null;
+  // Kjente forslag på engelsk/ukrainsk slås opp via det norske navnet.
+  // Da får oppgaven samme bilde på alle språk.
+  const text = knownTaskKey(title) ?? title;
+  return RULES.find(([re]) => re.test(text))?.[1] ?? null;
 }
 
 // Navn på de tegnede bildene, brukt i bildevelgeren.

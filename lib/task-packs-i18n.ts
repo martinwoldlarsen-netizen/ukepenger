@@ -87,3 +87,24 @@ export function categoryTitle(key: string, fallback: string, lang: Lang) {
 export function taskSuggestionTitle(title: string, lang: Lang) {
   return lang === "nb" ? title : (TASK[lang][title] ?? title);
 }
+
+// Alle kjente oppgavenavn på alle språk → det norske navnet (nøkkelen).
+// Gjør at «Walk the dog» og «Вигуляти собаку» kjennes igjen som «Lufte hunden».
+const KNOWN: Map<string, string> = new Map();
+for (const key of Object.keys(TASK.en)) {
+  KNOWN.set(key.toLowerCase(), key);
+  KNOWN.set(TASK.en[key].toLowerCase(), key);
+  if (TASK.uk[key]) KNOWN.set(TASK.uk[key].toLowerCase(), key);
+}
+
+// Det norske navnet hvis oppgaven er et kjent forslag (på hvilket som helst språk).
+export function knownTaskKey(title: string): string | null {
+  return KNOWN.get(title.trim().toLowerCase()) ?? null;
+}
+
+// Et kjent forslag oversatt til `lang`, ellers null.
+export function knownTaskTitle(title: string, lang: Lang): string | null {
+  const key = knownTaskKey(title);
+  if (!key) return null;
+  return lang === "nb" ? key : (TASK[lang][key] ?? null);
+}

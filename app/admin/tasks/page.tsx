@@ -6,11 +6,12 @@ import { useState } from "react";
 import { Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
-import { type AdminTask, friendlyError, useAdminIdentity, useTasks } from "@/lib/admin-data";
+import { type AdminTask, friendlyError, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
+import { LANGS, type Lang, asLang } from "@/lib/i18n";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { OTHER_CATEGORY, TASK_PACKS, categoryOf, type PackTask } from "@/lib/task-packs";
-import { categoryTitle, taskSuggestionTitle } from "@/lib/task-packs-i18n";
+import { categoryTitle, knownTaskTitle, taskSuggestionTitle } from "@/lib/task-packs-i18n";
 import { taskArtKey } from "@/components/task-art";
 import { useLang, useText } from "@/lib/use-lang";
 
@@ -34,6 +35,8 @@ const TEXT = {
     amount: "Beløp",
     category: "Kategori",
     picture: "Bilde",
+    nameInLangs: "Navnet på barnas språk",
+    nameInLangsHint: "Barnet ser oppgaven på sitt språk. Tomt felt: kjente oppgaver oversettes av seg selv, ellers vises navnet over.",
     oldPrice: "Krav som allerede er sendt, beholder den gamle prisen.",
     cancel: "Avbryt",
     save: "Lagre",
@@ -73,6 +76,8 @@ const TEXT = {
     amount: "Amount",
     category: "Category",
     picture: "Picture",
+    nameInLangs: "The name in the children's languages",
+    nameInLangsHint: "Each child sees the task in their own language. Empty field: known tasks are translated automatically, otherwise the name above is shown.",
     oldPrice: "Requests already sent keep the old price.",
     cancel: "Cancel",
     save: "Save",
@@ -112,6 +117,8 @@ const TEXT = {
     amount: "Сума",
     category: "Категорія",
     picture: "Зображення",
+    nameInLangs: "Назва мовами дітей",
+    nameInLangsHint: "Дитина бачить завдання своєю мовою. Порожнє поле: відомі завдання перекладаються автоматично, інакше показується назва вище.",
     oldPrice: "Запити, які вже надіслано, зберігають стару ціну.",
     cancel: "Скасувати",
     save: "Зберегти",
@@ -152,6 +159,11 @@ export default function AdminTasksPage() {
   const confirm = useConfirm();
   const { familyId } = useAdminIdentity();
   const tasks = useTasks(familyId);
+  // Barnas språk utenom ditt eget (navnet skrives på ditt språk). Snakker alle
+  // samme språk, trengs ingen oversettelse.
+  const kids = useChildren(familyId);
+  const kidLangs = new Set<Lang>((kids.data ?? []).filter((c) => c.active).map((c) => asLang(c.language)));
+  const translateTo = LANGS.filter((l) => l.code !== lang && kidLangs.has(l.code));
 
   const [open, setOpen] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
@@ -169,6 +181,7 @@ export default function AdminTasksPage() {
   const [editAmount, setEditAmount] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [editIcon, setEditIcon] = useState<string | null>(null);
+  const [editI18n, setEditI18n] = useState<Partial<Record<Lang, string>>>({});
 
   const list = tasks.data ?? [];
   const existingTitles = new Set(list.map((t) => t.title.toLowerCase()));
@@ -223,6 +236,7 @@ export default function AdminTasksPage() {
     setEditAmount(String(task.amount_ore / 100).replace(".", ","));
     setEditCategory(categoryOf(task));
     setEditIcon(task.icon ?? null);
+    setEditI18n(task.title_i18n ?? {});
   };
 
   const saveEdit = async (task: AdminTask) => {
@@ -230,7 +244,13 @@ export default function AdminTasksPage() {
     if (!editTitle.trim()) return toast({ kind: "error", text: t.writeTask });
     if (amountOre === null || amountOre === "invalid") return toast({ kind: "error", text: t.amountAsNumber });
     setBusy(`edit-${task.id}`);
-    const patch = { title: editTitle.trim(), amount_ore: amountOre, category: editCategory, icon: editIcon };
+    // Bare utfylte oversettelser lagres; felt som er like navnet, trengs ikke.
+    const i18n = Object.fromEntries(
+      Object.entries(editI18n)
+        .map(([k, v]) => [k, (v ?? "").trim()])
+        .filter(([, v]) => v && v !== editTitle.trim())
+    ) as Partial<Record<Lang, string>>;
+    const patch = { title: editTitle.trim(), amount_ore: amountOre, category: editCategory, icon: editIcon, title_i18n: Object.keys(i18n).length ? i18n : null };
     const res = await supabase.from("tasks").update(patch).eq("id", task.id);
     setBusy(null);
     if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message, t.saveFailed) });
@@ -349,6 +369,29 @@ export default function AdminTasksPage() {
                           <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.picture}</span>
                           <TaskIconPicker title={editTitle || task.title} value={editIcon} onChange={setEditIcon} />
                         </div>
+                        {translateTo.length > 0 && (
+                          <div>
+                            <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.nameInLangs}</span>
+                            <div className="space-y-2">
+                              {translateTo.map((l) => (
+                                <label key={l.code} className="flex items-center gap-2">
+                                  <span className="w-7 shrink-0 text-center text-xl" aria-hidden="true">
+                                    {l.flag}
+                                  </span>
+                                  <Input
+                                    aria-label={`${t.nameInLangs}: ${l.label}`}
+                                    lang={l.code}
+                                    value={editI18n[l.code] ?? ""}
+                                    onChange={(e) => setEditI18n((cur) => ({ ...cur, [l.code]: e.target.value }))}
+                                    placeholder={knownTaskTitle(editTitle, l.code) ?? editTitle}
+                                    maxLength={60}
+                                  />
+                                </label>
+                              ))}
+                            </div>
+                            <p className="mt-1.5 text-xs text-muted-foreground">{t.nameInLangsHint}</p>
+                          </div>
+                        )}
                         <p className="text-xs text-muted-foreground">{t.oldPrice}</p>
                         <div className="flex gap-2">
                           <Button variant="ghost" className="flex-1" onClick={() => setEditing(null)}>

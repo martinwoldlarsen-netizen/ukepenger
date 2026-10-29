@@ -5,6 +5,7 @@
 // Spørringene er de samme som sidene brukte før; RLS gjelder som vanlig.
 
 import { currentLang } from "@/lib/use-lang";
+import type { Lang } from "@/lib/i18n";
 import useSWR, { type SWRConfiguration } from "swr";
 import { getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
@@ -127,7 +128,17 @@ export function childLookup(children: AdminChild[] | undefined) {
 
 /* Oppgaver */
 
-export type AdminTask = { id: string; title: string; amount_ore: number; active: boolean; created_at?: string; category?: string | null; icon?: string | null };
+export type AdminTask = {
+  id: string;
+  title: string;
+  amount_ore: number;
+  active: boolean;
+  created_at?: string;
+  category?: string | null;
+  icon?: string | null;
+  // Navnet på andre språk (barnas språk), skrevet av forelderen.
+  title_i18n?: Partial<Record<Lang, string>> | null;
+};
 
 export function useTasks(familyId: string | null) {
   return useSWR(
@@ -136,7 +147,7 @@ export function useTasks(familyId: string | null) {
       check(
         await supabase
           .from("tasks")
-          .select("id, title, amount_ore, active, created_at, category, icon")
+          .select("id, title, amount_ore, active, created_at, category, icon, title_i18n")
           .eq("family_id", familyId as string)
           .is("archived_at", null)
           .order("created_at", { ascending: false })

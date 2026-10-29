@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
+import { asLang } from "@/lib/i18n";
+import { localTaskTitle } from "@/lib/task-title";
 
 type ChildRow = {
   id: string;
@@ -16,8 +18,10 @@ type ChildRow = {
 type TaskRow = {
   id: string;
   title: string;
+  title_i18n: unknown;
   amount_ore: number;
   active: boolean;
+  icon: string | null;
 };
 
 type ChildTaskSettingRow = {
@@ -78,7 +82,7 @@ export async function GET(request: Request) {
   const [tasksRes, settingsRes, recentClaimsRes, balanceClaimsRes, familyRes] = await Promise.all([
     supabase
       .from("tasks")
-      .select("id, title, amount_ore, active, icon")
+      .select("id, title, title_i18n, amount_ore, active, icon")
       .eq("family_id", auth.familyId)
       .eq("active", true)
       .is("archived_at", null)
@@ -117,7 +121,12 @@ export async function GET(request: Request) {
     enabledMap[row.task_id] = row.enabled;
   }
 
-  const visibleTasks = ((tasksRes.data ?? []) as TaskRow[]).filter((task) => enabledMap[task.id] !== false);
+  // Navnet på barnets språk (egen oversettelse eller kjent forslag).
+  const lang = asLang(child.language);
+  const visibleTasks = ((tasksRes.data ?? []) as TaskRow[])
+    .filter((task) => enabledMap[task.id] !== false)
+    .map(({ title_i18n, ...task }) => ({ ...task, title: localTaskTitle({ title: task.title, title_i18n }, lang) }))
+    .sort((a, b) => a.title.localeCompare(b.title, lang));
   const cooldowns: Record<string, number> = {};
   for (const claim of (recentClaimsRes.data ?? []) as ClaimRow[]) {
     const cooldownUntil = new Date(claim.created_at).getTime() + 10_000;

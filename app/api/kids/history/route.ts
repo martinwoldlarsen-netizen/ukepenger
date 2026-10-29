@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
-import { HISTORY_CLAIM_SELECT, HISTORY_PAYMENT_SELECT, buildHistory } from "@/lib/history";
+import { HISTORY_CLAIM_SELECT_KIDS, HISTORY_PAYMENT_SELECT, buildHistory } from "@/lib/history";
 import { asLang } from "@/lib/i18n";
+import { localizeClaimTasks } from "@/lib/task-title";
 
 // Barnets egen historikk: hva det har gjort, tjent og fått utbetalt.
 export async function GET(request: Request) {
@@ -22,13 +23,14 @@ export async function GET(request: Request) {
   }
 
   const [claimsRes, paymentsRes] = await Promise.all([
-    supabase.from("claims").select(HISTORY_CLAIM_SELECT).eq("child_id", childId).order("created_at", { ascending: false }).limit(40),
+    supabase.from("claims").select(HISTORY_CLAIM_SELECT_KIDS).eq("child_id", childId).order("created_at", { ascending: false }).limit(40),
     supabase.from("payments").select(HISTORY_PAYMENT_SELECT).eq("child_id", childId).order("created_at", { ascending: false }).limit(20),
   ]);
   if (claimsRes.error || paymentsRes.error) {
     return NextResponse.json({ error: "Klarte ikke å hente historikken." }, { status: 400 });
   }
 
-  const events = buildHistory(claimsRes.data ?? [], paymentsRes.data ?? [], asLang(childRes.data.language)).slice(0, 40);
+  const lang = asLang(childRes.data.language);
+  const events = buildHistory(localizeClaimTasks(claimsRes.data ?? [], lang), paymentsRes.data ?? [], lang).slice(0, 40);
   return NextResponse.json({ events });
 }
