@@ -10,6 +10,129 @@ import { type AdminTask, friendlyError, useAdminIdentity, useTasks } from "@/lib
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { OTHER_CATEGORY, TASK_PACKS, categoryOf, type PackTask } from "@/lib/task-packs";
+import { categoryTitle, taskSuggestionTitle } from "@/lib/task-packs-i18n";
+import { taskArtKey } from "@/components/task-art";
+import { useLang, useText } from "@/lib/use-lang";
+
+const TEXT = {
+  nb: {
+    addFailed: "Klarte ikke å legge til.",
+    added: (title: string) => `«${title}» er lagt til`,
+    addedMany: (emoji: string, n: number) => `${emoji} ${n} oppgaver lagt til`,
+    writeTask: "Skriv hva oppgaven er.",
+    amountAsNumber: "Skriv beløpet som et tall, f.eks. 25.",
+    saveFailed: "Klarte ikke å lagre.",
+    saved: (title: string, amount: string) => `Lagret: ${title} · ${amount}`,
+    deleteTitle: (title: string) => `Slette «${title}»?`,
+    deleteText: "Oppgaven forsvinner for barna. Det barna allerede har tjent på den, blir stående.",
+    delete: "Slett",
+    deleteFailed: "Klarte ikke å slette.",
+    deleted: (title: string) => `«${title}» er slettet`,
+    count: (n: number, hidden: number) => `${n} ${n === 1 ? "oppgave" : "oppgaver"}${hidden ? ` · ${hidden} skjult` : ""}`,
+    suggestionsCount: (n: number) => `${n} forslag`,
+    whatToDo: "Hva skal gjøres?",
+    amount: "Beløp",
+    category: "Kategori",
+    picture: "Bilde",
+    oldPrice: "Krav som allerede er sendt, beholder den gamle prisen.",
+    cancel: "Avbryt",
+    save: "Lagre",
+    deleteTask: "Slett oppgave",
+    edit: (title: string) => `Endre ${title}`,
+    visible: "Synlig for barna",
+    hidden: "Skjult for barna",
+    ownIn: (cat: string) => `Egen oppgave i ${cat}`,
+    ownPlaceholder: "F.eks. Rydde garasjen",
+    howMuch: "Hvor mye får barnet?",
+    add: "Legg til",
+    own: "Egen oppgave",
+    suggestions: "Forslag",
+    addedLabel: "Lagt til",
+    addAll: "Legg til alle",
+    addRest: (n: number) => `Legg til de ${n} andre`,
+    intro: "Trykk på en kategori for å se, endre eller legge til oppgaver.",
+    none: "Ingen oppgaver ennå. Åpne en kategori under og legg til forslag, eller lag dine egne.",
+    moreCategories: "Flere kategorier",
+  },
+  en: {
+    addFailed: "Couldn't add it.",
+    added: (title: string) => `“${title}” was added`,
+    addedMany: (emoji: string, n: number) => `${emoji} ${n} tasks added`,
+    writeTask: "Write what the task is.",
+    amountAsNumber: "Write the amount as a number, e.g. 25.",
+    saveFailed: "Couldn't save.",
+    saved: (title: string, amount: string) => `Saved: ${title} · ${amount}`,
+    deleteTitle: (title: string) => `Delete “${title}”?`,
+    deleteText: "The task disappears for the children. What they have already earned from it stays.",
+    delete: "Delete",
+    deleteFailed: "Couldn't delete it.",
+    deleted: (title: string) => `“${title}” was deleted`,
+    count: (n: number, hidden: number) => `${n} ${n === 1 ? "task" : "tasks"}${hidden ? ` · ${hidden} hidden` : ""}`,
+    suggestionsCount: (n: number) => `${n} suggestions`,
+    whatToDo: "What needs doing?",
+    amount: "Amount",
+    category: "Category",
+    picture: "Picture",
+    oldPrice: "Requests already sent keep the old price.",
+    cancel: "Cancel",
+    save: "Save",
+    deleteTask: "Delete task",
+    edit: (title: string) => `Edit ${title}`,
+    visible: "Visible to the children",
+    hidden: "Hidden from the children",
+    ownIn: (cat: string) => `Your own task in ${cat}`,
+    ownPlaceholder: "E.g. Tidy the garage",
+    howMuch: "How much does the child get?",
+    add: "Add",
+    own: "Your own task",
+    suggestions: "Suggestions",
+    addedLabel: "Added",
+    addAll: "Add all",
+    addRest: (n: number) => `Add the other ${n}`,
+    intro: "Tap a category to see, edit or add tasks.",
+    none: "No tasks yet. Open a category below and add suggestions, or make your own.",
+    moreCategories: "More categories",
+  },
+  uk: {
+    addFailed: "Не вдалося додати.",
+    added: (title: string) => `«${title}» додано`,
+    addedMany: (emoji: string, n: number) => `${emoji} Додано завдань: ${n}`,
+    writeTask: "Напишіть, що потрібно зробити.",
+    amountAsNumber: "Напишіть суму числом, наприклад 25.",
+    saveFailed: "Не вдалося зберегти.",
+    saved: (title: string, amount: string) => `Збережено: ${title} · ${amount}`,
+    deleteTitle: (title: string) => `Видалити «${title}»?`,
+    deleteText: "Завдання зникне для дітей. Те, що вони вже заробили на ньому, залишиться.",
+    delete: "Видалити",
+    deleteFailed: "Не вдалося видалити.",
+    deleted: (title: string) => `«${title}» видалено`,
+    count: (n: number, hidden: number) => `Завдань: ${n}${hidden ? ` · приховано: ${hidden}` : ""}`,
+    suggestionsCount: (n: number) => `Пропозицій: ${n}`,
+    whatToDo: "Що потрібно зробити?",
+    amount: "Сума",
+    category: "Категорія",
+    picture: "Зображення",
+    oldPrice: "Запити, які вже надіслано, зберігають стару ціну.",
+    cancel: "Скасувати",
+    save: "Зберегти",
+    deleteTask: "Видалити завдання",
+    edit: (title: string) => `Змінити ${title}`,
+    visible: "Видно дітям",
+    hidden: "Приховано від дітей",
+    ownIn: (cat: string) => `Власне завдання: ${cat}`,
+    ownPlaceholder: "Напр. Прибрати в гаражі",
+    howMuch: "Скільки отримає дитина?",
+    add: "Додати",
+    own: "Власне завдання",
+    suggestions: "Пропозиції",
+    addedLabel: "Додано",
+    addAll: "Додати всі",
+    addRest: (n: number) => `Додати решту (${n})`,
+    intro: "Натисніть на категорію, щоб переглянути, змінити або додати завдання.",
+    none: "Завдань ще немає. Відкрийте категорію нижче й додайте пропозиції або створіть власні.",
+    moreCategories: "Більше категорій",
+  },
+};
 
 type Category = { key: string; title: string; emoji: string; tasks: PackTask[] };
 const CATEGORIES: Category[] = [...TASK_PACKS, { ...OTHER_CATEGORY, tasks: [] }];
@@ -18,6 +141,13 @@ const CATEGORIES: Category[] = [...TASK_PACKS, { ...OTHER_CATEGORY, tasks: [] }]
 // hentes frem under «Flere kategorier». Hver kategori har egne oppgaver,
 // forslag å legge til, og en + for egne oppgaver.
 export default function AdminTasksPage() {
+  const t = useText(TEXT);
+  const lang = useLang();
+  // Forslag og kategorier på valgt språk. En oppgave fra forslagene får fast
+  // bilde, så den kjennes igjen også når navnet ikke er norsk.
+  const catTitle = (c: Category) => categoryTitle(c.key, c.title, lang);
+  const sugTitle = (x: PackTask) => taskSuggestionTitle(x.title, lang);
+  const sugIcon = (x: PackTask) => (lang === "nb" ? null : (taskArtKey(x.title) ?? x.emoji ?? null));
   const toast = useToast();
   const confirm = useConfirm();
   const { familyId } = useAdminIdentity();
@@ -49,11 +179,11 @@ export default function AdminTasksPage() {
   const used = CATEGORIES.filter((c) => (byCategory[c.key]?.length ?? 0) > 0);
   const unused = CATEGORIES.filter((c) => !byCategory[c.key]?.length && c.key !== OTHER_CATEGORY.key);
 
-  const insert = async (rows: Array<{ title: string; amount_ore: number; category: string }>, text: string) => {
+  const insert = async (rows: Array<{ title: string; amount_ore: number; category: string; icon?: string | null }>, text: string) => {
     if (!familyId) return false;
     const res = await supabase.from("tasks").insert(rows.map((r) => ({ ...r, family_id: familyId, active: true })));
     if (res.error) {
-      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å legge til.") });
+      toast({ kind: "error", text: friendlyError(res.error.message, t.addFailed) });
       return false;
     }
     toast({ text });
@@ -61,24 +191,24 @@ export default function AdminTasksPage() {
     return true;
   };
 
-  const addSuggestion = async (cat: Category, t: PackTask) => {
-    setBusy(t.title);
-    await insert([{ title: t.title, amount_ore: t.kr * 100, category: cat.key }], `«${t.title}» er lagt til`);
+  const addSuggestion = async (cat: Category, x: PackTask) => {
+    setBusy(x.title);
+    await insert([{ title: sugTitle(x), amount_ore: x.kr * 100, category: cat.key, icon: sugIcon(x) }], t.added(sugTitle(x)));
     setBusy(null);
   };
 
   const addAll = async (cat: Category, missing: PackTask[]) => {
     setBusy(`all-${cat.key}`);
-    await insert(missing.map((t) => ({ title: t.title, amount_ore: t.kr * 100, category: cat.key })), `${cat.emoji} ${missing.length} oppgaver lagt til`);
+    await insert(missing.map((x) => ({ title: sugTitle(x), amount_ore: x.kr * 100, category: cat.key, icon: sugIcon(x) })), t.addedMany(cat.emoji, missing.length));
     setBusy(null);
   };
 
   const addOwn = async (cat: Category) => {
     const amountOre = parseKrToOre(newAmount);
-    if (!newTitle.trim()) return toast({ kind: "error", text: "Skriv hva oppgaven er." });
-    if (amountOre === null || amountOre === "invalid") return toast({ kind: "error", text: "Skriv beløpet som et tall, f.eks. 25." });
+    if (!newTitle.trim()) return toast({ kind: "error", text: t.writeTask });
+    if (amountOre === null || amountOre === "invalid") return toast({ kind: "error", text: t.amountAsNumber });
     setBusy(`own-${cat.key}`);
-    const ok = await insert([{ title: newTitle.trim(), amount_ore: amountOre, category: cat.key }], `«${newTitle.trim()}» er lagt til`);
+    const ok = await insert([{ title: newTitle.trim(), amount_ore: amountOre, category: cat.key }], t.added(newTitle.trim()));
     setBusy(null);
     if (ok) {
       setAdding(null);
@@ -97,33 +227,33 @@ export default function AdminTasksPage() {
 
   const saveEdit = async (task: AdminTask) => {
     const amountOre = parseKrToOre(editAmount);
-    if (!editTitle.trim()) return toast({ kind: "error", text: "Skriv hva oppgaven er." });
-    if (amountOre === null || amountOre === "invalid") return toast({ kind: "error", text: "Skriv beløpet som et tall, f.eks. 25." });
+    if (!editTitle.trim()) return toast({ kind: "error", text: t.writeTask });
+    if (amountOre === null || amountOre === "invalid") return toast({ kind: "error", text: t.amountAsNumber });
     setBusy(`edit-${task.id}`);
     const patch = { title: editTitle.trim(), amount_ore: amountOre, category: editCategory, icon: editIcon };
     const res = await supabase.from("tasks").update(patch).eq("id", task.id);
     setBusy(null);
-    if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å lagre.") });
-    await tasks.mutate((current) => (current ?? []).map((t) => (t.id === task.id ? { ...t, ...patch } : t)), { revalidate: false });
+    if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message, t.saveFailed) });
+    await tasks.mutate((current) => (current ?? []).map((x) => (x.id === task.id ? { ...x, ...patch } : x)), { revalidate: false });
     setEditing(null);
     if (editCategory !== categoryOf(task)) setOpen(editCategory);
-    toast({ text: `Lagret: ${patch.title} · ${formatKr(amountOre)}` });
+    toast({ text: t.saved(patch.title, formatKr(amountOre, lang)) });
   };
 
   // «Slett» arkiverer: barnas historikk og penger for oppgaven blir stående.
   const deleteTask = async (task: AdminTask) => {
     const ok = await confirm({
-      title: `Slette «${task.title}»?`,
-      text: "Oppgaven forsvinner for barna. Det barna allerede har tjent på den, blir stående.",
-      confirmLabel: "Slett",
+      title: t.deleteTitle(task.title),
+      text: t.deleteText,
+      confirmLabel: t.delete,
       danger: true,
     });
     if (!ok) return;
     const res = await supabase.from("tasks").update({ active: false, archived_at: new Date().toISOString() }).eq("id", task.id);
-    if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å slette.") });
+    if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message, t.deleteFailed) });
     setEditing(null);
-    await tasks.mutate((current) => (current ?? []).filter((t) => t.id !== task.id), { revalidate: false });
-    toast({ text: `«${task.title}» er slettet` });
+    await tasks.mutate((current) => (current ?? []).filter((x) => x.id !== task.id), { revalidate: false });
+    toast({ text: t.deleted(task.title) });
   };
 
   const toggleActive = async (task: AdminTask) => {
@@ -134,12 +264,12 @@ export default function AdminTasksPage() {
         async (current) => {
           const res = await supabase.from("tasks").update({ active: !task.active }).eq("id", task.id);
           if (res.error) throw new Error(res.error.message);
-          return (current ?? []).map((t) => (t.id === task.id ? { ...t, active: !task.active } : t));
+          return (current ?? []).map((x) => (x.id === task.id ? { ...x, active: !task.active } : x));
         },
-        { optimisticData: (current) => (current ?? []).map((t) => (t.id === task.id ? { ...t, active: !task.active } : t)), rollbackOnError: true, revalidate: false }
+        { optimisticData: (current) => (current ?? []).map((x) => (x.id === task.id ? { ...x, active: !task.active } : x)), rollbackOnError: true, revalidate: false }
       );
     } catch (error) {
-      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å lagre.") });
+      toast({ kind: "error", text: friendlyError(error, t.saveFailed) });
     } finally {
       setToggling((p) => {
         const n = { ...p };
@@ -153,9 +283,10 @@ export default function AdminTasksPage() {
 
   const renderCategory = (cat: Category) => {
     const mine = byCategory[cat.key] ?? [];
-    const missing = cat.tasks.filter((t) => !existingTitles.has(t.title.toLowerCase()));
+    const isAdded = (x: PackTask) => existingTitles.has(x.title.toLowerCase()) || existingTitles.has(sugTitle(x).toLowerCase());
+    const missing = cat.tasks.filter((x) => !isAdded(x));
     const isOpen = open === cat.key;
-    const hidden = mine.filter((t) => !t.active).length;
+    const hidden = mine.filter((x) => !x.active).length;
     return (
       <div key={cat.key} className={cx("rounded-3xl border bg-card shadow-sm transition", isOpen ? "border-primary/40" : "border-border")}>
         <button
@@ -172,9 +303,9 @@ export default function AdminTasksPage() {
             {cat.emoji}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-lg font-bold">{cat.title}</span>
+            <span className="block text-lg font-bold">{catTitle(cat)}</span>
             <span className="block text-sm text-muted-foreground">
-              {mine.length ? `${mine.length} ${mine.length === 1 ? "oppgave" : "oppgaver"}${hidden ? ` · ${hidden} skjult` : ""}` : `${cat.tasks.length} forslag`}
+              {mine.length ? t.count(mine.length, hidden) : t.suggestionsCount(cat.tasks.length)}
             </span>
           </span>
           <ChevronDown className={cx("size-5 shrink-0 text-muted-foreground transition", isOpen && "rotate-180")} />
@@ -194,41 +325,41 @@ export default function AdminTasksPage() {
                           void saveEdit(task);
                         }}
                       >
-                        <Field label="Hva skal gjøres?">
+                        <Field label={t.whatToDo}>
                           <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={60} />
                         </Field>
                         <div className="grid grid-cols-2 gap-3">
-                          <Field label="Beløp">
+                          <Field label={t.amount}>
                             <span className="relative block">
                               <Input value={editAmount} onChange={(e) => setEditAmount(e.target.value)} inputMode="decimal" className="pr-10" autoFocus />
                               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kr</span>
                             </span>
                           </Field>
-                          <Field label="Kategori">
+                          <Field label={t.category}>
                             <Select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
                               {CATEGORIES.map((c) => (
                                 <option key={c.key} value={c.key}>
-                                  {c.emoji} {c.title}
+                                  {c.emoji} {catTitle(c)}
                                 </option>
                               ))}
                             </Select>
                           </Field>
                         </div>
                         <div>
-                          <span className="mb-1.5 block text-sm font-semibold text-foreground/85">Bilde</span>
+                          <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.picture}</span>
                           <TaskIconPicker title={editTitle || task.title} value={editIcon} onChange={setEditIcon} />
                         </div>
-                        <p className="text-xs text-muted-foreground">Krav som allerede er sendt, beholder den gamle prisen.</p>
+                        <p className="text-xs text-muted-foreground">{t.oldPrice}</p>
                         <div className="flex gap-2">
                           <Button variant="ghost" className="flex-1" onClick={() => setEditing(null)}>
-                            Avbryt
+                            {t.cancel}
                           </Button>
                           <Button type="submit" className="flex-1" loading={busy === `edit-${task.id}`}>
-                            Lagre
+                            {t.save}
                           </Button>
                         </div>
                         <Button variant="dangerSoft" block icon={<Trash2 className="size-4" />} onClick={() => void deleteTask(task)}>
-                          Slett oppgave
+                          {t.deleteTask}
                         </Button>
                       </form>
                     </li>
@@ -237,7 +368,7 @@ export default function AdminTasksPage() {
                       <button
                         type="button"
                         onClick={() => startEdit(task)}
-                        aria-label={`Endre ${task.title}`}
+                        aria-label={t.edit(task.title)}
                         className={cx("flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl text-left", focusRing, !task.active && "opacity-60")}
                       >
                         <TaskIcon title={task.title} icon={task.icon} size={44} />
@@ -249,7 +380,7 @@ export default function AdminTasksPage() {
                       </button>
                       <span className="shrink-0">
                         <Switch checked={task.active} disabled={toggling[task.id]} onChange={() => void toggleActive(task)} label="" />
-                        <span className="sr-only">{task.active ? "Synlig for barna" : "Skjult for barna"}</span>
+                        <span className="sr-only">{task.active ? t.visible : t.hidden}</span>
                       </span>
                     </li>
                   )
@@ -267,23 +398,23 @@ export default function AdminTasksPage() {
               >
                 <div className="flex items-center justify-between">
                   <p className="font-bold">
-                    Egen oppgave i {cat.emoji} {cat.title}
+                    {t.ownIn(`${cat.emoji} ${catTitle(cat)}`)}
                   </p>
                   <button type="button" aria-label="Lukk" onClick={() => setAdding(null)} className="flex size-11 items-center justify-center rounded-full hover:bg-white/70">
                     <X className="size-5" />
                   </button>
                 </div>
-                <Field label="Hva skal gjøres?">
-                  <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="F.eks. Rydde garasjen" autoFocus maxLength={60} />
+                <Field label={t.whatToDo}>
+                  <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t.ownPlaceholder} autoFocus maxLength={60} />
                 </Field>
-                <Field label="Hvor mye får barnet?">
+                <Field label={t.howMuch}>
                   <span className="relative block">
                     <Input value={newAmount} onChange={(e) => setNewAmount(e.target.value)} placeholder="25" inputMode="decimal" className="pr-10" />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kr</span>
                   </span>
                 </Field>
                 <Button type="submit" block loading={busy === `own-${cat.key}`} disabled={!newTitle.trim() || !newAmount.trim()}>
-                  Legg til
+                  {t.add}
                 </Button>
               </form>
             ) : (
@@ -298,30 +429,30 @@ export default function AdminTasksPage() {
                   setNewAmount("");
                 }}
               >
-                Egen oppgave
+                {t.own}
               </Button>
             )}
 
             {cat.tasks.length > 0 && (
               <div>
-                <p className="mb-2 text-sm font-semibold text-foreground/85">Forslag</p>
+                <p className="mb-2 text-sm font-semibold text-foreground/85">{t.suggestions}</p>
                 <ul className="divide-y divide-border rounded-2xl bg-secondary/60">
-                  {cat.tasks.map((t) => {
-                    const added = existingTitles.has(t.title.toLowerCase());
+                  {cat.tasks.map((x) => {
+                    const added = isAdded(x);
                     return (
-                      <li key={t.title} className="flex items-center gap-3 px-4 py-2">
-                        <TaskIcon title={t.title} size={40} />
+                      <li key={x.title} className="flex items-center gap-3 px-4 py-2">
+                        <TaskIcon title={x.title} size={40} />
                         <span className="min-w-0 flex-1">
-                          <span className="block font-semibold">{t.title}</span>
-                          <span className="font-num block text-sm text-muted-foreground">{t.kr} kr</span>
+                          <span className="block font-semibold">{sugTitle(x)}</span>
+                          <span className="font-num block text-sm text-muted-foreground">{formatKr(x.kr * 100, lang)}</span>
                         </span>
                         {added ? (
                           <span className="flex min-h-11 items-center gap-1.5 px-2 text-sm font-semibold text-primary">
-                            <Check className="size-4" /> Lagt til
+                            <Check className="size-4" /> {t.addedLabel}
                           </span>
                         ) : (
-                          <Button size="sm" variant="secondary" className="min-h-11" icon={<Plus className="size-4" />} loading={busy === t.title} disabled={Boolean(busy)} onClick={() => void addSuggestion(cat, t)}>
-                            Legg til
+                          <Button size="sm" variant="secondary" className="min-h-11" icon={<Plus className="size-4" />} loading={busy === x.title} disabled={Boolean(busy)} onClick={() => void addSuggestion(cat, x)}>
+                            {t.add}
                           </Button>
                         )}
                       </li>
@@ -330,7 +461,7 @@ export default function AdminTasksPage() {
                 </ul>
                 {missing.length > 1 && (
                   <Button className="mt-2" block icon={<Plus className="size-4" />} loading={busy === `all-${cat.key}`} disabled={Boolean(busy)} onClick={() => void addAll(cat, missing)}>
-                    {missing.length === cat.tasks.length ? "Legg til alle" : `Legg til de ${missing.length} andre`}
+                    {missing.length === cat.tasks.length ? t.addAll : t.addRest(missing.length)}
                   </Button>
                 )}
               </div>
@@ -343,10 +474,10 @@ export default function AdminTasksPage() {
 
   return (
     <section className="space-y-5">
-      <p className="text-muted-foreground">Trykk på en kategori for å se, endre eller legge til oppgaver.</p>
+      <p className="text-muted-foreground">{t.intro}</p>
 
       {used.length === 0 ? (
-        <p className="rounded-3xl bg-secondary px-5 py-4">Ingen oppgaver ennå. Åpne en kategori under og legg til forslag, eller lag dine egne.</p>
+        <p className="rounded-3xl bg-secondary px-5 py-4">{t.none}</p>
       ) : (
         <div className="space-y-3">{used.map(renderCategory)}</div>
       )}
@@ -355,11 +486,11 @@ export default function AdminTasksPage() {
         <div className="space-y-3">
           {used.length > 0 && !showMore ? (
             <Button variant="secondary" block icon={<Plus className="size-4" />} onClick={() => setShowMore(true)}>
-              Flere kategorier ({unused.length})
+              {t.moreCategories} ({unused.length})
             </Button>
           ) : (
             <>
-              <h2 className="pt-2 text-lg font-bold tracking-tight">Flere kategorier</h2>
+              <h2 className="pt-2 text-lg font-bold tracking-tight">{t.moreCategories}</h2>
               {unused.map(renderCategory)}
             </>
           )}

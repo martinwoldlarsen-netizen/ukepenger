@@ -4,6 +4,7 @@
 // gang og oppdaterer i bakgrunnen, i stedet for "Laster..." hver gang.
 // Spørringene er de samme som sidene brukte før; RLS gjelder som vanlig.
 
+import { currentLang } from "@/lib/use-lang";
 import useSWR, { type SWRConfiguration } from "swr";
 import { getCurrentAdminContext } from "@/lib/family-client";
 import { supabase } from "@/lib/supabaseClient";
@@ -23,11 +24,19 @@ export class UserFacingError extends Error {}
 
 const TECHNICAL = /violates|constraint|duplicate key|relation|column|syntax|permission denied|PGRST|JSON|HTTP \d+|undefined|null/i;
 
-export function friendlyError(error: unknown, fallback = "Noe gikk galt. Prøv igjen.") {
+const ERR_TEXT = {
+  nb: { generic: "Noe gikk galt. Prøv igjen.", loggedOut: "Du er logget ut. Logg inn på nytt.", network: "Fikk ikke kontakt med serveren. Sjekk nettet og prøv igjen." },
+  en: { generic: "Something went wrong. Please try again.", loggedOut: "You have been signed out. Please sign in again.", network: "Couldn't reach the server. Check your connection and try again." },
+  uk: { generic: "Щось пішло не так. Спробуйте ще раз.", loggedOut: "Ви вийшли з облікового запису. Увійдіть знову.", network: "Немає зв’язку із сервером. Перевірте інтернет і спробуйте ще раз." },
+};
+
+export function friendlyError(error: unknown, fallback?: string) {
+  const e = ERR_TEXT[currentLang()];
+  fallback ??= e.generic;
   const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   if (message) console.error("[admin]", message);
-  if (/jwt|token|innlogging|session/i.test(message)) return "Du er logget ut. Logg inn på nytt.";
-  if (/failed to fetch|network/i.test(message)) return "Fikk ikke kontakt med serveren. Sjekk nettet og prøv igjen.";
+  if (/jwt|token|innlogging|session/i.test(message)) return e.loggedOut;
+  if (/failed to fetch|network/i.test(message)) return e.network;
   if (error instanceof UserFacingError && message && !TECHNICAL.test(message)) return message;
   return fallback;
 }
@@ -113,7 +122,7 @@ export function childLookup(children: AdminChild[] | undefined) {
   const map: Record<string, AdminChild> = {};
   for (const child of children ?? []) map[child.id] = child;
   return (id: string) =>
-    map[id] ?? { id, name: "Ukjent barn", avatar_key: null, active: false, emoji: "🙂", color: { bg: "var(--secondary)", ink: "var(--foreground)" } };
+    map[id] ?? { id, name: { nb: "Ukjent barn", en: "Unknown child", uk: "Невідома дитина" }[currentLang()], avatar_key: null, active: false, emoji: "🙂", color: { bg: "var(--secondary)", ink: "var(--foreground)" } };
 }
 
 /* Oppgaver */
@@ -149,11 +158,22 @@ export type PendingClaim = {
 };
 
 // Krav uten oppgave er enten en bonus (har tekst) eller et butikksalg.
+const TITLE_TEXT = {
+  nb: { bonus: "Bonus", sale: "Butikksalg", task: "Oppgave", allowance: "📅 Ukepenger" },
+  en: { bonus: "Bonus", sale: "Shop sale", task: "Task", allowance: "📅 Pocket money" },
+  uk: { bonus: "Бонус", sale: "Продаж", task: "Завдання", allowance: "📅 Кишенькові" },
+};
+
 export function taskTitleOf(claim: { task_id: string | null; tasks: PendingClaim["tasks"]; note?: string | null }) {
+  const w = TITLE_TEXT[currentLang()];
   // Gaver («🎁 Gave fra …») og ukepenger («📅 Ukepenger») har allerede egen tekst.
-  if (!claim.task_id) return claim.note ? (/^\p{Extended_Pictographic}/u.test(claim.note) ? claim.note : `Bonus: ${claim.note}`) : "Butikksalg";
+  if (!claim.task_id) {
+    if (!claim.note) return w.sale;
+    if (claim.note === "📅 Ukepenger") return w.allowance;
+    return /^\p{Extended_Pictographic}/u.test(claim.note) ? claim.note : `${w.bonus}: ${claim.note}`;
+  }
   const t = Array.isArray(claim.tasks) ? claim.tasks[0] : claim.tasks;
-  return t?.title ?? "Oppgave";
+  return t?.title ?? w.task;
 }
 
 export function usePendingClaims(familyId: string | null) {

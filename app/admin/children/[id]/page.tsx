@@ -12,6 +12,74 @@ import { useConfirm, useToast } from "@/components/ui/feedback";
 import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { type Lang } from "@/lib/i18n";
+import { useLang, useText } from "@/lib/use-lang";
+
+const WEEKDAY_NAMES: Record<Lang, string[]> = {
+  nb: ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"],
+  en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+  uk: ["понеділок", "вівторок", "середа", "четвер", "п’ятниця", "субота", "неділя"],
+};
+
+const TEXT = {
+  nb: {
+    saveFailed: "Klarte ikke å lagre.", writeWish: "Skriv hva ønsket er.", priceAsNumber: "Skriv prisen som et tall, f.eks. 299.",
+    added: (title: string) => `«${title}» er lagt til`, wishFailed: "Klarte ikke å lagre ønsket.",
+    deleteTitle: (name: string) => `Slette ${name} for godt?`,
+    deleteText: (name: string) => `All historikk, saldo, ønsker og trofeer for ${name} slettes og kan ikke hentes tilbake. Vil du bare skjule barnet, kan du gjøre det under Barn.`,
+    deleteForGood: "Slett for godt", deleteFailed: "Klarte ikke å slette.", deleted: (name: string) => `${name} er slettet`,
+    notFound: "Fant ikke barnet", backToChildren: "Tilbake til Barn", allChildren: "Alle barn",
+    tasks: "Oppgaver", tasksDesc: (name: string) => `Velg hvilke oppgaver ${name} ser på barnesiden.`, noTasks: "Ingen aktive oppgaver. Lag oppgaver under Oppgaver.",
+    shown: "vises", hidden: "skjult", wishes: "Ønsker", wishesDesc: (name: string) => `Det ${name} sparer til. Nye ønsker fra barnet godkjennes under Krav.`,
+    noWishes: "Ingen ønsker ennå.", waitingInRequests: "Venter i Krav", newWish: "Nytt ønske", close: "Lukk", whatWish: "Hva ønsker barnet seg?",
+    wishPlaceholder: "F.eks. ny sykkel", price: "Pris", note: "Notat (valgfritt)", notePlaceholder: "Farge, modell …", addWish: "Legg til ønske",
+    deleteChild: (name: string) => `Slett ${name}`,
+    language: "Språk", languageDesc: (name: string) => `Hvilket språk ${name} ser og hører på barnesiden. Oppgavene vises slik du har skrevet dem.`,
+    languageSaved: (name: string, lang: string) => `${name} ser nå barnesiden på ${lang}`, applyAll: "Bruk for alle barna", appliedAll: (lang: string) => `Alle barna ser nå barnesiden på ${lang}`,
+    allowance: "Faste ukepenger", allowanceDesc: (name: string) => `Et fast beløp som legges til det ${name} har til gode, automatisk hver uke. Kommer i tillegg til oppgavene.`,
+    allowanceSaved: (name: string, amount: string, day: string) => `${name} får ${amount} hver ${day}`, allowanceOff: "Faste ukepenger er slått av",
+    amountRange: "Skriv et beløp mellom 0 og 1 000 kr.", perWeek: "Beløp per uke", day: "Dag", save: "Lagre",
+    now: (amount: string, day: string) => `Nå: ${amount} hver ${day}.`, turnOff: "Slå av",
+  },
+  en: {
+    saveFailed: "Couldn't save.", writeWish: "Write what the wish is.", priceAsNumber: "Write the price as a number, e.g. 299.",
+    added: (title: string) => `“${title}” was added`, wishFailed: "Couldn't save the wish.",
+    deleteTitle: (name: string) => `Delete ${name} for good?`,
+    deleteText: (name: string) => `All history, balance, wishes and trophies for ${name} will be deleted and can't be recovered. If you only want to hide the child, you can do that under Children.`,
+    deleteForGood: "Delete for good", deleteFailed: "Couldn't delete.", deleted: (name: string) => `${name} was deleted`,
+    notFound: "Couldn't find the child", backToChildren: "Back to Children", allChildren: "All children",
+    tasks: "Tasks", tasksDesc: (name: string) => `Choose which tasks ${name} sees on the children's page.`, noTasks: "No active tasks. Create tasks under Tasks.",
+    shown: "shown", hidden: "hidden", wishes: "Wishes", wishesDesc: (name: string) => `What ${name} is saving for. New wishes from the child are approved under Requests.`,
+    noWishes: "No wishes yet.", waitingInRequests: "Waiting in Requests", newWish: "New wish", close: "Close", whatWish: "What does the child wish for?",
+    wishPlaceholder: "E.g. a new bike", price: "Price", note: "Note (optional)", notePlaceholder: "Colour, model …", addWish: "Add wish",
+    deleteChild: (name: string) => `Delete ${name}`,
+    language: "Language", languageDesc: (name: string) => `Which language ${name} sees and hears on the children's page. Tasks are shown the way you wrote them.`,
+    languageSaved: (name: string, lang: string) => `${name} now sees the children's page in ${lang}`, applyAll: "Use for all the children", appliedAll: (lang: string) => `All the children now see the children's page in ${lang}`,
+    allowance: "Weekly pocket money", allowanceDesc: (name: string) => `A fixed amount added to what ${name} is owed, automatically every week. Comes on top of the tasks.`,
+    allowanceSaved: (name: string, amount: string, day: string) => `${name} gets ${amount} every ${day}`, allowanceOff: "Weekly pocket money is turned off",
+    amountRange: "Write an amount between 0 and 1,000 kr.", perWeek: "Amount per week", day: "Day", save: "Save",
+    now: (amount: string, day: string) => `Now: ${amount} every ${day}.`, turnOff: "Turn off",
+  },
+  uk: {
+    saveFailed: "Не вдалося зберегти.", writeWish: "Напишіть, що це за бажання.", priceAsNumber: "Напишіть ціну числом, наприклад 299.",
+    added: (title: string) => `«${title}» додано`, wishFailed: "Не вдалося зберегти бажання.",
+    deleteTitle: (name: string) => `Видалити ${name} назавжди?`,
+    deleteText: (name: string) => `Уся історія, баланс, бажання й трофеї (${name}) буде видалено без можливості відновлення. Якщо потрібно лише сховати дитину, це можна зробити в розділі «Діти».`,
+    deleteForGood: "Видалити назавжди", deleteFailed: "Не вдалося видалити.", deleted: (name: string) => `${name}: видалено`,
+    notFound: "Дитину не знайдено", backToChildren: "Назад до розділу «Діти»", allChildren: "Усі діти",
+    tasks: "Завдання", tasksDesc: (name: string) => `Оберіть, які завдання бачить ${name} на сторінці для дітей.`, noTasks: "Немає активних завдань. Створіть їх у розділі «Завдання».",
+    shown: "показано", hidden: "приховано", wishes: "Бажання", wishesDesc: (name: string) => `На що збирає ${name}. Нові бажання від дитини схвалюються в розділі «Запити».`,
+    noWishes: "Бажань ще немає.", waitingInRequests: "Очікує в «Запитах»", newWish: "Нове бажання", close: "Закрити", whatWish: "Чого бажає дитина?",
+    wishPlaceholder: "Напр. новий велосипед", price: "Ціна", note: "Примітка (необов’язково)", notePlaceholder: "Колір, модель …", addWish: "Додати бажання",
+    deleteChild: (name: string) => `Видалити: ${name}`,
+    language: "Мова", languageDesc: (name: string) => `Якою мовою ${name} бачить і чує сторінку для дітей. Завдання показуються так, як ви їх написали.`,
+    languageSaved: (name: string, lang: string) => `${name} тепер бачить сторінку мовою: ${lang}`, applyAll: "Застосувати для всіх дітей", appliedAll: (lang: string) => `Усі діти тепер бачать сторінку мовою: ${lang}`,
+    allowance: "Щотижневі кишенькові", allowanceDesc: (name: string) => `Фіксована сума, яка щотижня автоматично додається до того, що належить: ${name}. Нараховується додатково до завдань.`,
+    allowanceSaved: (name: string, amount: string, day: string) => `${name} отримує ${amount} щотижня (${day})`, allowanceOff: "Щотижневі кишенькові вимкнено",
+    amountRange: "Вкажіть суму від 0 до 1 000 kr.", perWeek: "Сума на тиждень", day: "День", save: "Зберегти",
+    now: (amount: string, day: string) => `Зараз: ${amount} щотижня (${day}).`, turnOff: "Вимкнути",
+  },
+};
 
 type WishlistItem = {
   id: string;
@@ -31,6 +99,9 @@ export default function AdminChildDetailPage() {
 }
 
 function ChildDetail({ childId }: { childId: string }) {
+  const t = useText(TEXT);
+  const lang = useLang();
+  const kr = (ore: number) => formatKr(ore, lang);
   const toast = useToast();
   const confirm = useConfirm();
   const router = useRouter();
@@ -78,7 +149,7 @@ function ChildDetail({ childId }: { childId: string }) {
         { optimisticData: (current) => ({ ...(current ?? {}), [taskId]: next }), rollbackOnError: true, revalidate: false }
       );
     } catch (error) {
-      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å lagre.") });
+      toast({ kind: "error", text: friendlyError(error, t.saveFailed) });
     }
   };
 
@@ -86,11 +157,11 @@ function ChildDetail({ childId }: { childId: string }) {
     if (saving) return;
     const targetOre = parseKrToOre(wishPrice);
     if (!wishTitle.trim()) {
-      toast({ kind: "error", text: "Skriv hva ønsket er." });
+      toast({ kind: "error", text: t.writeWish });
       return;
     }
     if (typeof targetOre !== "number" || targetOre <= 0) {
-      toast({ kind: "error", text: "Skriv prisen som et tall, f.eks. 299." });
+      toast({ kind: "error", text: t.priceAsNumber });
       return;
     }
     setSaving(true);
@@ -99,14 +170,14 @@ function ChildDetail({ childId }: { childId: string }) {
         method: "POST",
         body: JSON.stringify({ childId, title: wishTitle.trim(), targetOre, note: wishNote.trim() || undefined }),
       });
-      toast({ text: `«${wishTitle.trim()}» er lagt til` });
+      toast({ text: t.added(wishTitle.trim()) });
       setWishTitle("");
       setWishPrice("");
       setWishNote("");
       setFormOpen(false);
       await wishlist.mutate();
     } catch (error) {
-      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å lagre ønsket.") });
+      toast({ kind: "error", text: friendlyError(error, t.wishFailed) });
     } finally {
       setSaving(false);
     }
@@ -116,19 +187,19 @@ function ChildDetail({ childId }: { childId: string }) {
   const deleteChild = async () => {
     if (!child) return;
     const ok = await confirm({
-      title: `Slette ${child.name} for godt?`,
-      text: `All historikk, saldo, ønsker og trofeer for ${child.name} slettes og kan ikke hentes tilbake. Vil du bare skjule barnet, kan du gjøre det under Barn.`,
-      confirmLabel: "Slett for godt",
+      title: t.deleteTitle(child.name),
+      text: t.deleteText(child.name),
+      confirmLabel: t.deleteForGood,
       danger: true,
     });
     if (!ok) return;
     const res = await supabase.from("children").delete().eq("id", child.id);
     if (res.error) {
-      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å slette.") });
+      toast({ kind: "error", text: friendlyError(res.error.message, t.deleteFailed) });
       return;
     }
     await children.mutate();
-    toast({ text: `${child.name} er slettet` });
+    toast({ text: t.deleted(child.name) });
     router.push("/admin/children");
   };
 
@@ -136,9 +207,9 @@ function ChildDetail({ childId }: { childId: string }) {
 
   if (!child) {
     return (
-      <EmptyState emoji="🔍" title="Fant ikke barnet">
+      <EmptyState emoji="🔍" title={t.notFound}>
         <Link href="/admin/children" className="mt-2 inline-flex font-semibold text-primary underline underline-offset-4">
-          Tilbake til Barn
+          {t.backToChildren}
         </Link>
       </EmptyState>
     );
@@ -147,7 +218,7 @@ function ChildDetail({ childId }: { childId: string }) {
   return (
     <section className="space-y-5">
       <Link href="/admin/children" className={cx("-mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground", focusRing)}>
-        <ArrowLeft className="size-4" /> Alle barn
+        <ArrowLeft className="size-4" /> {t.allChildren}
       </Link>
 
       <div className="flex items-center gap-4 rounded-3xl p-5" style={{ background: child.color.bg, color: child.color.ink }}>
@@ -157,14 +228,14 @@ function ChildDetail({ childId }: { childId: string }) {
 
       <AllowanceCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />
 
-      <LanguageCard child={child} onSaved={() => void children.mutate()} />
+      <LanguageCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />
 
       <Card className="space-y-4">
-        <CardHeader icon={<ListChecks className="size-5" />} title="Oppgaver" description={`Velg hvilke oppgaver ${child.name} ser på barnesiden.`} />
+        <CardHeader icon={<ListChecks className="size-5" />} title={t.tasks} description={t.tasksDesc(child.name)} />
         {tasks.isLoading && !tasks.data ? (
           <ListSkeleton rows={2} />
         ) : activeTasks.length === 0 ? (
-          <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">Ingen aktive oppgaver. Lag oppgaver under Oppgaver.</p>
+          <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">{t.noTasks}</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
             {activeTasks.map((task) => (
@@ -173,7 +244,7 @@ function ChildDetail({ childId }: { childId: string }) {
                   checked={isEnabled(task.id)}
                   onChange={() => void toggleTask(task.id)}
                   label={task.title}
-                  description={`${formatKr(task.amount_ore)} · ${isEnabled(task.id) ? "vises" : "skjult"}`}
+                  description={`${kr(task.amount_ore)} · ${isEnabled(task.id) ? t.shown : t.hidden}`}
                 />
               </li>
             ))}
@@ -184,14 +255,14 @@ function ChildDetail({ childId }: { childId: string }) {
       <Card className="space-y-4">
         <CardHeader
           icon={<Gift className="size-5" />}
-          title="Ønsker"
-          description={`Det ${child.name} sparer til. Nye ønsker fra barnet godkjennes under Krav.`}
+          title={t.wishes}
+          description={t.wishesDesc(child.name)}
         />
 
         {wishlist.isLoading && !wishlist.data ? (
           <ListSkeleton rows={2} />
         ) : (wishlist.data ?? []).length === 0 ? (
-          <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">Ingen ønsker ennå.</p>
+          <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">{t.noWishes}</p>
         ) : (
           <ul className="space-y-2">
             {(wishlist.data ?? []).map((item) => (
@@ -201,9 +272,9 @@ function ChildDetail({ childId }: { childId: string }) {
                   {item.note && <p className="truncate text-sm text-muted-foreground">{item.note}</p>}
                 </div>
                 {item.status === "PROPOSED" ? (
-                  <Badge tone="warning">Venter i Krav</Badge>
+                  <Badge tone="warning">{t.waitingInRequests}</Badge>
                 ) : (
-                  <span className="font-num font-bold">{item.target_ore !== null ? formatKr(item.target_ore) : ""}</span>
+                  <span className="font-num font-bold">{item.target_ore !== null ? kr(item.target_ore) : ""}</span>
                 )}
               </li>
             ))}
@@ -219,48 +290,59 @@ function ChildDetail({ childId }: { childId: string }) {
             }}
           >
             <div className="flex items-center justify-between">
-              <p className="font-bold">Nytt ønske</p>
-              <button type="button" aria-label="Lukk" onClick={() => setFormOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
+              <p className="font-bold">{t.newWish}</p>
+              <button type="button" aria-label={t.close} onClick={() => setFormOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
                 <X className="size-5" />
               </button>
             </div>
-            <Field label="Hva ønsker barnet seg?">
-              <Input value={wishTitle} onChange={(e) => setWishTitle(e.target.value)} placeholder="F.eks. ny sykkel" autoFocus maxLength={80} />
+            <Field label={t.whatWish}>
+              <Input value={wishTitle} onChange={(e) => setWishTitle(e.target.value)} placeholder={t.wishPlaceholder} autoFocus maxLength={80} />
             </Field>
-            <Field label="Pris">
+            <Field label={t.price}>
               <span className="relative block">
                 <Input value={wishPrice} onChange={(e) => setWishPrice(e.target.value)} placeholder="299" inputMode="decimal" className="pr-12" />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">kr</span>
               </span>
             </Field>
-            <Field label="Notat (valgfritt)">
-              <Input value={wishNote} onChange={(e) => setWishNote(e.target.value)} placeholder="Farge, modell …" />
+            <Field label={t.note}>
+              <Input value={wishNote} onChange={(e) => setWishNote(e.target.value)} placeholder={t.notePlaceholder} />
             </Field>
             <Button type="submit" block loading={saving} disabled={!wishTitle.trim() || !wishPrice.trim()}>
-              Legg til ønske
+              {t.addWish}
             </Button>
           </form>
         ) : (
           <Button variant="secondary" block icon={<Plus className="size-4" />} onClick={() => setFormOpen(true)}>
-            Legg til ønske
+            {t.addWish}
           </Button>
         )}
       </Card>
       <Button variant="dangerSoft" block size="lg" icon={<Trash2 className="size-4" />} onClick={() => void deleteChild()}>
-        Slett {child.name}
+        {t.deleteChild(child.name)}
       </Button>
     </section>
   );
 }
 
-const WEEKDAYS = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"];
-
-// Faste ukepenger: et fast beløp som legges til automatisk én gang i uka.
-// Språk på barnesiden for dette barnet: tekst, opplesning og forslag i Ønskebutikken.
-function LanguageCard({ child, onSaved }: { child: AdminChild; onSaved: () => void }) {
+// Språk på barnesiden for dette barnet: tekst, opplesning og forslag i
+// Ønskebutikken. «Bruk for alle barna» setter samme språk på hele familien.
+function LanguageCard({ child, familyId, onSaved }: { child: AdminChild; familyId: string; onSaved: () => void }) {
+  const t = useText(TEXT);
   const toast = useToast();
   const [lang, setLang] = useState(asLang(child.language));
   const [saving, setSaving] = useState(false);
+  const label = (code: string) => LANGS.find((l) => l.code === code)?.label ?? code;
+  const applyAll = async () => {
+    setSaving(true);
+    const res = await supabase.from("children").update({ language: lang }).eq("family_id", familyId);
+    setSaving(false);
+    if (res.error) {
+      toast({ kind: "error", text: friendlyError(res.error.message, t.saveFailed) });
+      return;
+    }
+    toast({ text: t.appliedAll(label(lang)) });
+    onSaved();
+  };
   const save = async (next: string) => {
     const previous = lang;
     setLang(asLang(next));
@@ -269,20 +351,20 @@ function LanguageCard({ child, onSaved }: { child: AdminChild; onSaved: () => vo
     setSaving(false);
     if (res.error) {
       setLang(previous);
-      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å lagre.") });
+      toast({ kind: "error", text: friendlyError(res.error.message, t.saveFailed) });
       return;
     }
-    toast({ text: `${child.name} ser nå barnesiden på ${LANGS.find((l) => l.code === next)?.label ?? next}` });
+    toast({ text: t.languageSaved(child.name, label(next)) });
     onSaved();
   };
   return (
     <Card className="space-y-4">
       <CardHeader
         icon={<Languages className="size-5" />}
-        title="Språk"
-        description={`Hvilket språk ${child.name} ser og hører på barnesiden. Oppgavene vises slik du har skrevet dem.`}
+        title={t.language}
+        description={t.languageDesc(child.name)}
       />
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Språk">
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t.language}>
         {LANGS.map((l) => (
           <button
             key={l.code}
@@ -302,11 +384,18 @@ function LanguageCard({ child, onSaved }: { child: AdminChild; onSaved: () => vo
           </button>
         ))}
       </div>
+      <Button variant="secondary" size="sm" disabled={saving} onClick={() => void applyAll()}>
+        {t.applyAll}
+      </Button>
     </Card>
   );
 }
 
+// Faste ukepenger: et fast beløp som legges til automatisk én gang i uka.
 function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; familyId: string; onSaved: () => void }) {
+  const t = useText(TEXT);
+  const lang = useLang();
+  const WEEKDAYS = WEEKDAY_NAMES[lang];
   const toast = useToast();
   const current = child.weekly_allowance_ore ?? 0;
   const [amount, setAmount] = useState(current ? String(current / 100) : "");
@@ -322,10 +411,10 @@ function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; family
     if (!res.error && nextOre > 0) await supabase.rpc("ensure_weekly_allowances", { p_family_id: familyId });
     setSaving(false);
     if (res.error) {
-      toast({ kind: "error", text: friendlyError(res.error.message, "Klarte ikke å lagre.") });
+      toast({ kind: "error", text: friendlyError(res.error.message, t.saveFailed) });
       return;
     }
-    toast({ text: nextOre > 0 ? `${child.name} får ${formatKr(nextOre)} hver ${WEEKDAYS[weekday - 1]}` : "Faste ukepenger er slått av" });
+    toast({ text: nextOre > 0 ? t.allowanceSaved(child.name, formatKr(nextOre, lang), WEEKDAYS[weekday - 1]) : t.allowanceOff });
     onSaved();
   };
 
@@ -333,8 +422,8 @@ function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; family
     <Card className="space-y-4">
       <CardHeader
         icon={<CalendarDays className="size-5" />}
-        title="Faste ukepenger"
-        description={`Et fast beløp som legges til det ${child.name} har til gode, automatisk hver uke. Kommer i tillegg til oppgavene.`}
+        title={t.allowance}
+        description={t.allowanceDesc(child.name)}
       />
       <form
         className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
@@ -342,19 +431,19 @@ function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; family
           e.preventDefault();
           const ore = parseKrToOre(amount);
           if (ore === "invalid" || (typeof ore === "number" && ore > 100000)) {
-            toast({ kind: "error", text: "Skriv et beløp mellom 0 og 1 000 kr." });
+            toast({ kind: "error", text: t.amountRange });
             return;
           }
           void save(ore ?? 0);
         }}
       >
-        <Field label="Beløp per uke">
+        <Field label={t.perWeek}>
           <span className="relative block">
             <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" className="pr-12" />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">kr</span>
           </span>
         </Field>
-        <Field label="Dag">
+        <Field label={t.day}>
           <Select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
             {WEEKDAYS.map((d, i) => (
               <option key={d} value={i + 1}>
@@ -364,14 +453,14 @@ function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; family
           </Select>
         </Field>
         <Button type="submit" size="lg" loading={saving}>
-          Lagre
+          {t.save}
         </Button>
       </form>
       {current > 0 && (
         <p className="text-sm text-muted-foreground">
-          Nå: {formatKr(current)} hver {WEEKDAYS[(child.allowance_weekday ?? 6) - 1]}.{" "}
+          {t.now(formatKr(current, lang), WEEKDAYS[(child.allowance_weekday ?? 6) - 1])}{" "}
           <button type="button" className="font-semibold text-red-700 underline-offset-4 hover:underline" onClick={() => void save(0)}>
-            Slå av
+            {t.turnOff}
           </button>
         </p>
       )}

@@ -4,6 +4,7 @@
 // siden og window.confirm. Brukes via useToast() og useConfirm() innenfor
 // <FeedbackProvider>.
 
+import { currentLang } from "@/lib/use-lang";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { CheckCircle2, AlertCircle, X } from "lucide-react";
@@ -105,7 +106,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
                 {t.action.label}
               </button>
             )}
-            <button type="button" aria-label="Lukk" onClick={() => dismiss(t.id)} className={cx("flex size-9 shrink-0 items-center justify-center rounded-full opacity-70 hover:opacity-100", focusRing)}>
+            <button type="button" aria-label={{ nb: "Lukk", en: "Close", uk: "Закрити" }[currentLang()]} onClick={() => dismiss(t.id)} className={cx("flex size-9 shrink-0 items-center justify-center rounded-full opacity-70 hover:opacity-100", focusRing)}>
               <X className="size-4" />
             </button>
           </div>
@@ -144,7 +145,7 @@ function ConfirmDialog({ dialog, onClose }: { dialog: ConfirmInput; onClose: (ok
         {dialog.text && <div className="mt-2 text-muted-foreground">{dialog.text}</div>}
         <div className="mt-6 grid grid-cols-2 gap-2">
           <Button variant="secondary" onClick={() => onClose(false)}>
-            {dialog.cancelLabel ?? "Avbryt"}
+            {dialog.cancelLabel ?? { nb: "Avbryt", en: "Cancel", uk: "Скасувати" }[currentLang()]}
           </Button>
           <Button ref={confirmRef} variant={dialog.danger ? "danger" : "primary"} onClick={() => onClose(true)}>
             {dialog.confirmLabel ?? "OK"}

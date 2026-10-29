@@ -1,5 +1,6 @@
 "use client";
 
+import { useText } from "@/lib/use-lang";
 import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { Card, CardHeader, Switch } from "@/components/ui";
@@ -17,9 +18,34 @@ async function registration() {
   return (await navigator.serviceWorker.getRegistration()) ?? (await navigator.serviceWorker.register("/sw.js"));
 }
 
+const TEXT = {
+  nb: {
+    on: "Varsler er på", onFailed: "Klarte ikke å slå på varsler.", off: "Varsler er av", offFailed: "Klarte ikke å slå av varsler.",
+    title: "Varsler", desc: "Få beskjed på denne enheten når barna sender krav eller vil kjøpe noe.",
+    ios: <>På iPhone må Ukepenger ligge på hjemskjermen først: trykk <strong>Del</strong> → <strong>Legg til på Hjem-skjerm</strong>, åpne appen derfra og kom tilbake hit.</>,
+    unsupported: "Denne nettleseren støtter ikke varsler.", denied: "Varsler er blokkert for ukepenger.no. Slå dem på i nettleserens innstillinger, og last siden på nytt.",
+    label: "Varsler på denne enheten", labelDesc: "Krav, kjøp i ønskebutikken og gaver fra besteforeldre.",
+  },
+  en: {
+    on: "Notifications are on", onFailed: "Couldn't turn on notifications.", off: "Notifications are off", offFailed: "Couldn't turn off notifications.",
+    title: "Notifications", desc: "Get notified on this device when the children send requests or want to buy something.",
+    ios: <>On iPhone, Ukepenger needs to be on your home screen first: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>, open the app from there and come back here.</>,
+    unsupported: "This browser doesn't support notifications.", denied: "Notifications are blocked for ukepenger.no. Turn them on in your browser settings and reload the page.",
+    label: "Notifications on this device", labelDesc: "Requests, purchases in the wish shop and gifts from grandparents.",
+  },
+  uk: {
+    on: "Сповіщення увімкнено", onFailed: "Не вдалося увімкнути сповіщення.", off: "Сповіщення вимкнено", offFailed: "Не вдалося вимкнути сповіщення.",
+    title: "Сповіщення", desc: "Отримуйте сповіщення на цьому пристрої, коли діти надсилають запити або хочуть щось купити.",
+    ios: <>На iPhone спершу додайте Ukepenger на головний екран: натисніть <strong>Поділитися</strong> → <strong>На початковий екран</strong>, відкрийте застосунок звідти й поверніться сюди.</>,
+    unsupported: "Цей браузер не підтримує сповіщення.", denied: "Сповіщення для ukepenger.no заблоковано. Увімкніть їх у налаштуваннях браузера й перезавантажте сторінку.",
+    label: "Сповіщення на цьому пристрої", labelDesc: "Запити, покупки в крамниці бажань і подарунки від бабусь і дідусів.",
+  },
+};
+
 // Varsel på denne telefonen/PC-en når barna sender krav, vil kjøpe noe,
 // eller besteforeldre sender en gave. Barna får aldri varsler.
 export function NotificationsCard() {
+  const t = useText(TEXT);
   const toast = useToast();
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
@@ -59,9 +85,9 @@ export function NotificationsCard() {
       const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) }));
       await adminFetch("/api/admin/push", { method: "POST", body: JSON.stringify({ subscription: sub.toJSON(), test: true }) });
       setState("on");
-      toast({ text: "Varsler er på" });
+      toast({ text: t.on });
     } catch (error) {
-      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å slå på varsler.") });
+      toast({ kind: "error", text: friendlyError(error, t.onFailed) });
     } finally {
       setBusy(false);
     }
@@ -76,9 +102,9 @@ export function NotificationsCard() {
         await sub.unsubscribe();
       }
       setState("off");
-      toast({ text: "Varsler er av" });
+      toast({ text: t.off });
     } catch (error) {
-      toast({ kind: "error", text: friendlyError(error, "Klarte ikke å slå av varsler.") });
+      toast({ kind: "error", text: friendlyError(error, t.offFailed) });
     } finally {
       setBusy(false);
     }
@@ -86,23 +112,23 @@ export function NotificationsCard() {
 
   return (
     <Card>
-      <CardHeader icon={<Bell className="size-5" />} title="Varsler" description="Få beskjed på denne enheten når barna sender krav eller vil kjøpe noe." />
+      <CardHeader icon={<Bell className="size-5" />} title={t.title} description={t.desc} />
       {state === "ios-home" ? (
         <p className="rounded-2xl bg-secondary px-4 py-3.5 text-sm">
-          På iPhone må Ukepenger ligge på hjemskjermen først: trykk <strong>Del</strong> → <strong>Legg til på Hjem-skjerm</strong>, åpne appen derfra og kom tilbake hit.
+          {t.ios}
         </p>
       ) : state === "unsupported" ? (
-        <p className="rounded-2xl bg-secondary px-4 py-3.5 text-sm text-muted-foreground">Denne nettleseren støtter ikke varsler.</p>
+        <p className="rounded-2xl bg-secondary px-4 py-3.5 text-sm text-muted-foreground">{t.unsupported}</p>
       ) : state === "denied" ? (
-        <p className="rounded-2xl bg-secondary px-4 py-3.5 text-sm">Varsler er blokkert for ukepenger.no. Slå dem på i nettleserens innstillinger, og last siden på nytt.</p>
+        <p className="rounded-2xl bg-secondary px-4 py-3.5 text-sm">{t.denied}</p>
       ) : (
         <div className="rounded-2xl bg-secondary px-4 py-3.5">
           <Switch
             checked={state === "on"}
             disabled={busy || state === "loading"}
             onChange={(next) => void (next ? turnOn() : turnOff())}
-            label="Varsler på denne enheten"
-            description="Krav, kjøp i ønskebutikken og gaver fra besteforeldre."
+            label={t.label}
+            description={t.labelDesc}
           />
         </div>
       )}
