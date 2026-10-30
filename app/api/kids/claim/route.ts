@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
   const settingRes = await supabase
     .from("child_task_settings")
-    .select("enabled")
+    .select("enabled, amount_ore")
     .eq("child_id", childId)
     .eq("task_id", taskId)
     .maybeSingle();
@@ -103,7 +103,8 @@ export async function POST(request: Request) {
     family_id: auth.familyId,
     child_id: childId,
     task_id: taskId,
-    amount_ore: task.amount_ore,
+    // Egen lønn for barnet, ellers oppgavens vanlige pris.
+    amount_ore: settingRes.data?.amount_ore ?? task.amount_ore,
     status,
   });
 
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
     after(() =>
       notifyParents(supabase, auth.familyId, {
         title: `${c.name ?? "Barnet"} har gjort en oppgave`,
-        body: `${t.title ?? "Oppgave"} · ${formatKr(task.amount_ore)}. Trykk for å godkjenne.`,
+        body: `${t.title ?? "Oppgave"} · ${formatKr(settingRes.data?.amount_ore ?? task.amount_ore)}. Trykk for å godkjenne.`,
         tag: "claims",
       })
     );

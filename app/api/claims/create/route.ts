@@ -109,7 +109,7 @@ export async function POST(request: Request) {
 
   const settingRes = await client
     .from("child_task_settings")
-    .select("enabled")
+    .select("enabled, amount_ore")
     .eq("child_id", childId)
     .eq("task_id", taskId)
     .maybeSingle();
@@ -152,7 +152,8 @@ export async function POST(request: Request) {
     family_id: family.id,
     child_id: childId,
     task_id: taskId,
-    amount_ore: task.amount_ore,
+    // Egen lønn for barnet, ellers oppgavens vanlige pris.
+    amount_ore: settingRes.data?.amount_ore ?? task.amount_ore,
     status,
   });
 

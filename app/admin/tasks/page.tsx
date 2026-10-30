@@ -6,7 +6,8 @@ import { useState } from "react";
 import { Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
-import { type AdminTask, friendlyError, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
+import { type AdminTask, friendlyError, useAdminIdentity, useChildTaskSettings, useChildren, useTasks } from "@/lib/admin-data";
+import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { LANGS, type Lang, asLang } from "@/lib/i18n";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
@@ -36,6 +37,7 @@ const TEXT = {
     category: "Kategori",
     picture: "Bilde",
     nameInLangs: "Navnet på barnas språk",
+    whoHas: "Hvem har oppgaven, og hva får de?", whoHasHint: "Slå av for barn som ikke skal ha den. Tomt lønnsfelt = prisen over.", payFor: (name: string) => `Lønn for ${name}`,
     nameInLangsHint: "Barnet ser oppgaven på sitt språk. Tomt felt: kjente oppgaver oversettes av seg selv, ellers vises navnet over.",
     oldPrice: "Krav som allerede er sendt, beholder den gamle prisen.",
     cancel: "Avbryt",
@@ -77,6 +79,7 @@ const TEXT = {
     category: "Category",
     picture: "Picture",
     nameInLangs: "The name in the children's languages",
+    whoHas: "Who has the task, and what do they get?", whoHasHint: "Switch off for children who shouldn't have it. Empty pay field = the price above.", payFor: (name: string) => `Pay for ${name}`,
     nameInLangsHint: "Each child sees the task in their own language. Empty field: known tasks are translated automatically, otherwise the name above is shown.",
     oldPrice: "Requests already sent keep the old price.",
     cancel: "Cancel",
@@ -118,6 +121,7 @@ const TEXT = {
     category: "Категорія",
     picture: "Зображення",
     nameInLangs: "Назва мовами дітей",
+    whoHas: "Хто має завдання і скільки отримує?", whoHasHint: "Вимкніть для дітей, яким воно не потрібне. Порожнє поле оплати = ціна вище.", payFor: (name: string) => `Оплата: ${name}`,
     nameInLangsHint: "Дитина бачить завдання своєю мовою. Порожнє поле: відомі завдання перекладаються автоматично, інакше показується назва вище.",
     oldPrice: "Запити, які вже надіслано, зберігають стару ціну.",
     cancel: "Скасувати",
@@ -163,6 +167,10 @@ export default function AdminTasksPage() {
   // samme språk, trengs ingen oversettelse.
   const kids = useChildren(familyId);
   const kidLangs = new Set<Lang>((kids.data ?? []).filter((c) => c.active).map((c) => asLang(c.language)));
+  // Hvilke barn har oppgaven, og egen lønn per barn (vises når familien har flere barn).
+  const activeKids = (kids.data ?? []).filter((c) => c.active);
+  const childSettings = useChildTaskSettings(familyId);
+  const settingOf = (childId: string, taskId: string) => childSettings.data?.find((x) => x.child_id === childId && x.task_id === taskId);
   const translateTo = LANGS.filter((l) => l.code !== lang && kidLangs.has(l.code));
 
   const [open, setOpen] = useState<string | null>(null);
@@ -182,6 +190,7 @@ export default function AdminTasksPage() {
   const [editCategory, setEditCategory] = useState("");
   const [editIcon, setEditIcon] = useState<string | null>(null);
   const [editI18n, setEditI18n] = useState<Partial<Record<Lang, string>>>({});
+  const [editKids, setEditKids] = useState<Record<string, { on: boolean; pay: string }>>({});
 
   const list = tasks.data ?? [];
   const existingTitles = new Set(list.map((t) => t.title.toLowerCase()));
@@ -237,6 +246,14 @@ export default function AdminTasksPage() {
     setEditCategory(categoryOf(task));
     setEditIcon(task.icon ?? null);
     setEditI18n(task.title_i18n ?? {});
+    setEditKids(
+      Object.fromEntries(
+        activeKids.map((c) => {
+          const x = settingOf(c.id, task.id);
+          return [c.id, { on: x?.enabled !== false, pay: x?.amount_ore != null ? String(x.amount_ore / 100).replace(".", ",") : "" }];
+        })
+      )
+    );
   };
 
   const saveEdit = async (task: AdminTask) => {
@@ -251,10 +268,26 @@ export default function AdminTasksPage() {
         .filter(([, v]) => v && v !== editTitle.trim())
     ) as Partial<Record<Lang, string>>;
     const patch = { title: editTitle.trim(), amount_ore: amountOre, category: editCategory, icon: editIcon, title_i18n: Object.keys(i18n).length ? i18n : null };
+    // Barn: bare rader som er endret lagres. Lønn lik prisen over = ingen egen lønn.
+    const kidRows: Array<{ child_id: string; task_id: string; enabled: boolean; amount_ore: number | null }> = [];
+    for (const c of activeKids) {
+      const e = editKids[c.id];
+      if (!e) continue;
+      const ore = e.pay.trim() ? parseKrToOre(e.pay) : null;
+      if (ore === "invalid") {
+        setBusy(null);
+        return toast({ kind: "error", text: t.amountAsNumber });
+      }
+      const amount = ore === null || ore === amountOre ? null : ore;
+      const old = settingOf(c.id, task.id);
+      if ((old?.enabled !== false) !== e.on || (old?.amount_ore ?? null) !== amount) kidRows.push({ child_id: c.id, task_id: task.id, enabled: e.on, amount_ore: amount });
+    }
     const res = await supabase.from("tasks").update(patch).eq("id", task.id);
+    const kidRes = !res.error && kidRows.length ? await supabase.from("child_task_settings").upsert(kidRows) : null;
     setBusy(null);
-    if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message, t.saveFailed) });
+    if (res.error || kidRes?.error) return toast({ kind: "error", text: friendlyError((res.error ?? kidRes?.error)!.message, t.saveFailed) });
     await tasks.mutate((current) => (current ?? []).map((x) => (x.id === task.id ? { ...x, ...patch } : x)), { revalidate: false });
+    if (kidRows.length) await childSettings.mutate();
     setEditing(null);
     if (editCategory !== categoryOf(task)) setOpen(editCategory);
     toast({ text: t.saved(patch.title, formatKr(amountOre, lang)) });
@@ -369,6 +402,38 @@ export default function AdminTasksPage() {
                           <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.picture}</span>
                           <TaskIconPicker title={editTitle || task.title} value={editIcon} onChange={setEditIcon} />
                         </div>
+                        {activeKids.length > 1 && (
+                          <div>
+                            <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.whoHas}</span>
+                            <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                              {activeKids.map((c) => {
+                                const e = editKids[c.id] ?? { on: true, pay: "" };
+                                const set = (patch: Partial<typeof e>) => setEditKids((cur) => ({ ...cur, [c.id]: { ...e, ...patch } }));
+                                return (
+                                  <li key={c.id} className="flex items-center gap-3 px-3 py-2.5">
+                                    <KidAvatar avatarKey={c.avatar_key} size={32} />
+                                    <span className="min-w-0 flex-1 truncate font-semibold">{c.name}</span>
+                                    {e.on && (
+                                      <span className="relative block w-24 shrink-0">
+                                        <Input
+                                          aria-label={t.payFor(c.name)}
+                                          value={e.pay}
+                                          onChange={(ev) => set({ pay: ev.target.value })}
+                                          inputMode="decimal"
+                                          placeholder={editAmount || "0"}
+                                          className="min-h-10 pr-8 text-sm"
+                                        />
+                                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kr</span>
+                                      </span>
+                                    )}
+                                    <Switch checked={e.on} onChange={(on) => set({ on })} label={c.name} hideLabel />
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <p className="mt-1.5 text-xs text-muted-foreground">{t.whoHasHint}</p>
+                          </div>
+                        )}
                         {translateTo.length > 0 && (
                           <div>
                             <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.nameInLangs}</span>

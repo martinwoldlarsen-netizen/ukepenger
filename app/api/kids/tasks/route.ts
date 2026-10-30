@@ -27,6 +27,7 @@ type TaskRow = {
 type ChildTaskSettingRow = {
   task_id: string;
   enabled: boolean;
+  amount_ore: number | null;
 };
 
 type ClaimRow = {
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
       .eq("active", true)
       .is("archived_at", null)
       .order("title", { ascending: true }),
-    supabase.from("child_task_settings").select("task_id, enabled").eq("child_id", childId),
+    supabase.from("child_task_settings").select("task_id, enabled, amount_ore").eq("child_id", childId),
     supabase
       .from("claims")
       .select("task_id, created_at")
@@ -118,15 +119,18 @@ export async function GET(request: Request) {
   }
 
   const enabledMap: Record<string, boolean> = {};
+  // Egen lønn for dette barnet (tom = oppgavens vanlige pris).
+  const amountMap: Record<string, number> = {};
   for (const row of (settingsRes.data ?? []) as ChildTaskSettingRow[]) {
     enabledMap[row.task_id] = row.enabled;
+    if (row.amount_ore !== null) amountMap[row.task_id] = row.amount_ore;
   }
 
   // Navnet på barnets språk (egen oversettelse eller kjent forslag).
   const lang = asLang(child.language);
   const visibleTasks = ((tasksRes.data ?? []) as TaskRow[])
     .filter((task) => enabledMap[task.id] !== false)
-    .map(({ title_i18n, ...task }) => ({ ...task, title: localTaskTitle({ title: task.title, title_i18n }, lang) }))
+    .map(({ title_i18n, ...task }) => ({ ...task, amount_ore: amountMap[task.id] ?? task.amount_ore, title: localTaskTitle({ title: task.title, title_i18n }, lang) }))
     .sort((a, b) => a.title.localeCompare(b.title, lang));
   const cooldowns: Record<string, number> = {};
   for (const claim of (recentClaimsRes.data ?? []) as ClaimRow[]) {
