@@ -138,7 +138,8 @@ public/sw.js          service worker (frakoblet-side + varsler)
 ## Database (viktigste tabeller)
 
 `families`, `profiles` (forelder ↔ familie, rolle), `children`, `tasks`,
-`child_task_settings`, `claims` (krav; status SENT/APPROVED/REJECTED/PAID),
+`child_task_settings` (per barn og oppgave: `enabled` og egen lønn `amount_ore`, null = oppgavens
+pris; brukes av kiosk-API-ene tasks og claim), `claims` (krav; status SENT/APPROVED/REJECTED/PAID),
 `payments` + `payment_claims`, `wishlist_items`, `devices` + `device_pairings`
 (engangs-QR), `family_guests`, `family_invites`, `push_subscriptions`,
 `trophy_awards`, `app_secrets`, `family_vipps`, `app_owners`, `contact_messages`.

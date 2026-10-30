@@ -145,10 +145,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
 
 /* Bryter (av/på) */
 
-export function Switch({ checked, onChange, label, description, disabled }: { checked: boolean; onChange: (next: boolean) => void; label: string; description?: string; disabled?: boolean }) {
+// hideLabel: etiketten leses bare av skjermlesere (når navnet står ved siden av).
+export function Switch({ checked, onChange, label, description, disabled, hideLabel }: { checked: boolean; onChange: (next: boolean) => void; label: string; description?: string; disabled?: boolean; hideLabel?: boolean }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4">
-      <span className="min-w-0">
+    <label className={cx("flex cursor-pointer items-center gap-4", hideLabel ? "shrink-0" : "justify-between")}>
+      <span className={hideLabel ? "sr-only" : "min-w-0"}>
         <span className="block text-sm font-semibold">{label}</span>
         {description && <span className="block text-sm text-muted-foreground">{description}</span>}
       </span>

@@ -156,6 +156,20 @@ export function useTasks(familyId: string | null) {
   );
 }
 
+// Per barn og oppgave: om barnet har oppgaven, og egen lønn (null = vanlig pris).
+// Mangler raden, har barnet oppgaven til vanlig pris.
+export type ChildTaskSetting = { child_id: string; task_id: string; enabled: boolean; amount_ore: number | null };
+
+export function useChildTaskSettings(familyId: string | null) {
+  return useSWR(
+    familyId ? ["child-task-settings-all", familyId] : null,
+    async () =>
+      // RLS gir bare radene for barna i familien.
+      check(await supabase.from("child_task_settings").select("child_id, task_id, enabled, amount_ore")) as ChildTaskSetting[],
+    swrDefaults
+  );
+}
+
 /* Krav som venter */
 
 export type PendingClaim = {

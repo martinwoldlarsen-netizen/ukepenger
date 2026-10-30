@@ -9,7 +9,7 @@ import { ArrowLeft, CalendarDays, Gift, Languages, ListChecks, Plus, Trash2, X }
 import { LANGS, asLang } from "@/lib/i18n";
 import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
-import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildren, useTasks } from "@/lib/admin-data";
+import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildTaskSettings, useChildren, useTasks } from "@/lib/admin-data";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { type Lang } from "@/lib/i18n";
@@ -29,12 +29,12 @@ const TEXT = {
     deleteText: (name: string) => `All historikk, saldo, ønsker og trofeer for ${name} slettes og kan ikke hentes tilbake. Vil du bare skjule barnet, kan du gjøre det under Barn.`,
     deleteForGood: "Slett for godt", deleteFailed: "Klarte ikke å slette.", deleted: (name: string) => `${name} er slettet`,
     notFound: "Fant ikke barnet", backToChildren: "Tilbake til Barn", allChildren: "Alle barn",
-    tasks: "Oppgaver", tasksDesc: (name: string) => `Velg hvilke oppgaver ${name} ser på barnesiden.`, noTasks: "Ingen aktive oppgaver. Lag oppgaver under Oppgaver.",
+    tasks: "Oppgaver og lønn", tasksDesc: (name: string) => `Velg hvilke oppgaver ${name} har, og hva ${name} får for dem. Tomt lønnsfelt = vanlig pris.`, pay: "Lønn", standard: (kr: string) => `Vanlig: ${kr}`, ownPay: "egen lønn", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Skriv lønnen som et tall.", noTasks: "Ingen aktive oppgaver. Lag oppgaver under Oppgaver.",
     shown: "vises", hidden: "skjult", wishes: "Ønsker", wishesDesc: (name: string) => `Det ${name} sparer til. Nye ønsker fra barnet godkjennes under Krav.`,
     noWishes: "Ingen ønsker ennå.", waitingInRequests: "Venter i Krav", newWish: "Nytt ønske", close: "Lukk", whatWish: "Hva ønsker barnet seg?",
     wishPlaceholder: "F.eks. ny sykkel", price: "Pris", note: "Notat (valgfritt)", notePlaceholder: "Farge, modell …", addWish: "Legg til ønske",
     deleteChild: (name: string) => `Slett ${name}`,
-    language: "Språk", languageDesc: (name: string) => `Hvilket språk ${name} ser og hører på barnesiden. Oppgavene vises slik du har skrevet dem.`,
+    language: "Språk", languageDesc: (name: string) => `Hvilket språk ${name} ser og hører på barnesiden. Kjente oppgaver oversettes av seg selv; egne oppgaver kan du oversette under Oppgaver.`,
     languageSaved: (name: string, lang: string) => `${name} ser nå barnesiden på ${lang}`, applyAll: "Bruk for alle barna", appliedAll: (lang: string) => `Alle barna ser nå barnesiden på ${lang}`,
     allowance: "Faste ukepenger", allowanceDesc: (name: string) => `Et fast beløp som legges til det ${name} har til gode, automatisk hver uke. Kommer i tillegg til oppgavene.`,
     allowanceSaved: (name: string, amount: string, day: string) => `${name} får ${amount} hver ${day}`, allowanceOff: "Faste ukepenger er slått av",
@@ -48,12 +48,12 @@ const TEXT = {
     deleteText: (name: string) => `All history, balance, wishes and trophies for ${name} will be deleted and can't be recovered. If you only want to hide the child, you can do that under Children.`,
     deleteForGood: "Delete for good", deleteFailed: "Couldn't delete.", deleted: (name: string) => `${name} was deleted`,
     notFound: "Couldn't find the child", backToChildren: "Back to Children", allChildren: "All children",
-    tasks: "Tasks", tasksDesc: (name: string) => `Choose which tasks ${name} sees on the children's page.`, noTasks: "No active tasks. Create tasks under Tasks.",
+    tasks: "Tasks and pay", tasksDesc: (name: string) => `Choose which tasks ${name} has, and what ${name} gets for them. Empty pay field = the usual price.`, pay: "Pay", standard: (kr: string) => `Usual: ${kr}`, ownPay: "own pay", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Enter the pay as a number.", noTasks: "No active tasks. Create tasks under Tasks.",
     shown: "shown", hidden: "hidden", wishes: "Wishes", wishesDesc: (name: string) => `What ${name} is saving for. New wishes from the child are approved under Requests.`,
     noWishes: "No wishes yet.", waitingInRequests: "Waiting in Requests", newWish: "New wish", close: "Close", whatWish: "What does the child wish for?",
     wishPlaceholder: "E.g. a new bike", price: "Price", note: "Note (optional)", notePlaceholder: "Colour, model …", addWish: "Add wish",
     deleteChild: (name: string) => `Delete ${name}`,
-    language: "Language", languageDesc: (name: string) => `Which language ${name} sees and hears on the children's page. Tasks are shown the way you wrote them.`,
+    language: "Language", languageDesc: (name: string) => `Which language ${name} sees and hears on the children's page. Known tasks are translated automatically; you can translate your own tasks under Tasks.`,
     languageSaved: (name: string, lang: string) => `${name} now sees the children's page in ${lang}`, applyAll: "Use for all the children", appliedAll: (lang: string) => `All the children now see the children's page in ${lang}`,
     allowance: "Weekly pocket money", allowanceDesc: (name: string) => `A fixed amount added to what ${name} is owed, automatically every week. Comes on top of the tasks.`,
     allowanceSaved: (name: string, amount: string, day: string) => `${name} gets ${amount} every ${day}`, allowanceOff: "Weekly pocket money is turned off",
@@ -67,12 +67,12 @@ const TEXT = {
     deleteText: (name: string) => `Уся історія, баланс, бажання й трофеї (${name}) буде видалено без можливості відновлення. Якщо потрібно лише сховати дитину, це можна зробити в розділі «Діти».`,
     deleteForGood: "Видалити назавжди", deleteFailed: "Не вдалося видалити.", deleted: (name: string) => `${name}: видалено`,
     notFound: "Дитину не знайдено", backToChildren: "Назад до розділу «Діти»", allChildren: "Усі діти",
-    tasks: "Завдання", tasksDesc: (name: string) => `Оберіть, які завдання бачить ${name} на сторінці для дітей.`, noTasks: "Немає активних завдань. Створіть їх у розділі «Завдання».",
+    tasks: "Завдання й оплата", tasksDesc: (name: string) => `Оберіть, які завдання має ${name} і скільки за них отримує. Порожнє поле оплати = звичайна ціна.`, pay: "Оплата", standard: (kr: string) => `Звичайна: ${kr}`, ownPay: "своя оплата", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Введіть оплату числом.", noTasks: "Немає активних завдань. Створіть їх у розділі «Завдання».",
     shown: "показано", hidden: "приховано", wishes: "Бажання", wishesDesc: (name: string) => `На що збирає ${name}. Нові бажання від дитини схвалюються в розділі «Запити».`,
     noWishes: "Бажань ще немає.", waitingInRequests: "Очікує в «Запитах»", newWish: "Нове бажання", close: "Закрити", whatWish: "Чого бажає дитина?",
     wishPlaceholder: "Напр. новий велосипед", price: "Ціна", note: "Примітка (необов’язково)", notePlaceholder: "Колір, модель …", addWish: "Додати бажання",
     deleteChild: (name: string) => `Видалити: ${name}`,
-    language: "Мова", languageDesc: (name: string) => `Якою мовою ${name} бачить і чує сторінку для дітей. Завдання показуються так, як ви їх написали.`,
+    language: "Мова", languageDesc: (name: string) => `Якою мовою ${name} бачить і чує сторінку для дітей. Відомі завдання перекладаються автоматично; власні можна перекласти в розділі «Завдання».`,
     languageSaved: (name: string, lang: string) => `${name} тепер бачить сторінку мовою: ${lang}`, applyAll: "Застосувати для всіх дітей", appliedAll: (lang: string) => `Усі діти тепер бачать сторінку мовою: ${lang}`,
     allowance: "Щотижневі кишенькові", allowanceDesc: (name: string) => `Фіксована сума, яка щотижня автоматично додається до того, що належить: ${name}. Нараховується додатково до завдань.`,
     allowanceSaved: (name: string, amount: string, day: string) => `${name} отримує ${amount} щотижня (${day})`, allowanceOff: "Щотижневі кишенькові вимкнено",
@@ -109,17 +109,7 @@ function ChildDetail({ childId }: { childId: string }) {
   const children = useChildren(familyId);
   const tasks = useTasks(familyId);
 
-  const settings = useSWR(
-    familyId ? ["child-task-settings", childId] : null,
-    async () => {
-      const res = await supabase.from("child_task_settings").select("task_id, enabled").eq("child_id", childId);
-      if (res.error) throw new Error(res.error.message);
-      const map: Record<string, boolean> = {};
-      for (const row of (res.data ?? []) as Array<{ task_id: string; enabled: boolean }>) map[row.task_id] = row.enabled;
-      return map;
-    },
-    swrDefaults
-  );
+  const settings = useChildTaskSettings(familyId);
 
   const wishlist = useSWR(
     familyId ? ["wishlist", childId] : null,
@@ -135,22 +125,37 @@ function ChildDetail({ childId }: { childId: string }) {
 
   const child = children.data?.find((c) => c.id === childId);
   const activeTasks = (tasks.data ?? []).filter((t) => t.active);
-  const isEnabled = (taskId: string) => settings.data?.[taskId] !== false;
+  const settingFor = (taskId: string) => settings.data?.find((x) => x.child_id === childId && x.task_id === taskId);
+  const isEnabled = (taskId: string) => settingFor(taskId)?.enabled !== false;
+  const ownPay = (taskId: string) => settingFor(taskId)?.amount_ore ?? null;
 
-  const toggleTask = async (taskId: string) => {
-    const next = !isEnabled(taskId);
+  // Lagrer på/av og egen lønn for denne oppgaven (én rad per barn og oppgave).
+  const saveSetting = async (taskId: string, patch: { enabled?: boolean; amount_ore?: number | null }) => {
+    const row = { child_id: childId, task_id: taskId, enabled: isEnabled(taskId), amount_ore: ownPay(taskId), ...patch };
+    const merge = (current?: typeof settings.data) => [...(current ?? []).filter((x) => !(x.child_id === childId && x.task_id === taskId)), row];
     try {
       await settings.mutate(
         async (current) => {
-          const res = await supabase.from("child_task_settings").upsert({ child_id: childId, task_id: taskId, enabled: next });
+          const res = await supabase.from("child_task_settings").upsert(row);
           if (res.error) throw new Error(res.error.message);
-          return { ...(current ?? {}), [taskId]: next };
+          return merge(current);
         },
-        { optimisticData: (current) => ({ ...(current ?? {}), [taskId]: next }), rollbackOnError: true, revalidate: false }
+        { optimisticData: merge, rollbackOnError: true, revalidate: false }
       );
+      return true;
     } catch (error) {
       toast({ kind: "error", text: friendlyError(error, t.saveFailed) });
+      return false;
     }
+  };
+  const toggleTask = (taskId: string) => saveSetting(taskId, { enabled: !isEnabled(taskId) });
+  const savePay = async (task: { id: string; title: string; amount_ore: number }, value: string) => {
+    const ore = value.trim() ? parseKrToOre(value) : null;
+    if (ore === "invalid") return toast({ kind: "error", text: t.invalidPrice });
+    // Samme som vanlig pris = ingen egen lønn.
+    const next = ore === null || ore === task.amount_ore ? null : ore;
+    if (next === ownPay(task.id)) return;
+    if (await saveSetting(task.id, { amount_ore: next })) toast({ text: t.priceSaved(task.title, kr(next ?? task.amount_ore)) });
   };
 
   const createWish = async () => {
@@ -239,13 +244,22 @@ function ChildDetail({ childId }: { childId: string }) {
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
             {activeTasks.map((task) => (
-              <li key={task.id} className="px-4 py-3">
+              <li key={task.id} className="space-y-2 px-4 py-3">
                 <Switch
                   checked={isEnabled(task.id)}
                   onChange={() => void toggleTask(task.id)}
                   label={task.title}
-                  description={`${kr(task.amount_ore)} · ${isEnabled(task.id) ? t.shown : t.hidden}`}
+                  description={`${kr(ownPay(task.id) ?? task.amount_ore)}${ownPay(task.id) !== null ? ` (${t.ownPay})` : ""} · ${isEnabled(task.id) ? t.shown : t.hidden}`}
                 />
+                {isEnabled(task.id) && (
+                  <PayInput
+                    key={`${task.id}-${ownPay(task.id) ?? ""}`}
+                    label={`${t.pay}: ${task.title}`}
+                    initial={ownPay(task.id)}
+                    placeholder={t.standard(kr(task.amount_ore))}
+                    onCommit={(v) => void savePay(task, v)}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -465,5 +479,27 @@ function AllowanceCard({ child, familyId, onSaved }: { child: AdminChild; family
         </p>
       )}
     </Card>
+  );
+}
+
+// Lønnsfelt som lagrer når feltet forlates (eller Enter). Tomt = vanlig pris.
+function PayInput({ label, initial, placeholder, onCommit }: { label: string; initial: number | null; placeholder: string; onCommit: (value: string) => void }) {
+  const [value, setValue] = useState(initial === null ? "" : String(initial / 100).replace(".", ","));
+  return (
+    <span className="relative block max-w-56">
+      <Input
+        aria-label={label}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => onCommit(value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        inputMode="decimal"
+        placeholder={placeholder}
+        className="min-h-10 pr-10 text-sm"
+      />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kr</span>
+    </span>
   );
 }
