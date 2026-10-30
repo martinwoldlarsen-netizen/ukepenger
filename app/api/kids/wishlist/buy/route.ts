@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { formatKr } from "@/lib/money";
 import { notifyParents } from "@/lib/push";
-import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
 // Barnet trykker «Kjøp» i Ønskebutikken. Det betaler ikke ut noe selv: det
@@ -15,6 +15,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as { childId?: string; wishId?: string };
   const childId = body.childId?.trim() ?? "";
+  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   const wishId = body.wishId?.trim() ?? "";
   if (!childId || !wishId) {
     return NextResponse.json({ error: "Mangler ønske." }, { status: 400 });

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import useSWR, { preload, unstable_serialize, useSWRConfig } from "swr";
 import { ChevronRight, Coins } from "lucide-react";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
@@ -14,6 +15,7 @@ export default function KidsPage() {
   // Profilene huskes mellom besøk (SWR), så listen vises med en gang når
   // barnet går tilbake hit, og oppdateres i bakgrunnen.
   const { cache } = useSWRConfig();
+  const router = useRouter();
   const boot = useSWR<ChildRow[], Error>(KIDS_BOOTSTRAP_KEY, fetchKidsBootstrap, { revalidateOnFocus: true, shouldRetryOnError: false });
   const children = boot.data ?? [];
   const loading = !boot.data && !boot.error;
@@ -22,6 +24,12 @@ export default function KidsPage() {
   const langs = new Set(children.map((c) => asLang(c.language)));
   const lang = langs.size === 1 ? [...langs][0] : "nb";
   const t = kidText(lang);
+
+  // Barnets egen telefon: rett til barnets side, ingen profilvelger.
+  const personal = children.length === 1 && children[0].personal ? children[0].id : null;
+  useEffect(() => {
+    if (personal) router.replace(`/kids/${personal}`);
+  }, [personal, router]);
 
   // Hent barnas sider i forkant, så de åpnes uten venting.
   useEffect(() => {
@@ -40,8 +48,12 @@ export default function KidsPage() {
         <span className="font-num text-[17px] font-bold tracking-[-0.06em]">ukepenger</span>
       </div>
 
-      <h1 className="mt-10 text-4xl font-extrabold tracking-tight sm:text-5xl">{t.whoAreYou}</h1>
-      <p className="mt-2 text-lg text-muted-foreground">{t.tapYourself}</p>
+      {!personal && (
+        <>
+          <h1 className="mt-10 text-4xl font-extrabold tracking-tight sm:text-5xl">{t.whoAreYou}</h1>
+          <p className="mt-2 text-lg text-muted-foreground">{t.tapYourself}</p>
+        </>
+      )}
 
       {loading && (
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
@@ -62,7 +74,7 @@ export default function KidsPage() {
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && !personal && (
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {children.map((child, index) => {
             const color = kidColor(index);

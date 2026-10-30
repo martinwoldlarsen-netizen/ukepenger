@@ -8,6 +8,8 @@ export type ChildRow = {
   avatar_key: string | null;
   language?: string | null;
   color?: string | null;
+  // Enheten tilhører dette barnet (egen telefon): ingen profilvelger.
+  personal?: boolean;
 };
 
 export type TaskRow = {

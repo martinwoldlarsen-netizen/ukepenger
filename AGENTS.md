@@ -13,6 +13,9 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
 - **Barn** har ingen konto. En delt iPad kobles til familien med en
   engangs-QR (Mer → Enheter) og får en httpOnly-cookie `uk_kiosk`. Barnet
   velger profil hver gang på `/kids` – **bevisst ingen per-barn-cookie**.
+  Unntak: en QR-kode kan lages for ett barn (Enheter → «Bare Emma», f.eks. barnets
+  egen telefon). Da får enheten `devices.child_id` på serveren, ser bare det barnet
+  (`kioskMayUseChild` i hvert kiosk-API) og går rett til barnets side.
 - **Besteforeldre** får en lenke (Familie-siden) → httpOnly-cookie `uk_guest`
   → `/besteforeldre` («Se og gi»). Første gang velger de «Lag profil» eller
   «Fortsett uten». Profil = vanlig Supabase-konto uten `profiles`-rad, koblet
@@ -67,7 +70,8 @@ push-varsler og feilmeldinger fra API-ene.
 
 1. **Kiosk, auth, enheter, proxy/middleware og databasestruktur fungerer og
    skal ikke bygges om uten en god grunn og en plan.** Ingen store refaktoreringer.
-2. Ingen per-barn-cookie: barnet velger profil hver gang.
+2. Ingen per-barn-cookie: barnet velger profil hver gang på felles enheter. Et barns
+   egen enhet bindes på serveren (`devices.child_id`), ikke med en cookie.
 3. Barnepsykologi: progresjon, egne mål, umiddelbar positiv feedback, merker
    og «uker på rad» uten tap/straff. **Ikke** tilfeldige belønninger/lootbox,
    rangering mellom søsken, mas/push til barn eller falsk hast. Ekte kroner,

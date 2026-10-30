@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       .eq("token_hash", await hashToken(token))
       .is("used_at", null)
       .gt("expires_at", now)
-      .select("id, family_id")
+      .select("id, family_id, child_id")
       .maybeSingle();
     if (pairRes.error || !pairRes.data) return fail("expired_qr");
 
@@ -45,6 +45,8 @@ export async function GET(request: Request) {
       .from("devices")
       .insert({
         family_id: pairRes.data.family_id,
+        // QR-kode for ett barn: enheten ser bare det barnet.
+        child_id: pairRes.data.child_id ?? null,
         name: deviceName(request.headers.get("user-agent") ?? ""),
         token_hash: await hashToken(secret),
         device_code: await generateDeviceCode(10),
@@ -58,7 +60,7 @@ export async function GET(request: Request) {
     if (deviceRes.error || !deviceRes.data) return fail("server_error");
     await supabase.from("device_pairings").update({ device_id: deviceRes.data.id }).eq("id", pairRes.data.id);
 
-    const response = NextResponse.redirect(`${url.origin}/kids`, { status: 303 });
+    const response = NextResponse.redirect(pairRes.data.child_id ? `${url.origin}/kids/${pairRes.data.child_id}` : `${url.origin}/kids`, { status: 303 });
     response.cookies.set({
       name: KIOSK_COOKIE_NAME,
       value: getKioskCookieValue(deviceRes.data.id, secret),
