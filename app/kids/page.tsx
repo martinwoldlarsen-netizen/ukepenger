@@ -1,20 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import useSWR, { preload, unstable_serialize, useSWRConfig } from "swr";
-import { ArrowLeft, ChevronRight, Coins, ShoppingBag, X } from "lucide-react";
+import { ChevronRight, Coins } from "lucide-react";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { kidColor } from "./_lib/palette";
 import { asLang } from "@/lib/i18n";
-import { formatKr } from "@/lib/money";
-import { kidError, kidText } from "./_lib/text";
+import { kidText } from "./_lib/text";
 import { type ChildRow, KIDS_BOOTSTRAP_KEY, fetchKidPage, fetchKidsBootstrap, kidPageKey } from "./_lib/kid-data";
-
-
-const PRICE_OPTIONS = [500, 1000, 2000, 3000, 4000, 5000];
-
-type ButikkStep = "price" | "child";
 
 export default function KidsPage() {
   // Profilene huskes mellom besøk (SWR), så listen vises med en gang når
@@ -28,13 +22,6 @@ export default function KidsPage() {
   const langs = new Set(children.map((c) => asLang(c.language)));
   const lang = langs.size === 1 ? [...langs][0] : "nb";
   const t = kidText(lang);
-  const [saleError, setSaleError] = useState(false);
-
-  const [butikkOpen, setButikkOpen] = useState(false);
-  const [butikkStep, setButikkStep] = useState<ButikkStep>("price");
-  const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
-  const [butikkLoading, setButikkLoading] = useState(false);
-  const [butikkStatus, setButikkStatus] = useState("");
 
   // Hent barnas sider i forkant, så de åpnes uten venting.
   useEffect(() => {
@@ -43,55 +30,6 @@ export default function KidsPage() {
       if (!cache.get(unstable_serialize(key))?.data) void preload(key, () => fetchKidPage(c.id)).catch(() => {});
     }
   }, [boot.data, cache]);
-
-  const openButikk = () => {
-    setButikkOpen(true);
-    setButikkStep("price");
-    setSelectedPrice(null);
-    setButikkStatus("");
-  };
-
-  const closeButikk = () => {
-    if (butikkLoading) return;
-    setButikkOpen(false);
-  };
-
-  const selectPrice = (ore: number) => {
-    setSelectedPrice(ore);
-    setButikkStep("child");
-    setButikkStatus("");
-  };
-
-  const registerSale = async (childId: string) => {
-    if (!selectedPrice) return;
-    setButikkLoading(true);
-    setButikkStatus("");
-
-    const res = await fetch("/api/kids/butikk", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ childId, amountOre: selectedPrice }),
-    });
-
-    const payload = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
-    setButikkLoading(false);
-
-    if (!res.ok || payload.error) {
-      setSaleError(true);
-      setButikkStatus(kidError(lang, payload.error, t.tryAgain));
-      return;
-    }
-
-    const child = children.find((c) => c.id === childId);
-    setSaleError(false);
-    setButikkStatus(t.saleAdded(formatKr(selectedPrice, lang), child?.name ?? ""));
-
-    setTimeout(() => {
-      setButikkOpen(false);
-      setButikkStatus("");
-    }, 1500);
-  };
 
   return (
     <main lang={lang} className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
@@ -145,122 +83,12 @@ export default function KidsPage() {
               </Link>
             );
           })}
-
-          {children.length > 0 && (
-            <button
-              type="button"
-              onClick={openButikk}
-              className="group flex min-h-44 flex-col justify-between rounded-[1.75rem] border-2 border-dashed border-border bg-card/60 p-6 text-left transition hover:-translate-y-1 hover:border-primary/40 hover:bg-card hover:shadow-lg active:scale-[0.98]"
-            >
-              <span className="flex size-20 items-center justify-center rounded-full bg-secondary text-primary">
-                <ShoppingBag className="size-9" strokeWidth={2} />
-              </span>
-              <span className="mt-4">
-                <span className="block text-3xl font-extrabold tracking-tight">{t.shop}</span>
-                <span className="text-sm font-semibold text-muted-foreground">{t.registerSale}</span>
-              </span>
-            </button>
-          )}
         </div>
       )}
 
       {!loading && !error && children.length === 0 && (
         <div className="mt-8 rounded-[1.75rem] border border-border bg-card p-8 text-center text-muted-foreground">
           {t.noKids}
-        </div>
-      )}
-
-      {butikkOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 backdrop-blur-sm sm:items-center"
-          onClick={closeButikk}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="butikk-title"
-            className="animate-pop w-full max-w-md rounded-[1.75rem] bg-card p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <h2 id="butikk-title" className="text-2xl font-extrabold tracking-tight">
-                  {t.shop}
-                </h2>
-                <p className="mt-0.5 text-muted-foreground">{butikkStep === "price" ? t.howMuchSold : t.whoSold}</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeButikk}
-                disabled={butikkLoading}
-                aria-label={t.close}
-                className="flex size-11 items-center justify-center rounded-xl border border-border transition hover:bg-secondary disabled:opacity-40"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {butikkStep === "price" && (
-              <div className="grid grid-cols-3 gap-3">
-                {PRICE_OPTIONS.map((ore) => (
-                  <button
-                    key={ore}
-                    type="button"
-                    onClick={() => selectPrice(ore)}
-                    className="font-num rounded-2xl bg-secondary py-5 text-xl font-bold transition hover:bg-accent active:scale-95"
-                  >
-                    {formatKr(ore, lang)}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {butikkStep === "child" && (
-              <div className="max-h-80 overflow-y-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setButikkStep("price");
-                    setButikkStatus("");
-                  }}
-                  className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-                >
-                  <ArrowLeft className="size-4" /> {t.changeAmount} ({formatKr(selectedPrice ?? 0, lang)})
-                </button>
-                <div className="grid grid-cols-2 gap-3">
-                  {children.map((child, index) => {
-                    const color = kidColor(index);
-                    return (
-                      <button
-                        key={child.id}
-                        type="button"
-                        disabled={butikkLoading}
-                        onClick={() => void registerSale(child.id)}
-                        className="rounded-2xl p-4 text-left transition hover:-translate-y-0.5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                        style={{ background: color.bg, color: color.ink }}
-                      >
-                        <KidAvatar avatarKey={child.avatar_key} size={44} />
-                        <span className="mt-1 block text-lg font-extrabold">{child.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {butikkStatus && (
-              <p
-                role="status"
-                className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${
-                  saleError ? "bg-red-50 text-red-800" : "bg-secondary text-primary"
-                }`}
-              >
-                {butikkStatus}
-              </p>
-            )}
-
-            {butikkLoading && <p className="mt-4 text-center text-sm text-muted-foreground">{t.saving}</p>}
-          </div>
         </div>
       )}
     </main>

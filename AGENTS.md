@@ -159,7 +159,8 @@ ut fra navnet med `categoryOf`).
 
 Konvensjon for krav uten oppgave (`task_id` null): notat som starter med emoji
 vises som det er (`🎁 Gave …`, `📅 Ukepenger`, `🏆 …`, `🏅 …`), annet notat
-vises som `Bonus: …`, ingen notat = `Butikksalg`.
+vises som `Bonus: …`, ingen notat = `Butikksalg` (gamle krav fra «Butikk»-knappen,
+som er fjernet fra barnesiden).
 
 `profiles_guard` (trigger): klienten kan ikke endre egen `role`/`family_id`
 (bare inn i en helt ny, tom familie). Invitasjoner går via service role.
@@ -179,4 +180,4 @@ familie B. Server-tabeller (`app_secrets`, `push_subscriptions`,
 
 Se «Åpne punkter»/«Neste steg» i `VISJON.md`. Kort: org.nr./adresse på siden,
 databehandleravtaler, Apple-/Vipps-innlogging, 2FA/passkeys, rate limiting,
-«Om oss», statusside, om «Salg»-knappen på profilvelgeren skal kreve godkjenning.
+«Om oss», statusside.
