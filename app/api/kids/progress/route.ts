@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyKioskRequest } from "@/lib/kiosk-auth";
 import { computeProgress, totalBadgeKey } from "@/lib/progress";
-import { TOTAL_MILESTONES, taskTrophy, type TrophySettings } from "@/lib/trophies";
+import { TOTAL_MILESTONES, bigEvery, payFrom, taskTrophy, type TrophySettings } from "@/lib/trophies";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 import { asLang } from "@/lib/i18n";
 import { localTaskTitle, localizeClaimTasks } from "@/lib/task-title";
@@ -49,10 +49,14 @@ export async function GET(request: Request) {
   // Ett trofé per oppgave (aktive, og skjulte som barnet allerede har gjort).
   const counts: Record<string, number> = {};
   for (const c of claims) if (c.task_id) counts[c.task_id] = (counts[c.task_id] ?? 0) + 1;
-  progress.trophies = (tasksRes.data ?? [])
-    .filter((t) => t.active || counts[t.id])
-    .map((t) => ({ ...taskTrophy(t.id, localTaskTitle(t, lang), counts[t.id] ?? 0, settings), icon: t.icon ?? null }))
-    .sort((a, b) => b.level - a.level || b.count - a.count || a.name.localeCompare(b.name, lang));
-  progress.trophiesPay = Boolean(settings.enabled);
+  // Trofeer slått av: ingen trofeskap på barnesiden.
+  progress.trophies = settings.hidden
+    ? []
+    : (tasksRes.data ?? [])
+        .filter((t) => t.active || counts[t.id])
+        .map((t) => ({ ...taskTrophy(t.id, localTaskTitle(t, lang), counts[t.id] ?? 0, settings), icon: t.icon ?? null }))
+        .sort((a, b) => b.level - a.level || b.count - a.count || a.name.localeCompare(b.name, lang));
+  progress.trophiesPay = Boolean(settings.enabled) && !settings.hidden;
+  progress.trophyRules = { bigEvery: bigEvery(settings), payFrom: payFrom(settings) };
   return NextResponse.json(progress);
 }

@@ -142,6 +142,10 @@ public/sw.js          service worker (frakoblet-side + varsler)
 Logikk i databasen (security definer, ikke kallbar fra klient der det ikke trengs):
 - `apply_claim_savings` (trigger): trekker sparing (%) når et krav godkjennes.
 - `claims_trophies` (trigger): gir trofé-/milepælsbonus én gang, rangbasert.
+  Innstillinger i `families.trophy_settings` (Trofeer-siden): `enabled` (premier/penger),
+  `hidden` (trofeer av), `levels` (antall ganger per nivå), `pay_from`, `big_every`,
+  `level_ore`, `big_ore`, `totals`, `task_off`, `names`. Mangler et felt, gjelder
+  standarden (`DEFAULT_TROPHY_SETTINGS` i `lib/trophies.ts`, samme som i databasen).
 - `ensure_weekly_allowances(family_id)`: faste ukepenger, kalles lat fra API-ene.
 
 `tasks.icon` er bildet forelderen har valgt (navn på en tegning i `components/task-art.tsx` eller en emoji, null = gjettes ut fra navnet).

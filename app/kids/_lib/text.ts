@@ -70,7 +70,9 @@ const nb = {
   startStreak: "Gjør én oppgave i uka for å starte.",
   trophyCase: "Trofeskapet",
   levelsIntro: "Hver oppgave gir nivåer.",
-  levelsPay: "Hvert nivå gir bonus, og hvert 5. nivå gir en stor bonus!",
+  // Premiene følger familiens valg: fra hvilket nivå, og hvor ofte en stor bonus kommer.
+  levelsPay: (bigEvery: number, payFrom: number) =>
+    `${payFrom > 1 ? `Fra nivå ${payFrom} gir hvert nivå bonus` : "Hvert nivå gir bonus"}${bigEvery > 0 ? `, og hvert ${bigEvery}. nivå gir en stor bonus!` : "!"}`,
   howHigh: "Hvor høyt kommer du?",
   topLevel: (n: number) => `Toppnivå! ${n} ganger`,
   levelProgress: (level: number, left: number) => `Nivå ${level} · ${left} til neste`,
@@ -133,6 +135,8 @@ const nb = {
 };
 
 export type KidText = typeof nb;
+
+const ordinalEn = (n: number) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
 const en: KidText = {
   whoAreYou: "Who are you?",
@@ -197,7 +201,8 @@ const en: KidText = {
   startStreak: "Do one task a week to get started.",
   trophyCase: "Trophy case",
   levelsIntro: "Every task has levels.",
-  levelsPay: "Every level gives a bonus, and every 5th level gives a big bonus!",
+  levelsPay: (bigEvery, payFrom) =>
+    `${payFrom > 1 ? `From level ${payFrom}, every level gives a bonus` : "Every level gives a bonus"}${bigEvery > 0 ? `, and every ${ordinalEn(bigEvery)} level gives a big bonus!` : "!"}`,
   howHigh: "How high can you go?",
   topLevel: (n) => `Top level! ${n} times`,
   levelProgress: (level, left) => `Level ${level} · ${left} to go`,
@@ -322,7 +327,8 @@ const uk: KidText = {
   startStreak: "Виконуй одне завдання на тиждень, щоб почати.",
   trophyCase: "Шафа з трофеями",
   levelsIntro: "Кожне завдання має рівні.",
-  levelsPay: "Кожен рівень дає бонус, а кожен 5-й — великий бонус!",
+  levelsPay: (bigEvery, payFrom) =>
+    `${payFrom > 1 ? `Починаючи з рівня ${payFrom}, кожен рівень дає бонус` : "Кожен рівень дає бонус"}${bigEvery > 0 ? `, а кожен ${bigEvery}-й — великий бонус!` : "!"}`,
   howHigh: "Як високо ти зможеш піднятися?",
   topLevel: (n) => `Найвищий рівень! ${n} ${ukPl(n, "раз", "рази", "разів")}`,
   levelProgress: (level, left) => `Рівень ${level} · ще ${left} до наступного`,
