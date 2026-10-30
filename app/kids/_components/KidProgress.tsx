@@ -6,7 +6,6 @@ import useSWR from "swr";
 import type { Progress } from "@/lib/progress";
 import { formatKr } from "@/lib/money";
 import { taskEmoji } from "@/lib/task-emoji";
-import { isBigLevel } from "@/lib/trophies";
 import { celebrate } from "../_lib/celebrate";
 import { readAloud } from "../_lib/read-aloud";
 import { type Lang, localeOf } from "@/lib/i18n";
@@ -47,7 +46,7 @@ export function KidProgress({ childId, lang = "nb" }: { childId: string; lang?: 
     const newTrophy = (data.trophies ?? []).find((t) => t.level > 0 && !seen?.includes(`t:${t.taskId}:${t.level}`));
     const newBadge = data.badges.find((b) => b.earned && !seen?.includes(b.key));
     const newOne = newTrophy
-      ? { emoji: taskEmoji(newTrophy.title), title: t.trophyTitle(newTrophy.name, newTrophy.level), label: isBigLevel(newTrophy.level) ? t.bigTrophy : t.newLevel, bonusOre: newTrophy.levelBonusOre || undefined }
+      ? { emoji: taskEmoji(newTrophy.title), title: t.trophyTitle(newTrophy.name, newTrophy.level), label: newTrophy.levelIsBig ? t.bigTrophy : t.newLevel, bonusOre: newTrophy.levelBonusOre || undefined }
       : newBadge
         ? { emoji: newBadge.emoji, title: badgeText(t, newBadge)[0], label: t.newBadge, bonusOre: newBadge.bonusOre }
         : null;
@@ -111,14 +110,14 @@ export function KidProgress({ childId, lang = "nb" }: { childId: string; lang?: 
           <h2 className="text-2xl font-extrabold tracking-tight">
             {t.trophyCase} <span aria-hidden="true">🏆</span>
           </h2>
-          <p className="text-sm text-muted-foreground">{t.levelsIntro} {data.trophiesPay ? t.levelsPay : t.howHigh}</p>
+          <p className="text-sm text-muted-foreground">{t.levelsIntro} {data.trophiesPay ? t.levelsPay(data.trophyRules?.bigEvery ?? 5, data.trophyRules?.payFrom ?? 1) : t.howHigh}</p>
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">
             {data.trophies!.map((tr) => (
               <li key={tr.taskId} className={`flex items-center gap-3 rounded-2xl p-3 ${tr.level > 0 ? "bg-accent/60" : "bg-secondary"}`}>
                 <span className="relative shrink-0">
                   <TaskIcon title={tr.title} icon={tr.icon} size={56} muted={tr.level === 0} />
                   {tr.level > 0 && (
-                    <span className={`absolute -bottom-1.5 -right-1.5 flex min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${isBigLevel(tr.level) ? "bg-amber-400 text-amber-950" : "bg-primary text-primary-foreground"}`}>
+                    <span className={`absolute -bottom-1.5 -right-1.5 flex min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-extrabold ${tr.levelIsBig ? "bg-amber-400 text-amber-950" : "bg-primary text-primary-foreground"}`}>
                       {tr.level}
                     </span>
                   )}

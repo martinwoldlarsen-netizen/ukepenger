@@ -18,6 +18,8 @@ export type Progress = {
   month: { label: string; index: number; earnedOre: number; tasks: number; topTask: string | null };
   trophies?: TaskTrophy[];
   trophiesPay?: boolean;
+  // Premiereglene familien har valgt, til teksten i trofeskapet.
+  trophyRules?: { bigEvery: number; payFrom: number };
 };
 
 type ClaimLike = { task_id: string | null; status: string; amount_ore: number; saved_ore: number | null; created_at: string; decided_at: string | null; tasks?: { title: string } | { title: string }[] | null };
