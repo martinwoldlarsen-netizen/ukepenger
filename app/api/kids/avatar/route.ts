@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { FIGURES } from "@/components/avatars/figures";
-import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
 const VALID_KEYS = new Set(FIGURES.map((f) => f.key));
@@ -15,6 +15,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as { childId?: string; avatarKey?: string };
   const childId = body.childId?.trim() ?? "";
+  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   const avatarKey = body.avatarKey?.trim() ?? "";
   if (!childId || !VALID_KEYS.has(avatarKey)) {
     return NextResponse.json({ error: "Ugyldig figur." }, { status: 400 });

@@ -266,12 +266,15 @@ function KidTaskView({ childId }: { childId: string }) {
     <main lang={lang} className="mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-10">
       <div className="flex justify-end gap-2">
         <SoundToggle labels={{ on: t.soundOn, off: t.soundOff }} />
-        <Link
-          href="/kids"
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition hover:bg-secondary"
-        >
-          <ArrowLeft className="size-4" /> {t.switchProfile}
-        </Link>
+        {/* Barnets egen telefon har ingen andre profiler å bytte til. */}
+        {!child?.personal && (
+          <Link
+            href="/kids"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition hover:bg-secondary"
+          >
+            <ArrowLeft className="size-4" /> {t.switchProfile}
+          </Link>
+        )}
       </div>
 
       {/* Profil: figuren barnet har valgt, navn og nivå */}

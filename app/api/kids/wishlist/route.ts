@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
 type ChildRow = {
@@ -40,6 +40,7 @@ export async function GET(request: Request) {
   }
 
   const childId = new URL(request.url).searchParams.get("childId")?.trim() ?? "";
+  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   if (!childId) {
     return NextResponse.json({ error: "Mangler childId." }, { status: 400 });
   }
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
   }
 
   const childId = typeof body.childId === "string" ? body.childId.trim() : "";
+  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   const title = typeof body.title === "string" ? body.title.trim().replace(/\s+/g, " ") : "";
   if (!childId) {
     return NextResponse.json({ error: "Mangler childId." }, { status: 400 });

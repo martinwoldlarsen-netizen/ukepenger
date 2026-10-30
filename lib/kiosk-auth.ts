@@ -10,12 +10,22 @@ type DeviceAuthRow = {
   device_secret: string | null;
   active: boolean;
   revoked_at: string | null;
+  child_id: string | null;
 };
 
 export type KioskAuthContext = {
   deviceId: string;
   familyId: string;
+  // Satt når enheten tilhører ett barn (barnets egen telefon). Da ser enheten
+  // bare det barnet.
+  childId: string | null;
 };
+
+// Kan enheten se dette barnet? Felles enheter ser alle barna i familien
+// (familien sjekkes i hvert API), egne enheter bare sitt barn.
+export function kioskMayUseChild(auth: KioskAuthContext, childId: string) {
+  return !auth.childId || auth.childId === childId;
+}
 
 function safeEqual(a: string, b: string) {
   const ab = Buffer.from(a);
@@ -35,7 +45,7 @@ export async function verifyKioskRequest(request: Request): Promise<KioskAuthCon
 
   const deviceRes = await supabase
     .from("devices")
-    .select("id, family_id, token_hash, device_secret, active, revoked_at")
+    .select("id, family_id, token_hash, device_secret, active, revoked_at, child_id")
     .eq("id", session.deviceId)
     .maybeSingle();
 
@@ -52,5 +62,6 @@ export async function verifyKioskRequest(request: Request): Promise<KioskAuthCon
   return {
     deviceId: device.id,
     familyId: device.family_id,
+    childId: device.child_id ?? null,
   };
 }

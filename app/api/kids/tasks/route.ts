@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 import { asLang } from "@/lib/i18n";
 import { localTaskTitle } from "@/lib/task-title";
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const childId = url.searchParams.get("childId")?.trim() ?? "";
+  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   if (!childId) {
     return NextResponse.json({ error: "Mangler childId." }, { status: 400 });
   }
@@ -150,7 +151,7 @@ export async function GET(request: Request) {
   const show_savings = familyRes.data?.show_savings_to_kids ?? true;
 
   return NextResponse.json({
-    child: { id: child.id, name: child.name, avatar_key: child.avatar_key, language: child.language ?? "nb" },
+    child: { id: child.id, name: child.name, avatar_key: child.avatar_key, language: child.language ?? "nb", personal: Boolean(auth.childId) },
     tasks: visibleTasks,
     cooldowns,
     pending_ore,

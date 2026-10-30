@@ -61,6 +61,14 @@ export async function POST(request: Request) {
   // én gang. Tidligere ubrukte koder for familien slutter å virke.
   const service = getServiceSupabaseClient();
   if (!service) return NextResponse.json({ error: "Serverfeil." }, { status: 500 });
+
+  // Valgfritt: QR-kode for ett barn (barnets egen telefon). Barnet må være i familien.
+  const body = (await request.json().catch(() => ({}))) as { childId?: unknown };
+  const childId = typeof body.childId === "string" && body.childId.trim() ? body.childId.trim() : null;
+  if (childId) {
+    const childRes = await service.from("children").select("id").eq("id", childId).eq("family_id", familyId).eq("active", true).maybeSingle();
+    if (childRes.error || !childRes.data) return NextResponse.json({ error: "Fant ikke barnet." }, { status: 400 });
+  }
   await service.from("device_pairings").delete().eq("family_id", familyId).is("used_at", null);
 
   const token = await generateDeviceSecret(32);
@@ -70,6 +78,7 @@ export async function POST(request: Request) {
     token_hash: await hashToken(token),
     expires_at: expiresAt,
     created_by: authContext.userId,
+    child_id: childId,
   });
   if (insertRes.error) return NextResponse.json({ error: "Klarte ikke å lage QR-kode." }, { status: 400 });
 

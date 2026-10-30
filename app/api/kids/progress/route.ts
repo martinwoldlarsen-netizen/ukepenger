@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
 import { computeProgress, totalBadgeKey } from "@/lib/progress";
 import { TOTAL_MILESTONES, bigEvery, payFrom, taskTrophy, type TrophySettings } from "@/lib/trophies";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   const auth = await verifyKioskRequest(request);
   if (!auth) return NextResponse.json({ error: "Kiosk-session mangler eller er ugyldig." }, { status: 401 });
   const childId = new URL(request.url).searchParams.get("childId")?.trim() ?? "";
+  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
   const supabase = getServiceSupabaseClient();
   if (!supabase || !childId) return NextResponse.json({ error: "Mangler barn." }, { status: 400 });
 
