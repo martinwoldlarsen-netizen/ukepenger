@@ -311,7 +311,7 @@ export default function AdminPaymentsPage() {
   return (
     <section className="space-y-6">
       {/* Velg barn */}
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
+      <div className="-mx-4 -mt-1 flex gap-3 overflow-x-auto px-4 py-1 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
         {activeChildren.map((c) => {
           const active = c.id === childId;
           return (
