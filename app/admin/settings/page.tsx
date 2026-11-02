@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { DeleteAccountCard } from "./DeleteAccountCard";
 import { NotificationsCard } from "./NotificationsCard";
+import { ViewModeCard } from "./ViewModeCard";
 import { Languages } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLang, useText } from "@/lib/use-lang";
@@ -89,6 +90,7 @@ export default function AdminSettingsPage() {
 
   return (
     <section className="space-y-5">
+      <ViewModeCard />
       <Card>
         <CardHeader icon={<Languages className="size-5" />} title={t.language} description={t.languageDesc} />
         <div className="mt-4">

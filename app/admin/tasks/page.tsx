@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
-import { type AdminTask, friendlyError, useAdminIdentity, useChildTaskSettings, useChildren, useTasks } from "@/lib/admin-data";
+import { type AdminTask, friendlyError, useAdminIdentity, useChildTaskSettings, useChildren, useTasks, useUiMode } from "@/lib/admin-data";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { LANGS, type Lang, asLang } from "@/lib/i18n";
 import { formatKr, parseKrToOre } from "@/lib/money";
@@ -37,6 +37,7 @@ const TEXT = {
     category: "Kategori",
     picture: "Bilde",
     nameInLangs: "Navnet på barnas språk",
+    kidsDiffer: "Noen barn har egen lønn eller har ikke denne oppgaven. Se og endre det i visningen «Alt» (Innstillinger), eller på barnet under Barn.",
     whoHas: "Hvem har oppgaven, og hva får de?", whoHasHint: "Slå av for barn som ikke skal ha den. Tomt lønnsfelt = prisen over.", payFor: (name: string) => `Lønn for ${name}`,
     nameInLangsHint: "Barnet ser oppgaven på sitt språk. Tomt felt: kjente oppgaver oversettes av seg selv, ellers vises navnet over.",
     oldPrice: "Krav som allerede er sendt, beholder den gamle prisen.",
@@ -79,6 +80,7 @@ const TEXT = {
     category: "Category",
     picture: "Picture",
     nameInLangs: "The name in the children's languages",
+    kidsDiffer: "Some children have their own pay or don't have this task. See and change it in the «Everything» view (Settings), or on the child under Children.",
     whoHas: "Who has the task, and what do they get?", whoHasHint: "Switch off for children who shouldn't have it. Empty pay field = the price above.", payFor: (name: string) => `Pay for ${name}`,
     nameInLangsHint: "Each child sees the task in their own language. Empty field: known tasks are translated automatically, otherwise the name above is shown.",
     oldPrice: "Requests already sent keep the old price.",
@@ -121,6 +123,7 @@ const TEXT = {
     category: "Категорія",
     picture: "Зображення",
     nameInLangs: "Назва мовами дітей",
+    kidsDiffer: "Деякі діти мають свою оплату або не мають цього завдання. Переглянути й змінити це можна у вигляді «Усе» (Налаштування) або на сторінці дитини в розділі «Діти».",
     whoHas: "Хто має завдання і скільки отримує?", whoHasHint: "Вимкніть для дітей, яким воно не потрібне. Порожнє поле оплати = ціна вище.", payFor: (name: string) => `Оплата: ${name}`,
     nameInLangsHint: "Дитина бачить завдання своєю мовою. Порожнє поле: відомі завдання перекладаються автоматично, інакше показується назва вище.",
     oldPrice: "Запити, які вже надіслано, зберігають стару ціну.",
@@ -163,6 +166,8 @@ export default function AdminTasksPage() {
   const confirm = useConfirm();
   const { familyId } = useAdminIdentity();
   const tasks = useTasks(familyId);
+  // Visning: Enkel viser navn og pris, Vanlig også bilde og kategori, Alt også barn og språk.
+  const { atLeast } = useUiMode();
   // Barnas språk utenom ditt eget (navnet skrives på ditt språk). Snakker alle
   // samme språk, trengs ingen oversettelse.
   const kids = useChildren(familyId);
@@ -381,28 +386,35 @@ export default function AdminTasksPage() {
                         <Field label={t.whatToDo}>
                           <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={60} />
                         </Field>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className={cx("grid gap-3", atLeast("normal") && "grid-cols-2")}>
                           <Field label={t.amount}>
                             <span className="relative block">
                               <Input value={editAmount} onChange={(e) => setEditAmount(e.target.value)} inputMode="decimal" className="pr-10" autoFocus />
                               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">kr</span>
                             </span>
                           </Field>
-                          <Field label={t.category}>
-                            <Select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
-                              {CATEGORIES.map((c) => (
-                                <option key={c.key} value={c.key}>
-                                  {c.emoji} {catTitle(c)}
-                                </option>
-                              ))}
-                            </Select>
-                          </Field>
+                          {atLeast("normal") && (
+                            <Field label={t.category}>
+                              <Select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+                                {CATEGORIES.map((c) => (
+                                  <option key={c.key} value={c.key}>
+                                    {c.emoji} {catTitle(c)}
+                                  </option>
+                                ))}
+                              </Select>
+                            </Field>
+                          )}
                         </div>
-                        <div>
-                          <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.picture}</span>
-                          <TaskIconPicker title={editTitle || task.title} value={editIcon} onChange={setEditIcon} />
-                        </div>
-                        {activeKids.length > 1 && (
+                        {atLeast("normal") && (
+                          <div>
+                            <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.picture}</span>
+                            <TaskIconPicker title={editTitle || task.title} value={editIcon} onChange={setEditIcon} />
+                          </div>
+                        )}
+                        {!atLeast("full") && activeKids.some((c) => { const x = settingOf(c.id, task.id); return x && (x.enabled === false || x.amount_ore !== null); }) && (
+                          <p className="rounded-xl bg-card px-3 py-2 text-sm text-muted-foreground">{t.kidsDiffer}</p>
+                        )}
+                        {atLeast("full") && activeKids.length > 1 && (
                           <div>
                             <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.whoHas}</span>
                             <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
@@ -434,7 +446,7 @@ export default function AdminTasksPage() {
                             <p className="mt-1.5 text-xs text-muted-foreground">{t.whoHasHint}</p>
                           </div>
                         )}
-                        {translateTo.length > 0 && (
+                        {atLeast("full") && translateTo.length > 0 && (
                           <div>
                             <span className="mb-1.5 block text-sm font-semibold text-foreground/85">{t.nameInLangs}</span>
                             <div className="space-y-2">

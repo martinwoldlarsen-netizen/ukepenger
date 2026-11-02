@@ -61,6 +61,35 @@ export function useAdminIdentity() {
   return { familyId: data?.familyId ?? null, userId: data?.userId ?? null, isLoading };
 }
 
+// Visning per forelder: Enkel, Vanlig eller Alt (profiles.ui_mode). Styrer bare
+// hva foreldredelen viser – innstillinger som er satt, gjelder uansett.
+export type UiMode = "simple" | "normal" | "full";
+const asUiMode = (v: unknown): UiMode => (v === "simple" || v === "full" ? v : "normal");
+
+export function useUiMode() {
+  const { userId } = useAdminIdentity();
+  const { data, mutate } = useSWR(
+    userId ? ["ui-mode", userId] : null,
+    async () => asUiMode((check(await supabase.from("profiles").select("ui_mode").eq("user_id", userId as string).maybeSingle()) as { ui_mode?: string } | null)?.ui_mode),
+    swrDefaults
+  );
+  const mode = data ?? "normal";
+  const setMode = async (next: UiMode) => {
+    if (!userId) return;
+    await mutate(
+      async () => {
+        const res = await supabase.from("profiles").update({ ui_mode: next }).eq("user_id", userId);
+        if (res.error) throw new Error(res.error.message);
+        return next;
+      },
+      { optimisticData: next, rollbackOnError: true, revalidate: false }
+    );
+  };
+  // «Minst» = vises fra og med denne visningen.
+  const atLeast = (m: UiMode) => (m === "simple" ? true : m === "normal" ? mode !== "simple" : mode === "full");
+  return { mode, setMode, atLeast, loaded: data !== undefined };
+}
+
 export async function getAccessToken() {
   const res = await supabase.auth.getSession();
   const token = res.data.session?.access_token;

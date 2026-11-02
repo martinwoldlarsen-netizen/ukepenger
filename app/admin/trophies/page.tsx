@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { ChevronDown, Coins, RotateCcw, Trophy } from "lucide-react";
 import { Button, Card, CardHeader, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useToast } from "@/components/ui/feedback";
-import { friendlyError, swrDefaults, useAdminIdentity, useTasks } from "@/lib/admin-data";
+import { friendlyError, swrDefaults, useAdminIdentity, useTasks, useUiMode } from "@/lib/admin-data";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { taskEmoji } from "@/lib/task-emoji";
@@ -43,7 +43,7 @@ const TEXT = {
       </>
     ),
     prizesOffText: "Barna får trofeer og merker, men ingen penger for dem.",
-    settings: "Nivåer og premier", settingsDesc: "Hvor mange ganger hvert nivå krever, beløp, og hvilke oppgaver som gir penger",
+    settings: "Nivåer og premier", settingsDescNormal: "Beløpene for premiene", settingsDesc: "Hvor mange ganger hvert nivå krever, beløp, og hvilke oppgaver som gir penger",
     levels: "Antall ganger per nivå", level: (n: number) => `Nivå ${n}`,
     levelsHint: "Hvert nivå må kreve flere ganger enn det forrige. Tomme felt på slutten blir borte.",
     levelsBad: "Nivåene må være hele tall, uten hull, og hvert nivå høyere enn det forrige.",
@@ -80,7 +80,7 @@ const TEXT = {
       </>
     ),
     prizesOffText: "The children get trophies and badges, but no money for them.",
-    settings: "Levels and prizes", settingsDesc: "How many times each level takes, amounts, and which tasks give money",
+    settings: "Levels and prizes", settingsDescNormal: "The prize amounts", settingsDesc: "How many times each level takes, amounts, and which tasks give money",
     levels: "Times per level", level: (n: number) => `Level ${n}`,
     levelsHint: "Each level must take more times than the one before. Empty fields at the end are removed.",
     levelsBad: "Levels must be whole numbers, with no gaps, each higher than the one before.",
@@ -117,7 +117,7 @@ const TEXT = {
       </>
     ),
     prizesOffText: "Діти отримують трофеї та значки, але без грошей.",
-    settings: "Рівні та призи", settingsDesc: "Скільки разів потрібно для кожного рівня, суми та завдання, що дають гроші",
+    settings: "Рівні та призи", settingsDescNormal: "Суми призів", settingsDesc: "Скільки разів потрібно для кожного рівня, суми та завдання, що дають гроші",
     levels: "Кількість разів для рівня", level: (n: number) => `Рівень ${n}`,
     levelsHint: "Кожен рівень має вимагати більше разів, ніж попередній. Порожні поля в кінці буде прибрано.",
     levelsBad: "Рівні мають бути цілими числами, без пропусків, і кожен більший за попередній.",
@@ -150,7 +150,10 @@ export default function AdminTrophiesPage() {
     },
     swrDefaults
   );
-  const [open, setOpen] = useState(false);
+  // Visning: Enkel viser bare bryterne, Vanlig også beløpene, Alt alle detaljer (åpent fra start).
+  const { mode, atLeast } = useUiMode();
+  const [openChoice, setOpen] = useState<boolean | null>(null);
+  const open = openChoice ?? mode === "full";
   const [draft, setDraft] = useState<TrophySettings | null>(null);
   // Nivåfeltene redigeres som tekst, så et felt kan være tomt underveis.
   const [levelText, setLevelText] = useState<string[] | null>(null);
@@ -254,121 +257,127 @@ export default function AdminTrophiesPage() {
         </p>
       </Card>
 
-      <div className="rounded-3xl border border-border bg-card shadow-sm">
-        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={cx("flex w-full items-center justify-between gap-3 rounded-3xl p-5 text-left", focusRing)}>
-          <span>
-            <span className="block text-lg font-bold">{t.settings}</span>
-            <span className="block text-sm text-muted-foreground">{t.settingsDesc}</span>
-          </span>
-          <ChevronDown className={cx("size-5 shrink-0 text-muted-foreground transition", open && "rotate-180")} />
-        </button>
-        {open && (
-          <div className="animate-pop space-y-6 px-5 pb-5">
-            {trophiesOn && (
+      {atLeast("normal") && (
+        <div className="rounded-3xl border border-border bg-card shadow-sm">
+          <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={cx("flex w-full items-center justify-between gap-3 rounded-3xl p-5 text-left", focusRing)}>
+            <span>
+              <span className="block text-lg font-bold">{t.settings}</span>
+              <span className="block text-sm text-muted-foreground">{atLeast("full") ? t.settingsDesc : t.settingsDescNormal}</span>
+            </span>
+            <ChevronDown className={cx("size-5 shrink-0 text-muted-foreground transition", open && "rotate-180")} />
+          </button>
+          {open && (
+            <div className="animate-pop space-y-6 px-5 pb-5">
+              {trophiesOn && atLeast("full") && (
+                <div>
+                  <h3 className="mb-2 font-bold">{t.levels}</h3>
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                    {levelInputs.map((v, i) => (
+                      <Field key={i} label={t.level(i + 1)}>
+                        <Input value={v} onChange={(e) => setLevel(i, e.target.value)} inputMode="numeric" placeholder="–" className="font-num text-center" />
+                      </Field>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">{t.levelsHint}</p>
+                </div>
+              )}
+
+              {trophiesOn && (
+                <div>
+                  <h3 className="mb-2 flex items-center gap-2 font-bold">
+                    <Coins className="size-4 text-primary" /> {t.prizePerLevel}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label={t.normal}>
+                      <KrInput value={kr(d.level_ore)} onChange={(v) => setKr("level_ore", v)} />
+                    </Field>
+                    <Field label={t.big}>
+                      <KrInput value={kr(d.big_ore)} onChange={(v) => setKr("big_ore", v)} />
+                    </Field>
+                    {atLeast("full") && (
+                      <>
+                        <Field label={t.bigEvery}>
+                          <Select value={String(bigEvery(d))} onChange={(e) => edit({ big_every: Number(e.target.value) })}>
+                            {BIG_CHOICES.map((n) => (
+                              <option key={n} value={n}>
+                                {n === 0 ? t.never : t.nth(n)}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                        <Field label={t.payFrom}>
+                          <Select value={String(Math.min(payFrom(d), Math.max(filledLevels, 1)))} onChange={(e) => edit({ pay_from: Number(e.target.value) })}>
+                            {Array.from({ length: Math.max(filledLevels, 1) }, (_, i) => i + 1).map((n) => (
+                              <option key={n} value={n}>
+                                {t.fromLevel(n)}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                      </>
+                    )}
+                  </div>
+                  {atLeast("full") && <p className="mt-2 text-sm text-muted-foreground">{t.payFromHint}</p>}
+                </div>
+              )}
+
               <div>
-                <h3 className="mb-2 font-bold">{t.levels}</h3>
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                  {levelInputs.map((v, i) => (
-                    <Field key={i} label={t.level(i + 1)}>
-                      <Input value={v} onChange={(e) => setLevel(i, e.target.value)} inputMode="numeric" placeholder="–" className="font-num text-center" />
+                <h3 className="mb-2 font-bold">{t.total}</h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {TOTAL_MILESTONES.map((n) => (
+                    <Field key={n} label={t.tasksN(n)}>
+                      <KrInput value={kr(d.totals?.[String(n)])} onChange={(v) => setTotal(n, v)} />
                     </Field>
                   ))}
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">{t.levelsHint}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{t.emptyNoBonus}</p>
               </div>
-            )}
 
-            {trophiesOn && (
-              <div>
-                <h3 className="mb-2 flex items-center gap-2 font-bold">
-                  <Coins className="size-4 text-primary" /> {t.prizePerLevel}
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label={t.normal}>
-                    <KrInput value={kr(d.level_ore)} onChange={(v) => setKr("level_ore", v)} />
-                  </Field>
-                  <Field label={t.big}>
-                    <KrInput value={kr(d.big_ore)} onChange={(v) => setKr("big_ore", v)} />
-                  </Field>
-                  <Field label={t.bigEvery}>
-                    <Select value={String(bigEvery(d))} onChange={(e) => edit({ big_every: Number(e.target.value) })}>
-                      {BIG_CHOICES.map((n) => (
-                        <option key={n} value={n}>
-                          {n === 0 ? t.never : t.nth(n)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label={t.payFrom}>
-                    <Select value={String(Math.min(payFrom(d), Math.max(filledLevels, 1)))} onChange={(e) => edit({ pay_from: Number(e.target.value) })}>
-                      {Array.from({ length: Math.max(filledLevels, 1) }, (_, i) => i + 1).map((n) => (
-                        <option key={n} value={n}>
-                          {t.fromLevel(n)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
+              {trophiesOn && atLeast("full") && (
+                <div>
+                  <h3 className="mb-2 font-bold">{t.perTask}</h3>
+                  <ul className="divide-y divide-border rounded-2xl bg-secondary/60">
+                    {taskList.map((x) => (
+                      <li key={x.id} className="space-y-2 px-4 py-3">
+                        <Switch
+                          checked={!(d.task_off ?? []).includes(x.id)}
+                          onChange={(on) => setTaskOn(x.id, on)}
+                          label={`${taskEmoji(x.title)} ${x.title}`}
+                          description={t.perTaskDesc}
+                        />
+                        <Input value={d.names?.[x.id] ?? ""} onChange={(e) => setName(x.id, e.target.value)} placeholder={t.namePlaceholder(x.title.split(" ").pop()?.toLowerCase() ?? "")} aria-label={t.nameFor(x.title)} />
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">{t.payFromHint}</p>
-              </div>
-            )}
+              )}
 
-            <div>
-              <h3 className="mb-2 font-bold">{t.total}</h3>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {TOTAL_MILESTONES.map((n) => (
-                  <Field key={n} label={t.tasksN(n)}>
-                    <KrInput value={kr(d.totals?.[String(n)])} onChange={(v) => setTotal(n, v)} />
-                  </Field>
-                ))}
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{t.emptyNoBonus}</p>
+              <Button variant="ghost" block icon={<RotateCcw className="size-4" />} onClick={reset}>
+                {t.reset}
+              </Button>
+
+              {dirty && (
+                <div className="sticky bottom-24 flex gap-2 md:bottom-4">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="flex-1"
+                    onClick={() => {
+                      setDraft(null);
+                      setLevelText(null);
+                    }}
+                  >
+                    {t.undo}
+                  </Button>
+                  <Button size="lg" className="flex-1" loading={saving} onClick={save}>
+                    {t.save}
+                  </Button>
+                </div>
+              )}
             </div>
-
-            {trophiesOn && (
-              <div>
-                <h3 className="mb-2 font-bold">{t.perTask}</h3>
-                <ul className="divide-y divide-border rounded-2xl bg-secondary/60">
-                  {taskList.map((x) => (
-                    <li key={x.id} className="space-y-2 px-4 py-3">
-                      <Switch
-                        checked={!(d.task_off ?? []).includes(x.id)}
-                        onChange={(on) => setTaskOn(x.id, on)}
-                        label={`${taskEmoji(x.title)} ${x.title}`}
-                        description={t.perTaskDesc}
-                      />
-                      <Input value={d.names?.[x.id] ?? ""} onChange={(e) => setName(x.id, e.target.value)} placeholder={t.namePlaceholder(x.title.split(" ").pop()?.toLowerCase() ?? "")} aria-label={t.nameFor(x.title)} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <Button variant="ghost" block icon={<RotateCcw className="size-4" />} onClick={reset}>
-              {t.reset}
-            </Button>
-
-            {dirty && (
-              <div className="sticky bottom-24 flex gap-2 md:bottom-4">
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="flex-1"
-                  onClick={() => {
-                    setDraft(null);
-                    setLevelText(null);
-                  }}
-                >
-                  {t.undo}
-                </Button>
-                <Button size="lg" className="flex-1" loading={saving} onClick={save}>
-                  {t.save}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

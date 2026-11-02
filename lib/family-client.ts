@@ -93,6 +93,8 @@ export async function ensureFamilyForUser(user: { id: string; email?: string | n
     user_id: user.id,
     family_id: familyId,
     role: "ADMIN",
+    // Nye familier starter med den enkle visningen (kan endres under Innstillinger).
+    ui_mode: "simple",
   });
 
   if (profileInsert.error) {
