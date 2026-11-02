@@ -42,6 +42,20 @@ export function clearPendingGuest() {
 // Besteforelder-konto → besteforeldre-siden. Helt ny konto → «Hva vil du?».
 // Ingen familie lages automatisk her; det skjer først når de velger
 // «Start ny familie».
+// «Glemt passord»: satt når lenken bestilles på innloggingssiden. /auth/callback
+// sender da videre til /nytt-passord (Supabase sier ikke selv fra om dette).
+export const PASSWORD_RESET_KEY = "uk_pw_reset";
+
+export function takePasswordReset(): boolean {
+  try {
+    const at = Number(localStorage.getItem(PASSWORD_RESET_KEY) ?? 0);
+    localStorage.removeItem(PASSWORD_RESET_KEY);
+    return at > 0 && Date.now() - at < 2 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
 export async function pathAfterAuth(user: User): Promise<string> {
   const invitePath = peekPendingInvitePath();
   if (invitePath) return invitePath;

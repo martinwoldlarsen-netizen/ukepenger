@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Coins } from "lucide-react";
+import { Coins, Eye, EyeOff } from "lucide-react";
 import { Button, Field, Input, cx, focusRing } from "@/components/ui";
-import { hasPendingGuest, pathAfterAuth } from "@/lib/after-auth";
+import { PASSWORD_RESET_KEY, hasPendingGuest, pathAfterAuth } from "@/lib/after-auth";
 import { OpenOutsideCard } from "@/components/OpenOutsideCard";
 import { inAppBrowserName } from "@/lib/in-app-browser";
 import { supabase } from "@/lib/supabaseClient";
@@ -17,6 +17,27 @@ const MIN_PASSWORD = 10;
 
 const TEXT = {
   nb: {
+    tabLogin: "Logg inn",
+    tabSignup: "Ny konto",
+    tabGuestSignup: "Lag profil",
+    signupTitle: "Lag en konto 👋",
+    signupLead: "Gratis, uten kredittkort. Barna trenger ingen konto – de bruker en iPad eller telefon du kobler til etterpå.",
+    makeAccount: "Lag konto",
+    pwRule: (n: number) => `Minst ${MIN_PASSWORD} tegn (${n}/${MIN_PASSWORD}). Tips: en setning er lett å huske.`,
+    pwOk: "Passordet er langt nok ✓",
+    showPw: "Vis passord",
+    hidePw: "Skjul passord",
+    termsA: "Når du lager konto, godtar du ",
+    terms: "vilkårene",
+    termsB: " og ",
+    privacy: "personvernerklæringen",
+    forgot: "Glemt passord?",
+    forgotTitle: "Glemt passord? 🔑",
+    forgotLead: "Skriv e-posten din, så sender vi en lenke der du kan lage et nytt passord.",
+    sendLink: "Send lenke",
+    resetSent: (email: string) => `Sjekk e-posten ${email} (også søppelpost). Åpne lenken på denne enheten for å lage nytt passord.`,
+    backToLogin: "Tilbake til innlogging",
+    existsGoLogin: "Det finnes allerede en konto med denne e-posten. Laget du den med Google? Trykk «Fortsett med Google». Ellers kan du logge inn, eller trykke «Glemt passord?».",
     resent: "Ny e-post er sendt. Sjekk innboksen – og søppelpost/reklame hvis den ikke dukker opp.",
     tooShort: `Velg et passord på minst ${MIN_PASSWORD} tegn. Tips: bruk en setning, f.eks. «blå sykkel i hagen».`,
     createdButFailed: "Kontoen ble laget, men noe gikk galt. Prøv å logge inn.",
@@ -41,9 +62,7 @@ const TEXT = {
     passwordPh: "Passord eller passfrase",
     resend: "Fikk du ikke e-posten? Send på nytt",
     makeProfile: "Lag profil",
-    haveProfile: "Har du profil fra før? Logg inn",
     login: "Logg inn",
-    signup: "Ny her? Opprett konto",
     err: {
       invalid: "Feil e-post eller passord.",
       confirm: "Bekreft e-posten din først. Sjekk innboksen og søppelpost.",
@@ -57,6 +76,27 @@ const TEXT = {
     },
   },
   en: {
+    tabLogin: "Log in",
+    tabSignup: "New account",
+    tabGuestSignup: "Create profile",
+    signupTitle: "Create an account 👋",
+    signupLead: "Free, no credit card. The children don't need an account – they use an iPad or phone you connect afterwards.",
+    makeAccount: "Create account",
+    pwRule: (n: number) => `At least ${MIN_PASSWORD} characters (${n}/${MIN_PASSWORD}). Tip: a sentence is easy to remember.`,
+    pwOk: "The password is long enough ✓",
+    showPw: "Show password",
+    hidePw: "Hide password",
+    termsA: "By creating an account you accept the ",
+    terms: "terms",
+    termsB: " and the ",
+    privacy: "privacy policy",
+    forgot: "Forgot password?",
+    forgotTitle: "Forgot your password? 🔑",
+    forgotLead: "Enter your email and we'll send you a link where you can choose a new password.",
+    sendLink: "Send link",
+    resetSent: (email: string) => `Check your email ${email} (including spam). Open the link on this device to choose a new password.`,
+    backToLogin: "Back to login",
+    existsGoLogin: "An account with this email already exists. Did you create it with Google? Tap “Continue with Google”. Otherwise log in, or tap “Forgot password?”.",
     resent: "A new email has been sent. Check your inbox – and your spam folder if it doesn't show up.",
     tooShort: `Choose a password of at least ${MIN_PASSWORD} characters. Tip: use a sentence, e.g. “blue bike in the garden”.`,
     createdButFailed: "The account was created, but something went wrong. Try logging in.",
@@ -81,9 +121,7 @@ const TEXT = {
     passwordPh: "Password or passphrase",
     resend: "Didn't get the email? Send again",
     makeProfile: "Create profile",
-    haveProfile: "Already have a profile? Log in",
     login: "Log in",
-    signup: "New here? Create an account",
     err: {
       invalid: "Wrong email or password.",
       confirm: "Please confirm your email first. Check your inbox and spam folder.",
@@ -97,6 +135,27 @@ const TEXT = {
     },
   },
   uk: {
+    tabLogin: "Увійти",
+    tabSignup: "Новий акаунт",
+    tabGuestSignup: "Створити профіль",
+    signupTitle: "Створіть акаунт 👋",
+    signupLead: "Безкоштовно, без банківської картки. Дітям акаунт не потрібен – вони користуються iPad або телефоном, який ви підключите потім.",
+    makeAccount: "Створити акаунт",
+    pwRule: (n: number) => `Щонайменше ${MIN_PASSWORD} символів (${n}/${MIN_PASSWORD}). Порада: речення легко запам’ятати.`,
+    pwOk: "Пароль достатньо довгий ✓",
+    showPw: "Показати пароль",
+    hidePw: "Сховати пароль",
+    termsA: "Створюючи акаунт, ви приймаєте ",
+    terms: "умови",
+    termsB: " і ",
+    privacy: "політику конфіденційності",
+    forgot: "Забули пароль?",
+    forgotTitle: "Забули пароль? 🔑",
+    forgotLead: "Введіть е-пошту, і ми надішлемо посилання, де можна створити новий пароль.",
+    sendLink: "Надіслати посилання",
+    resetSent: (email: string) => `Перевірте пошту ${email} (також «Спам»). Відкрийте посилання на цьому пристрої, щоб створити новий пароль.`,
+    backToLogin: "Назад до входу",
+    existsGoLogin: "Акаунт із цією е-поштою вже існує. Створювали його через Google? Натисніть «Продовжити з Google». Інакше увійдіть або натисніть «Забули пароль?».",
     resent: "Новий лист надіслано. Перевірте вхідні – і папку «Спам», якщо лист не з’явиться.",
     tooShort: `Оберіть пароль щонайменше з ${MIN_PASSWORD} символів. Порада: використайте речення, наприклад «синій велосипед у саду».`,
     createdButFailed: "Акаунт створено, але щось пішло не так. Спробуйте увійти.",
@@ -121,9 +180,7 @@ const TEXT = {
     passwordPh: "Пароль або парольна фраза",
     resend: "Не отримали листа? Надіслати ще раз",
     makeProfile: "Створити профіль",
-    haveProfile: "Уже маєте профіль? Увійти",
     login: "Увійти",
-    signup: "Тут уперше? Створити акаунт",
     err: {
       invalid: "Неправильна е-пошта або пароль.",
       confirm: "Спершу підтвердьте е-пошту. Перевірте вхідні та «Спам».",
@@ -139,6 +196,18 @@ const TEXT = {
 };
 
 type Status = { text: string; error?: boolean } | null;
+type Mode = "login" | "signup" | "forgot";
+
+// «Glemt passord»: husk at lenken er bestilt, så /auth/callback sender videre
+// til /nytt-passord. Glemmes ved vanlig innlogging.
+function rememberReset(on: boolean) {
+  try {
+    if (on) localStorage.setItem(PASSWORD_RESET_KEY, String(Date.now()));
+    else localStorage.removeItem(PASSWORD_RESET_KEY);
+  } catch {
+    // privat modus
+  }
+}
 
 type AuthAction = "login" | "signup" | "google" | "apple" | null;
 
@@ -185,6 +254,20 @@ export default function LoginPage() {
   // Google blokkerer innlogging inne i Messenger/Facebook o.l.
   const [inApp] = useState(() => inAppBrowserName());
 
+  // Ny konto (fra «Kom i gang» på forsiden: ?ny=1) eller innlogging.
+  // ?glemt=1 (fra en utløpt lenke): rett til «Glemt passord».
+  const [mode, setMode] = useState<Mode>(() => {
+    const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    if (q?.has("glemt")) return "forgot";
+    return forGuest || q?.has("ny") ? "signup" : "login";
+  });
+  const [showPw, setShowPw] = useState(false);
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setStatus(null);
+    setNeedsConfirm(false);
+  };
+
   // Allerede innlogget (også en eldre innlogging som nettopp ble flyttet fra
   // lokal lagring): rett inn i appen i stedet for å vise skjemaet.
   const [checking, setChecking] = useState(true);
@@ -215,6 +298,7 @@ export default function LoginPage() {
       return;
     }
     setAction("signup");
+    rememberReset(false);
     // Besteforeldre: legg en koblings-billett på kontoen, så den kobles til
     // familien selv om e-posten bekreftes i en annen nettleser (f.eks. Safari).
     let guestLink: string | undefined;
@@ -241,6 +325,14 @@ export default function LoginPage() {
       return;
     }
 
+    // Supabase avslører ikke at e-posten finnes; da kommer en bruker uten identiteter.
+    if (!result.data.session && result.data.user.identities?.length === 0) {
+      setAction(null);
+      setMode("login");
+      setStatus({ text: t.existsGoLogin, error: true });
+      return;
+    }
+
     if (!result.data.session) {
       setAction(null);
       setNeedsConfirm(true);
@@ -254,6 +346,7 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setStatus(null);
     setAction("login");
+    rememberReset(false);
     const result = await supabase.auth.signInWithPassword({ email, password });
 
     if (result.error) {
@@ -275,6 +368,7 @@ export default function LoginPage() {
   const handleOAuth = async (provider: "google" | "apple") => {
     setStatus(null);
     setAction(provider);
+    rememberReset(false);
     const redirectTo = `${window.location.origin}/auth/callback`;
 
     const result = await supabase.auth.signInWithOAuth({
@@ -289,7 +383,21 @@ export default function LoginPage() {
     }
   };
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
+  const handleForgot = async () => {
+    setStatus(null);
+    setAction("login");
+    rememberReset(true);
+    const res = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/callback` });
+    setAction(null);
+    if (res.error) {
+      setStatus({ text: authErrorText(res.error.message, lang), error: true });
+      return;
+    }
+    setStatus({ text: t.resetSent(email.trim()) });
+  };
+
+  const canSubmit = email.trim().length > 0 && (mode === "forgot" || password.length > 0) && !isLoading;
+  const signup = mode === "signup";
 
   if (checking) {
     return (
@@ -310,12 +418,37 @@ export default function LoginPage() {
       </Link>
 
       <section className="w-full max-w-md rounded-[2rem] border border-border bg-card p-6 shadow-xl shadow-black/5 sm:p-8">
-        {forGuest ? (
+        {mode !== "forgot" && (
+          <div role="tablist" className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
+            {(["signup", "login"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => switchMode(m)}
+                className={cx("min-h-11 rounded-xl text-sm font-bold transition", mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground", focusRing)}
+              >
+                {m === "login" ? t.tabLogin : forGuest ? t.tabGuestSignup : t.tabSignup}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === "forgot" ? (
+          <>
+            <h1 className="text-3xl font-extrabold tracking-tight">{t.forgotTitle}</h1>
+            <p className="mt-1 text-muted-foreground">{t.forgotLead}</p>
+          </>
+        ) : signup && forGuest ? (
           <>
             <h1 className="text-3xl font-extrabold tracking-tight">{t.guestTitle}</h1>
-            <p className="mt-1 text-muted-foreground">
-              {inApp ? t.guestInApp : t.guestLead(appleOn)}
-            </p>
+            <p className="mt-1 text-muted-foreground">{inApp ? t.guestInApp : t.guestLead(appleOn)}</p>
+          </>
+        ) : signup ? (
+          <>
+            <h1 className="text-3xl font-extrabold tracking-tight">{t.signupTitle}</h1>
+            <p className="mt-1 text-muted-foreground">{t.signupLead}</p>
           </>
         ) : (
           <>
@@ -324,60 +457,89 @@ export default function LoginPage() {
           </>
         )}
 
-        {inApp && (
+        {mode !== "forgot" && inApp && (
           <>
             <OpenOutsideCard
               className="mt-5"
               guest={forGuest}
               profile={forGuest}
-              path={forGuest ? undefined : "/login"}
+              path={forGuest ? undefined : signup ? "/login?ny=1" : "/login"}
               text={t.inAppText}
             />
             <p className="mt-5 text-center text-sm font-semibold text-muted-foreground">{t.orHere}</p>
           </>
         )}
 
-        <div className={inApp ? "hidden" : "mt-6 space-y-2.5"}>
-          <Button variant="secondary" size="lg" block loading={action === "google"} disabled={isLoading} onClick={() => void handleOAuth("google")}>
-            {t.google}
-          </Button>
-          {appleOn && (
-            <Button variant="secondary" size="lg" block loading={action === "apple"} disabled={isLoading} onClick={() => void handleOAuth("apple")}>
-              {t.apple}
-            </Button>
-          )}
-        </div>
+        {mode !== "forgot" && (
+          <>
+            <div className={inApp ? "hidden" : "mt-6 space-y-2.5"}>
+              <Button variant="secondary" size="lg" block loading={action === "google"} disabled={isLoading} onClick={() => void handleOAuth("google")}>
+                {t.google}
+              </Button>
+              {appleOn && (
+                <Button variant="secondary" size="lg" block loading={action === "apple"} disabled={isLoading} onClick={() => void handleOAuth("apple")}>
+                  {t.apple}
+                </Button>
+              )}
+            </div>
 
-        <div className={inApp ? "my-5" : "my-6 flex items-center gap-3 text-sm text-muted-foreground"}>
-          {!inApp && (
-            <>
-              <div className="h-px flex-1 bg-border" />
-              <span>{t.orEmail}</span>
-              <div className="h-px flex-1 bg-border" />
-            </>
-          )}
-        </div>
+            <div className={inApp ? "my-5" : "my-6 flex items-center gap-3 text-sm text-muted-foreground"}>
+              {!inApp && (
+                <>
+                  <div className="h-px flex-1 bg-border" />
+                  <span>{t.orEmail}</span>
+                  <div className="h-px flex-1 bg-border" />
+                </>
+              )}
+            </div>
+          </>
+        )}
 
         <form
-          className="space-y-4"
+          className={cx("space-y-4", mode === "forgot" && "mt-6")}
           onSubmit={(e) => {
             e.preventDefault();
             if (!canSubmit) return;
-            void (forGuest ? handleSignUp() : handleLogin());
+            void (mode === "forgot" ? handleForgot() : signup ? handleSignUp() : handleLogin());
           }}
         >
           <Field label={t.email}>
             <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPh} />
           </Field>
-          <Field label={t.password}>
-            <Input
-              type="password"
-              autoComplete={forGuest ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={forGuest ? t.newPasswordPh : t.passwordPh}
-            />
-          </Field>
+          {mode !== "forgot" && (
+            <div>
+              <Field label={t.password}>
+                <span className="relative block">
+                  <Input
+                    type={showPw ? "text" : "password"}
+                    autoComplete={signup ? "new-password" : "current-password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={signup ? t.newPasswordPh : t.passwordPh}
+                    className="pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? t.hidePw : t.showPw}
+                    aria-pressed={showPw}
+                    className={cx("absolute right-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary", focusRing)}
+                  >
+                    {showPw ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                  </button>
+                </span>
+              </Field>
+              {signup ? (
+                <p className={cx("mt-1.5 text-sm", password.length >= MIN_PASSWORD ? "font-semibold text-primary" : "text-muted-foreground")}>
+                  {password.length >= MIN_PASSWORD ? t.pwOk : t.pwRule(password.length)}
+                </p>
+              ) : (
+                <button type="button" onClick={() => switchMode("forgot")} className={cx("mt-1.5 rounded-lg text-sm font-semibold text-primary underline-offset-4 hover:underline", focusRing)}>
+                  {t.forgot}
+                </button>
+              )}
+            </div>
+          )}
 
           {status && (
             <p role={status.error ? "alert" : "status"} className={cx("rounded-2xl px-4 py-3 text-sm font-medium", status.error ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800")}>
@@ -390,24 +552,36 @@ export default function LoginPage() {
             </Button>
           )}
 
-          {forGuest ? (
+          {mode === "forgot" ? (
             <>
-              <Button type="submit" size="lg" block loading={action === "signup"} disabled={!canSubmit}>
-                {t.makeProfile}
+              <Button type="submit" size="lg" block loading={isLoading} disabled={!canSubmit}>
+                {t.sendLink}
               </Button>
-              <Button variant="ghost" block loading={action === "login"} disabled={!canSubmit} onClick={() => void handleLogin()}>
-                {t.haveProfile}
+              <Button variant="ghost" block onClick={() => switchMode("login")}>
+                {t.backToLogin}
               </Button>
+            </>
+          ) : signup ? (
+            <>
+              <Button type="submit" size="lg" block loading={action === "signup"} disabled={!canSubmit || password.length < MIN_PASSWORD}>
+                {forGuest ? t.makeProfile : t.makeAccount}
+              </Button>
+              <p className="text-center text-xs leading-5 text-muted-foreground">
+                {t.termsA}
+                <Link href="/vilkar" className="underline underline-offset-2">
+                  {t.terms}
+                </Link>
+                {t.termsB}
+                <Link href="/personvern" className="underline underline-offset-2">
+                  {t.privacy}
+                </Link>
+                .
+              </p>
             </>
           ) : (
-            <>
-              <Button type="submit" size="lg" block loading={action === "login"} disabled={!canSubmit}>
-                {t.login}
-              </Button>
-              <Button variant="ghost" block loading={action === "signup"} disabled={!canSubmit} onClick={() => void handleSignUp()}>
-                {t.signup}
-              </Button>
-            </>
+            <Button type="submit" size="lg" block loading={action === "login"} disabled={!canSubmit}>
+              {t.login}
+            </Button>
           )}
         </form>
       </section>
