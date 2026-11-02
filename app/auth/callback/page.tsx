@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { pathAfterAuth } from "@/lib/after-auth";
+import { pathAfterAuth, takePasswordReset } from "@/lib/after-auth";
 import { supabase } from "@/lib/supabaseClient";
 
 // Supabase fjerner tokens fra URL-en saa snart den har lest dem (replaceState),
@@ -50,6 +50,11 @@ export default function AuthCallbackPage() {
       if (handled || !mounted) return;
       handled = true;
 
+      // Kom fra «Glemt passord»-lenken: lag nytt passord først.
+      if (takePasswordReset()) {
+        router.replace("/nytt-passord");
+        return;
+      }
       // Invitasjon, besteforelder-profil, forelder eller helt ny konto.
       const path = await pathAfterAuth(user);
       if (!mounted) return;

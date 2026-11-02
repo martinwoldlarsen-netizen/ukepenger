@@ -591,6 +591,8 @@ export default function LandingClient() {
     };
   }, []);
   const appHref = loggedIn ? "/admin/inbox" : "/login";
+  // «Kom i gang» åpner innloggingen på «Ny konto».
+  const startHref = loggedIn ? "/admin/inbox" : "/login?ny=1";
   const appLabel = loggedIn ? t.toApp : t.login;
 
   return (
@@ -605,7 +607,7 @@ export default function LandingClient() {
           <a href="#sporsmal" className={styles.navLink}>{t.nav.questions}</a>
           {!loggedIn && <Link href="/login" className={styles.navLink}>{t.login}</Link>}
           <LanguageSwitcher className="-mx-2" />
-          <Link href={appHref} className={styles.buttonPrimary}>
+          <Link href={startHref} className={styles.buttonPrimary}>
             {loggedIn ? t.toApp : t.getStarted} <ArrowRight className="size-4" />
           </Link>
         </div>
@@ -663,7 +665,7 @@ export default function LandingClient() {
         </div>
 
         <div className={`${styles.menuFooter} border-t border-border px-5 pb-10 pt-6`}>
-          <Link href={appHref} className={`${styles.buttonPrimary} w-full justify-center`} onClick={() => setMenuOpen(false)}>
+          <Link href={startHref} className={`${styles.buttonPrimary} w-full justify-center`} onClick={() => setMenuOpen(false)}>
             {loggedIn ? t.toApp : t.getStarted} <ArrowRight className="size-4" />
           </Link>
           <p className="mt-3 text-center text-sm text-muted-foreground">{t.free}</p>
@@ -688,7 +690,7 @@ export default function LandingClient() {
               {t.lead}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link href={appHref} className={`${styles.buttonPrimary} justify-center`}>
+              <Link href={startHref} className={`${styles.buttonPrimary} justify-center`}>
                 {loggedIn ? t.toApp : t.startFamily} <ArrowRight className="size-4" />
               </Link>
               <a href="#slik-fungerer-det" className={`${styles.buttonSecondary} justify-center`}>
@@ -847,7 +849,7 @@ export default function LandingClient() {
         <p className="mx-auto mt-5 max-w-lg text-pretty leading-7 opacity-90">
           {t.ctaLead}
         </p>
-        <Link href={appHref} className={`${styles.buttonLight} mx-auto mt-8`}>
+        <Link href={startHref} className={`${styles.buttonLight} mx-auto mt-8`}>
           {loggedIn ? t.toApp : t.getStarted} <ArrowRight className="size-4" />
         </Link>
       </section>
