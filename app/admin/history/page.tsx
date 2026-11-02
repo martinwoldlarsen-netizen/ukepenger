@@ -109,7 +109,7 @@ export default function AdminHistoryPage() {
       <Button variant="secondary" block icon={<Download className="size-4" />} loading={exporting} onClick={() => void exportCsv()}>
         {t.download}
       </Button>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label={t.pickChild}>
+      <div className="-mx-4 -mt-1 flex gap-2 overflow-x-auto px-4 py-1 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label={t.pickChild}>
         {[{ id: null as string | null, name: t.all }, ...kids].map((c) => (
           <button
             key={c.id ?? "alle"}
