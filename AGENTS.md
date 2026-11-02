@@ -167,6 +167,10 @@ vises som det er (`🎁 Gave …`, `📅 Ukepenger`, `🏆 …`, `🏅 …`), an
 vises som `Bonus: …`, ingen notat = `Butikksalg` (gamle krav fra «Butikk»-knappen,
 som er fjernet fra barnesiden).
 
+`profiles.ui_mode` (simple/normal/full = Enkel/Vanlig/Alt, Innstillinger → Visning) styrer
+bare hva foreldredelen viser (`useUiMode().atLeast(...)` i `lib/admin-data.ts`). Nye familier
+starter på Enkel. Innstillinger som er satt, gjelder uansett visning.
+
 `profiles_guard` (trigger): klienten kan ikke endre egen `role`/`family_id`
 (bare inn i en helt ny, tom familie). Invitasjoner går via service role.
 

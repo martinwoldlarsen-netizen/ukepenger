@@ -9,7 +9,7 @@ import { ArrowLeft, CalendarDays, Gift, Languages, ListChecks, Plus, Trash2, X }
 import { LANGS, asLang } from "@/lib/i18n";
 import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, ListSkeleton, Select, Switch, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
-import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildTaskSettings, useChildren, useTasks } from "@/lib/admin-data";
+import { type AdminChild, adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildTaskSettings, useChildren, useTasks, useUiMode } from "@/lib/admin-data";
 import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { type Lang } from "@/lib/i18n";
@@ -29,7 +29,7 @@ const TEXT = {
     deleteText: (name: string) => `All historikk, saldo, ønsker og trofeer for ${name} slettes og kan ikke hentes tilbake. Vil du bare skjule barnet, kan du gjøre det under Barn.`,
     deleteForGood: "Slett for godt", deleteFailed: "Klarte ikke å slette.", deleted: (name: string) => `${name} er slettet`,
     notFound: "Fant ikke barnet", backToChildren: "Tilbake til Barn", allChildren: "Alle barn",
-    tasks: "Oppgaver og lønn", tasksDesc: (name: string) => `Velg hvilke oppgaver ${name} har, og hva ${name} får for dem. Tomt lønnsfelt = vanlig pris.`, pay: "Lønn", standard: (kr: string) => `Vanlig: ${kr}`, ownPay: "egen lønn", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Skriv lønnen som et tall.", noTasks: "Ingen aktive oppgaver. Lag oppgaver under Oppgaver.",
+    tasksPlain: "Oppgaver", tasksDescPlain: (name: string) => `Velg hvilke oppgaver ${name} har.`, tasks: "Oppgaver og lønn", tasksDesc: (name: string) => `Velg hvilke oppgaver ${name} har, og hva ${name} får for dem. Tomt lønnsfelt = vanlig pris.`, pay: "Lønn", standard: (kr: string) => `Vanlig: ${kr}`, ownPay: "egen lønn", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Skriv lønnen som et tall.", noTasks: "Ingen aktive oppgaver. Lag oppgaver under Oppgaver.",
     shown: "vises", hidden: "skjult", wishes: "Ønsker", wishesDesc: (name: string) => `Det ${name} sparer til. Nye ønsker fra barnet godkjennes under Krav.`,
     noWishes: "Ingen ønsker ennå.", waitingInRequests: "Venter i Krav", newWish: "Nytt ønske", close: "Lukk", whatWish: "Hva ønsker barnet seg?",
     wishPlaceholder: "F.eks. ny sykkel", price: "Pris", note: "Notat (valgfritt)", notePlaceholder: "Farge, modell …", addWish: "Legg til ønske",
@@ -48,7 +48,7 @@ const TEXT = {
     deleteText: (name: string) => `All history, balance, wishes and trophies for ${name} will be deleted and can't be recovered. If you only want to hide the child, you can do that under Children.`,
     deleteForGood: "Delete for good", deleteFailed: "Couldn't delete.", deleted: (name: string) => `${name} was deleted`,
     notFound: "Couldn't find the child", backToChildren: "Back to Children", allChildren: "All children",
-    tasks: "Tasks and pay", tasksDesc: (name: string) => `Choose which tasks ${name} has, and what ${name} gets for them. Empty pay field = the usual price.`, pay: "Pay", standard: (kr: string) => `Usual: ${kr}`, ownPay: "own pay", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Enter the pay as a number.", noTasks: "No active tasks. Create tasks under Tasks.",
+    tasksPlain: "Tasks", tasksDescPlain: (name: string) => `Choose which tasks ${name} has.`, tasks: "Tasks and pay", tasksDesc: (name: string) => `Choose which tasks ${name} has, and what ${name} gets for them. Empty pay field = the usual price.`, pay: "Pay", standard: (kr: string) => `Usual: ${kr}`, ownPay: "own pay", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Enter the pay as a number.", noTasks: "No active tasks. Create tasks under Tasks.",
     shown: "shown", hidden: "hidden", wishes: "Wishes", wishesDesc: (name: string) => `What ${name} is saving for. New wishes from the child are approved under Requests.`,
     noWishes: "No wishes yet.", waitingInRequests: "Waiting in Requests", newWish: "New wish", close: "Close", whatWish: "What does the child wish for?",
     wishPlaceholder: "E.g. a new bike", price: "Price", note: "Note (optional)", notePlaceholder: "Colour, model …", addWish: "Add wish",
@@ -67,7 +67,7 @@ const TEXT = {
     deleteText: (name: string) => `Уся історія, баланс, бажання й трофеї (${name}) буде видалено без можливості відновлення. Якщо потрібно лише сховати дитину, це можна зробити в розділі «Діти».`,
     deleteForGood: "Видалити назавжди", deleteFailed: "Не вдалося видалити.", deleted: (name: string) => `${name}: видалено`,
     notFound: "Дитину не знайдено", backToChildren: "Назад до розділу «Діти»", allChildren: "Усі діти",
-    tasks: "Завдання й оплата", tasksDesc: (name: string) => `Оберіть, які завдання має ${name} і скільки за них отримує. Порожнє поле оплати = звичайна ціна.`, pay: "Оплата", standard: (kr: string) => `Звичайна: ${kr}`, ownPay: "своя оплата", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Введіть оплату числом.", noTasks: "Немає активних завдань. Створіть їх у розділі «Завдання».",
+    tasksPlain: "Завдання", tasksDescPlain: (name: string) => `Оберіть, які завдання має ${name}.`, tasks: "Завдання й оплата", tasksDesc: (name: string) => `Оберіть, які завдання має ${name} і скільки за них отримує. Порожнє поле оплати = звичайна ціна.`, pay: "Оплата", standard: (kr: string) => `Звичайна: ${kr}`, ownPay: "своя оплата", priceSaved: (task: string, kr: string) => `${task}: ${kr}`, invalidPrice: "Введіть оплату числом.", noTasks: "Немає активних завдань. Створіть їх у розділі «Завдання».",
     shown: "показано", hidden: "приховано", wishes: "Бажання", wishesDesc: (name: string) => `На що збирає ${name}. Нові бажання від дитини схвалюються в розділі «Запити».`,
     noWishes: "Бажань ще немає.", waitingInRequests: "Очікує в «Запитах»", newWish: "Нове бажання", close: "Закрити", whatWish: "Чого бажає дитина?",
     wishPlaceholder: "Напр. новий велосипед", price: "Ціна", note: "Примітка (необов’язково)", notePlaceholder: "Колір, модель …", addWish: "Додати бажання",
@@ -110,6 +110,8 @@ function ChildDetail({ childId }: { childId: string }) {
   const tasks = useTasks(familyId);
 
   const settings = useChildTaskSettings(familyId);
+  // Visning: språk og ønsker fra Vanlig, lønn per oppgave i Alt.
+  const { atLeast } = useUiMode();
 
   const wishlist = useSWR(
     familyId ? ["wishlist", childId] : null,
@@ -233,10 +235,10 @@ function ChildDetail({ childId }: { childId: string }) {
 
       <AllowanceCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />
 
-      <LanguageCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />
+      {atLeast("normal") && <LanguageCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />}
 
       <Card className="space-y-4">
-        <CardHeader icon={<ListChecks className="size-5" />} title={t.tasks} description={t.tasksDesc(child.name)} />
+        <CardHeader icon={<ListChecks className="size-5" />} title={atLeast("full") ? t.tasks : t.tasksPlain} description={atLeast("full") ? t.tasksDesc(child.name) : t.tasksDescPlain(child.name)} />
         {tasks.isLoading && !tasks.data ? (
           <ListSkeleton rows={2} />
         ) : activeTasks.length === 0 ? (
@@ -251,7 +253,7 @@ function ChildDetail({ childId }: { childId: string }) {
                   label={task.title}
                   description={`${kr(ownPay(task.id) ?? task.amount_ore)}${ownPay(task.id) !== null ? ` (${t.ownPay})` : ""} · ${isEnabled(task.id) ? t.shown : t.hidden}`}
                 />
-                {isEnabled(task.id) && (
+                {atLeast("full") && isEnabled(task.id) && (
                   <PayInput
                     key={`${task.id}-${ownPay(task.id) ?? ""}`}
                     label={`${t.pay}: ${task.title}`}
@@ -266,71 +268,73 @@ function ChildDetail({ childId }: { childId: string }) {
         )}
       </Card>
 
-      <Card className="space-y-4">
-        <CardHeader
-          icon={<Gift className="size-5" />}
-          title={t.wishes}
-          description={t.wishesDesc(child.name)}
-        />
+      {atLeast("normal") && (
+        <Card className="space-y-4">
+          <CardHeader
+            icon={<Gift className="size-5" />}
+            title={t.wishes}
+            description={t.wishesDesc(child.name)}
+          />
 
-        {wishlist.isLoading && !wishlist.data ? (
-          <ListSkeleton rows={2} />
-        ) : (wishlist.data ?? []).length === 0 ? (
-          <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">{t.noWishes}</p>
-        ) : (
-          <ul className="space-y-2">
-            {(wishlist.data ?? []).map((item) => (
-              <li key={item.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{item.title}</p>
-                  {item.note && <p className="truncate text-sm text-muted-foreground">{item.note}</p>}
-                </div>
-                {item.status === "PROPOSED" ? (
-                  <Badge tone="warning">{t.waitingInRequests}</Badge>
-                ) : (
-                  <span className="font-num font-bold">{item.target_ore !== null ? kr(item.target_ore) : ""}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+          {wishlist.isLoading && !wishlist.data ? (
+            <ListSkeleton rows={2} />
+          ) : (wishlist.data ?? []).length === 0 ? (
+            <p className="rounded-2xl bg-secondary px-4 py-3 text-muted-foreground">{t.noWishes}</p>
+          ) : (
+            <ul className="space-y-2">
+              {(wishlist.data ?? []).map((item) => (
+                <li key={item.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{item.title}</p>
+                    {item.note && <p className="truncate text-sm text-muted-foreground">{item.note}</p>}
+                  </div>
+                  {item.status === "PROPOSED" ? (
+                    <Badge tone="warning">{t.waitingInRequests}</Badge>
+                  ) : (
+                    <span className="font-num font-bold">{item.target_ore !== null ? kr(item.target_ore) : ""}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
-        {formOpen ? (
-          <form
-            className="animate-pop space-y-4 rounded-2xl bg-secondary/60 p-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void createWish();
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-bold">{t.newWish}</p>
-              <button type="button" aria-label={t.close} onClick={() => setFormOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
-                <X className="size-5" />
-              </button>
-            </div>
-            <Field label={t.whatWish}>
-              <Input value={wishTitle} onChange={(e) => setWishTitle(e.target.value)} placeholder={t.wishPlaceholder} autoFocus maxLength={80} />
-            </Field>
-            <Field label={t.price}>
-              <span className="relative block">
-                <Input value={wishPrice} onChange={(e) => setWishPrice(e.target.value)} placeholder="299" inputMode="decimal" className="pr-12" />
-                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">kr</span>
-              </span>
-            </Field>
-            <Field label={t.note}>
-              <Input value={wishNote} onChange={(e) => setWishNote(e.target.value)} placeholder={t.notePlaceholder} />
-            </Field>
-            <Button type="submit" block loading={saving} disabled={!wishTitle.trim() || !wishPrice.trim()}>
+          {formOpen ? (
+            <form
+              className="animate-pop space-y-4 rounded-2xl bg-secondary/60 p-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void createWish();
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <p className="font-bold">{t.newWish}</p>
+                <button type="button" aria-label={t.close} onClick={() => setFormOpen(false)} className={cx("flex size-10 items-center justify-center rounded-full hover:bg-secondary", focusRing)}>
+                  <X className="size-5" />
+                </button>
+              </div>
+              <Field label={t.whatWish}>
+                <Input value={wishTitle} onChange={(e) => setWishTitle(e.target.value)} placeholder={t.wishPlaceholder} autoFocus maxLength={80} />
+              </Field>
+              <Field label={t.price}>
+                <span className="relative block">
+                  <Input value={wishPrice} onChange={(e) => setWishPrice(e.target.value)} placeholder="299" inputMode="decimal" className="pr-12" />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">kr</span>
+                </span>
+              </Field>
+              <Field label={t.note}>
+                <Input value={wishNote} onChange={(e) => setWishNote(e.target.value)} placeholder={t.notePlaceholder} />
+              </Field>
+              <Button type="submit" block loading={saving} disabled={!wishTitle.trim() || !wishPrice.trim()}>
+                {t.addWish}
+              </Button>
+            </form>
+          ) : (
+            <Button variant="secondary" block icon={<Plus className="size-4" />} onClick={() => setFormOpen(true)}>
               {t.addWish}
             </Button>
-          </form>
-        ) : (
-          <Button variant="secondary" block icon={<Plus className="size-4" />} onClick={() => setFormOpen(true)}>
-            {t.addWish}
-          </Button>
-        )}
-      </Card>
+          )}
+        </Card>
+      )}
       <Button variant="dangerSoft" block size="lg" icon={<Trash2 className="size-4" />} onClick={() => void deleteChild()}>
         {t.deleteChild(child.name)}
       </Button>
