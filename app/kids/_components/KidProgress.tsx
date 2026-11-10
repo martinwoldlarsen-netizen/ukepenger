@@ -10,6 +10,7 @@ import { celebrate } from "../_lib/celebrate";
 import { readAloud } from "../_lib/read-aloud";
 import { type Lang, localeOf } from "@/lib/i18n";
 import { badgeText, kidText } from "../_lib/text";
+import { kidHeaders } from "../_lib/kid-data";
 
 export const kidProgressKey = (childId: string) => ["kid-progress", childId] as const;
 
@@ -21,7 +22,7 @@ export function KidProgress({ childId, lang = "nb" }: { childId: string; lang?: 
   const { data } = useSWR(
     kidProgressKey(childId),
     async () => {
-      const res = await fetch(`/api/kids/progress?childId=${encodeURIComponent(childId)}`, { credentials: "include" });
+      const res = await fetch(`/api/kids/progress?childId=${encodeURIComponent(childId)}`, { credentials: "include", headers: kidHeaders(childId) });
       if (!res.ok) throw new Error("Feil");
       return (await res.json()) as Progress;
     },

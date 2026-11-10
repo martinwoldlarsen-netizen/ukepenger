@@ -21,11 +21,7 @@ export type KioskAuthContext = {
   childId: string | null;
 };
 
-// Kan enheten se dette barnet? Felles enheter ser alle barna i familien
-// (familien sjekkes i hvert API), egne enheter bare sitt barn.
-export function kioskMayUseChild(auth: KioskAuthContext, childId: string) {
-  return !auth.childId || auth.childId === childId;
-}
+// Tilgang til ett barn (egen enhet, felles-synlighet, kode): lib/kid-access.ts.
 
 function safeEqual(a: string, b: string) {
   const ab = Buffer.from(a);

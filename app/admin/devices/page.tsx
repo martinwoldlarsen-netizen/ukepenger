@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { QrImage } from "@/components/QrCode";
 import useSWR from "swr";
 import { Copy, QrCode, Tablet, X } from "lucide-react";
-import { Badge, Button, Card, CardHeader, EmptyState, ListSkeleton, cx, focusRing } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, ListSkeleton, Switch, cx, focusRing } from "@/components/ui";
 import { useConfirm, useToast } from "@/components/ui/feedback";
 import { adminFetch, friendlyError, swrDefaults, useAdminIdentity, useChildren } from "@/lib/admin-data";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
@@ -33,6 +33,7 @@ const TEXT = {
     connectTitle: "Koble til en enhet", connectDesc: "En felles iPad der barna velger profil, eller et barns egen telefon som bare viser det barnet. Koden virker i 10 minutter og kan bare brukes én gang.",
     whoUses: "Hvem skal bruke enheten?", wholeFamily: "Hele familien", wholeFamilyDesc: "Felles iPad – barna velger profil", onlyChildDesc: "Egen telefon – ser bare seg selv",
     scanFor: (name: string) => `Skann med kameraet på telefonen til ${name}`, onlyFor: (name: string) => `Bare ${name}`,
+    hideShared: (name: string) => `Skjul ${name} på felles iPad`, hideSharedDesc: "Søsken ser ikke profilen der. Kan endres på barnet under Barn.", hiddenSaved: (name: string) => `${name} er skjult på felles iPad`, shownSaved: (name: string) => `${name} vises på felles iPad`,
     showQr: "Vis QR-kode", expired: "QR-koden er utløpt", makeNew: "Lag en ny", close: "Lukk", scan: "Skann med kameraet på iPaden",
     validFor: (time: string) => `Virker i ${time} · kan brukes én gang`, linkCopied: "Lenken er kopiert", copyInstead: "Kopier lenke i stedet",
     connectedDevices: "Tilkoblede enheter", removeAllTitle: (n: number) => `Fjerne alle ${n}?`, removeAll: "Fjern alle",
@@ -47,6 +48,7 @@ const TEXT = {
     connectTitle: "Connect a device", connectDesc: "A shared iPad where the children pick their profile, or a child's own phone that only shows that child. The code works for 10 minutes and can only be used once.",
     whoUses: "Who will use the device?", wholeFamily: "The whole family", wholeFamilyDesc: "Shared iPad – the children pick their profile", onlyChildDesc: "Own phone – only sees themselves",
     scanFor: (name: string) => `Scan with the camera on ${name}'s phone`, onlyFor: (name: string) => `Only ${name}`,
+    hideShared: (name: string) => `Hide ${name} on the shared iPad`, hideSharedDesc: "Siblings won't see the profile there. You can change it on the child under Children.", hiddenSaved: (name: string) => `${name} is hidden on the shared iPad`, shownSaved: (name: string) => `${name} is shown on the shared iPad`,
     showQr: "Show QR code", expired: "The QR code has expired", makeNew: "Make a new one", close: "Close", scan: "Scan with the iPad's camera",
     validFor: (time: string) => `Valid for ${time} · can be used once`, linkCopied: "The link was copied", copyInstead: "Copy the link instead",
     connectedDevices: "Connected devices", removeAllTitle: (n: number) => `Remove all ${n}?`, removeAll: "Remove all",
@@ -61,6 +63,7 @@ const TEXT = {
     connectTitle: "Під’єднати пристрій", connectDesc: "Спільний iPad, де діти обирають профіль, або власний телефон дитини, який показує лише її. Код діє 10 хвилин і працює лише один раз.",
     whoUses: "Хто користуватиметься пристроєм?", wholeFamily: "Уся родина", wholeFamilyDesc: "Спільний iPad – діти обирають профіль", onlyChildDesc: "Власний телефон – бачить лише себе",
     scanFor: (name: string) => `Відскануйте камерою телефона: ${name}`, onlyFor: (name: string) => `Лише ${name}`,
+    hideShared: (name: string) => `Приховати на спільному iPad: ${name}`, hideSharedDesc: "Брати й сестри не бачитимуть профіль там. Змінити можна на сторінці дитини в розділі «Діти».", hiddenSaved: (name: string) => `${name}: приховано на спільному iPad`, shownSaved: (name: string) => `${name}: показується на спільному iPad`,
     showQr: "Показати QR-код", expired: "Термін дії QR-коду минув", makeNew: "Створити новий", close: "Закрити", scan: "Відскануйте камерою iPad",
     validFor: (time: string) => `Діє ще ${time} · одноразовий`, linkCopied: "Посилання скопійовано", copyInstead: "Скопіювати посилання",
     connectedDevices: "Під’єднані пристрої", removeAllTitle: (n: number) => `Прибрати всі (${n})?`, removeAll: "Прибрати всі",
@@ -214,6 +217,25 @@ export default function AdminDevicesPage() {
             </div>
           </div>
         )}
+        {/* Eget barn: foreslå å skjule barnet på felles iPad. */}
+        {!claimUrl && forChild && activeKids.find((c) => c.id === forChild) && (() => {
+          const kid = activeKids.find((c) => c.id === forChild)!;
+          return (
+            <div className="rounded-2xl bg-secondary px-4 py-3.5">
+              <Switch
+                checked={kid.shared_visible === false}
+                onChange={async (hide) => {
+                  const res = await supabase.from("children").update({ shared_visible: !hide }).eq("id", kid.id);
+                  if (res.error) return toast({ kind: "error", text: friendlyError(res.error.message) });
+                  toast({ text: hide ? t.hiddenSaved(kid.name) : t.shownSaved(kid.name) });
+                  await kids.mutate();
+                }}
+                label={t.hideShared(kid.name)}
+                description={t.hideSharedDesc}
+              />
+            </div>
+          );
+        })()}
         {!claimUrl && (
           <Button size="lg" block loading={busy} onClick={() => void openQr()} icon={<QrCode className="size-5" />}>
             {t.showQr}

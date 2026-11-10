@@ -18,7 +18,8 @@ import { formatKr } from "@/lib/money";
 import { kidColor } from "../_lib/palette";
 import { asLang } from "@/lib/i18n";
 import { kidError, kidText } from "../_lib/text";
-import { type ChildRow, type KidPageData, type TaskRow, type WishlistItem, KIDS_BOOTSTRAP_KEY, fetchKidPage, kidPageKey } from "../_lib/kid-data";
+import { type ChildRow, type KidPageData, type TaskRow, type WishlistItem, KIDS_BOOTSTRAP_KEY, PIN_REQUIRED, fetchKidPage, kidHeaders, kidPageKey } from "../_lib/kid-data";
+import { PinGate } from "../_components/PinGate";
 
 type Notice = { kind: "ok" | "error"; text: string } | null;
 
@@ -46,7 +47,11 @@ function levelFor(earnedOre: number) {
 // stående mens neste barn lastes.
 export default function KidTaskPage() {
   const params = useParams<{ childId: string }>();
-  return <KidTaskView key={params.childId} childId={params.childId} />;
+  return (
+    <PinGate key={params.childId} childId={params.childId}>
+      <KidTaskView childId={params.childId} />
+    </PinGate>
+  );
 }
 
 function KidTaskView({ childId }: { childId: string }) {
@@ -148,6 +153,11 @@ function KidTaskView({ childId }: { childId: string }) {
     shouldRetryOnError: false,
     onSuccess: applyData,
     onError: (error: Error) => {
+      // Koden er utløpt (eller endret): last på nytt, så kodeskjermen vises.
+      if (error.message === PIN_REQUIRED) {
+        window.location.reload();
+        return;
+      }
       // En bakgrunnsoppdatering som feiler skal ikke ta bort siden.
       if (!child) setLoadError(error.message || "load");
       setLoading(false);
@@ -174,7 +184,7 @@ function KidTaskView({ childId }: { childId: string }) {
     const res = await fetch("/api/kids/claim", {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: kidHeaders(childId, { "Content-Type": "application/json" }),
       body: JSON.stringify({ childId, taskId }),
     });
 
@@ -229,7 +239,7 @@ function KidTaskView({ childId }: { childId: string }) {
     const res = await fetch("/api/kids/avatar", {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: kidHeaders(childId, { "Content-Type": "application/json" }),
       body: JSON.stringify({ childId, avatarKey }),
     });
     setAvatarSaving(false);

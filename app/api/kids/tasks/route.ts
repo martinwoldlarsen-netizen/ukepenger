@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
+import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kidAccessDenied } from "@/lib/kid-access";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 import { asLang } from "@/lib/i18n";
 import { localTaskTitle } from "@/lib/task-title";
@@ -49,7 +50,9 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const childId = url.searchParams.get("childId")?.trim() ?? "";
-  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
+  // Familie, egen enhet, felles-synlighet og kode (lib/kid-access.ts).
+  const denied = await kidAccessDenied(request, auth, childId);
+  if (denied) return denied;
   if (!childId) {
     return NextResponse.json({ error: "Mangler childId." }, { status: 400 });
   }

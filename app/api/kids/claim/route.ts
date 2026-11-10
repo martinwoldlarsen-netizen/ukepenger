@@ -1,7 +1,8 @@
 import { NextResponse, after } from "next/server";
 import { formatKr } from "@/lib/money";
 import { notifyParents } from "@/lib/push";
-import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
+import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kidAccessDenied } from "@/lib/kid-access";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 
 type ChildRow = {
@@ -30,7 +31,9 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as { childId?: string; taskId?: string };
   const childId = body.childId?.trim() ?? "";
-  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
+  // Familie, egen enhet, felles-synlighet og kode (lib/kid-access.ts).
+  const denied = await kidAccessDenied(request, auth, childId);
+  if (denied) return denied;
   const taskId = body.taskId?.trim() ?? "";
   if (!childId || !taskId) {
     return NextResponse.json({ error: "Mangler childId/taskId." }, { status: 400 });

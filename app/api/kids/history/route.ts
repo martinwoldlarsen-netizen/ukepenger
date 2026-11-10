@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { kioskMayUseChild, verifyKioskRequest } from "@/lib/kiosk-auth";
+import { verifyKioskRequest } from "@/lib/kiosk-auth";
+import { kidAccessDenied } from "@/lib/kid-access";
 import { getServiceSupabaseClient } from "@/lib/server-supabase";
 import { HISTORY_CLAIM_SELECT_KIDS, HISTORY_PAYMENT_SELECT, buildHistory } from "@/lib/history";
 import { asLang } from "@/lib/i18n";
@@ -12,7 +13,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Kiosk-session mangler eller er ugyldig." }, { status: 401 });
   }
   const childId = new URL(request.url).searchParams.get("childId")?.trim() ?? "";
-  if (!kioskMayUseChild(auth, childId)) return NextResponse.json({ error: "Ingen tilgang til barnet." }, { status: 403 });
+  // Familie, egen enhet, felles-synlighet og kode (lib/kid-access.ts).
+  const denied = await kidAccessDenied(request, auth, childId);
+  if (denied) return denied;
   if (!childId) return NextResponse.json({ error: "Mangler childId." }, { status: 400 });
 
   const supabase = getServiceSupabaseClient();

@@ -9,7 +9,7 @@ import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { kidColor } from "./_lib/palette";
 import { asLang } from "@/lib/i18n";
 import { kidText } from "./_lib/text";
-import { type ChildRow, KIDS_BOOTSTRAP_KEY, fetchKidPage, fetchKidsBootstrap, kidPageKey } from "./_lib/kid-data";
+import { type ChildRow, KIDS_BOOTSTRAP_KEY, clearPinTickets, fetchKidPage, fetchKidsBootstrap, kidPageKey } from "./_lib/kid-data";
 
 export default function KidsPage() {
   // Profilene huskes mellom besøk (SWR), så listen vises med en gang når
@@ -31,9 +31,13 @@ export default function KidsPage() {
     if (personal) router.replace(`/kids/${personal}`);
   }, [personal, router]);
 
-  // Hent barnas sider i forkant, så de åpnes uten venting.
+  // Tilbake på «Hvem er du?»: koder som er tastet, gjelder ikke lenger.
+  useEffect(() => clearPinTickets(), []);
+
+  // Hent barnas sider i forkant, så de åpnes uten venting (ikke barn med kode).
   useEffect(() => {
     for (const c of boot.data ?? []) {
+      if (c.has_pin) continue;
       const key = kidPageKey(c.id);
       if (!cache.get(unstable_serialize(key))?.data) void preload(key, () => fetchKidPage(c.id)).catch(() => {});
     }
@@ -89,7 +93,14 @@ export default function KidsPage() {
                   <KidAvatar avatarKey={child.avatar_key} size={84} />
                 </span>
                 <span className="mt-4 flex items-center justify-between gap-2">
-                  <span className="text-3xl font-extrabold tracking-tight">{child.name}</span>
+                  <span className="text-3xl font-extrabold tracking-tight">
+                    {child.name}
+                    {child.has_pin && (
+                      <span className="ml-2 text-xl" aria-hidden="true">
+                        🔒
+                      </span>
+                    )}
+                  </span>
                   <ChevronRight className="size-7 shrink-0 transition group-hover:translate-x-1" strokeWidth={2.5} />
                 </span>
               </Link>

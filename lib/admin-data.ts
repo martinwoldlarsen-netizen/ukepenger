@@ -120,6 +120,8 @@ export type AdminChild = {
   weekly_allowance_ore?: number;
   allowance_weekday?: number;
   language?: string | null;
+  shared_visible?: boolean; // vises på felles iPad
+  has_pin?: boolean; // har kode på barnesiden (selve koden hentes aldri)
   emoji: string;
   color: { bg: string; ink: string };
 };
@@ -133,13 +135,14 @@ export function useChildren(familyId: string | null) {
       const rows = check(
         await supabase
           .from("children")
-          .select("id, name, avatar_key, active, created_at, weekly_allowance_ore, allowance_weekday, language")
+          .select("id, name, avatar_key, active, created_at, weekly_allowance_ore, allowance_weekday, language, shared_visible, pin_hash")
           .eq("family_id", familyId as string)
           .order("name", { ascending: true })
-      ) as Omit<AdminChild, "emoji" | "color">[];
+      ) as Array<Omit<AdminChild, "emoji" | "color"> & { pin_hash?: string | null }>;
       let activeIndex = 0;
-      return rows.map((row) => ({
+      return rows.map(({ pin_hash, ...row }) => ({
         ...row,
+        has_pin: Boolean(pin_hash),
         emoji: getAvatarByKey(row.avatar_key).emoji,
         color: kidColor(row.active ? activeIndex++ : 0),
       })) as AdminChild[];

@@ -10,7 +10,8 @@ import { DEFAULT_WISH_EMOJI, PRICE_CHIPS, type WishCategory, wishCategories } fr
 import { kidColor } from "../../_lib/palette";
 import { taskEmoji } from "@/lib/task-emoji";
 import { celebrate } from "../../_lib/celebrate";
-import { type KidPageData, fetchKidPage, kidPageKey } from "../../_lib/kid-data";
+import { type KidPageData, PIN_REQUIRED, fetchKidPage, kidHeaders, kidPageKey } from "../../_lib/kid-data";
+import { PinGate } from "../../_components/PinGate";
 import { type Lang, asLang } from "@/lib/i18n";
 import { type KidText, kidError, kidText } from "../../_lib/text";
 
@@ -89,7 +90,22 @@ function ProgressBar({ pct, color, tall = false }: { pct: number; color: string;
 
 export default function WishShopPage() {
   const { childId } = useParams<{ childId: string }>();
-  const page = useSWR(kidPageKey(childId), () => fetchKidPage(childId), { revalidateOnFocus: true, shouldRetryOnError: false });
+  return (
+    <PinGate key={childId} childId={childId}>
+      <WishShopView childId={childId} />
+    </PinGate>
+  );
+}
+
+function WishShopView({ childId }: { childId: string }) {
+  const page = useSWR(kidPageKey(childId), () => fetchKidPage(childId), {
+    revalidateOnFocus: true,
+    shouldRetryOnError: false,
+    // Koden er utløpt (eller endret): last på nytt, så kodeskjermen vises.
+    onError: (error: Error) => {
+      if (error.message === PIN_REQUIRED) window.location.reload();
+    },
+  });
   const shop = { data: page.data ? toShop(page.data) : undefined, error: page.error as Error | undefined, mutate: page.mutate };
 
   const [addOpen, setAddOpen] = useState(false);
@@ -293,7 +309,7 @@ function WishDetailSheet({
     const res = await fetch("/api/kids/wishlist/buy", {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: kidHeaders(childId, { "Content-Type": "application/json" }),
       body: JSON.stringify({ childId, wishId: wish.id }),
     });
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
@@ -400,7 +416,7 @@ function AddWishSheet({ t, lang, childId, onClose, onAdded }: { t: KidText; lang
     const res = await fetch("/api/kids/wishlist", {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: kidHeaders(childId, { "Content-Type": "application/json" }),
       body: JSON.stringify({ childId, title: draft.title.trim(), suggestedOre, emoji: draft.emoji }),
     });
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
