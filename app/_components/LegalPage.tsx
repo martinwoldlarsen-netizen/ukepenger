@@ -15,6 +15,7 @@ const TEXT = {
     privacy: "Personvern",
     kids: "Personvern for barn",
     terms: "Brukervilkår",
+    about: "Om oss",
     onlyNb: "",
     contact: "",
   },
@@ -25,6 +26,7 @@ const TEXT = {
     privacy: "Privacy",
     kids: "Privacy for children",
     terms: "Terms of use",
+    about: "About us",
     onlyNb: "This page is only available in Norwegian for now, and the Norwegian text is the one that applies. Questions about it?",
     contact: "Write to us",
   },
@@ -35,6 +37,7 @@ const TEXT = {
     privacy: "Конфіденційність",
     kids: "Конфіденційність для дітей",
     terms: "Умови користування",
+    about: "Про нас",
     onlyNb: "Наразі ця сторінка доступна лише норвезькою, і чинним є саме норвезький текст. Маєте запитання?",
     contact: "Напишіть нам",
   },
@@ -99,6 +102,7 @@ export async function LegalPage({
           <Link href="/personvern" className="underline underline-offset-4">{t.privacy}</Link>
           <Link href="/personvern/barn" className="underline underline-offset-4">{t.kids}</Link>
           <Link href="/vilkar" className="underline underline-offset-4">{t.terms}</Link>
+          <Link href="/om-oss" className="underline underline-offset-4">{t.about}</Link>
         </div>
       </article>
     </main>

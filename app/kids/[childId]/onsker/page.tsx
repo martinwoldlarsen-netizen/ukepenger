@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ArrowLeft, Check, ChevronLeft, Clock, PartyPopper, Pencil, Plus, ShoppingCart, X } from "lucide-react";
-import { formatKr, parseKrToOre } from "@/lib/money";
+import { formatKr, parseKrToOre, savedPartOre } from "@/lib/money";
 import { DEFAULT_WISH_EMOJI, PRICE_CHIPS, type WishCategory, wishCategories } from "@/lib/wish-catalog";
 import { kidColor } from "../../_lib/palette";
 import { taskEmoji } from "@/lib/task-emoji";
@@ -295,7 +295,7 @@ function WishDetailSheet({
     if (!missing) return [];
     return data.tasks
       .map((t) => {
-        const net = t.amount_ore - Math.floor((t.amount_ore * data.savingsPercent) / 100);
+        const net = t.amount_ore - savedPartOre(t.amount_ore, data.savingsPercent);
         return { title: t.title, emoji: taskEmoji(t.title), times: net > 0 ? Math.ceil(missing / net) : Infinity };
       })
       .filter((p) => Number.isFinite(p.times))
