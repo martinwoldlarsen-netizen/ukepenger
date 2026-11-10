@@ -8,6 +8,7 @@ import { formatWhen } from "@/lib/dates";
 import { formatKr } from "@/lib/money";
 import type { Lang } from "@/lib/i18n";
 import { kidText } from "../_lib/text";
+import { kidHeaders } from "../_lib/kid-data";
 
 const STYLE: Record<HistoryEvent["kind"], { emoji: string; tone: string }> = {
   earned: { emoji: "✅", tone: "text-primary" },
@@ -26,7 +27,7 @@ export function KidHistory({ childId, lang = "nb" }: { childId: string; lang?: L
   const { data } = useSWR(
     kidHistoryKey(childId),
     async () => {
-      const res = await fetch(`/api/kids/history?childId=${encodeURIComponent(childId)}`, { credentials: "include" });
+      const res = await fetch(`/api/kids/history?childId=${encodeURIComponent(childId)}`, { credentials: "include", headers: kidHeaders(childId) });
       const payload = (await res.json().catch(() => ({}))) as { events?: HistoryEvent[]; error?: string };
       if (!res.ok || payload.error) throw new Error(payload.error ?? "Feil");
       return payload.events ?? [];

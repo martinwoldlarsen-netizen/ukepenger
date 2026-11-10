@@ -15,7 +15,12 @@ Appen er et **regnskap, ikke en bank** – den flytter aldri penger.
   velger profil hver gang på `/kids` – **bevisst ingen per-barn-cookie**.
   Unntak: en QR-kode kan lages for ett barn (Enheter → «Bare Emma», f.eks. barnets
   egen telefon). Da får enheten `devices.child_id` på serveren, ser bare det barnet
-  (`kioskMayUseChild` i hvert kiosk-API) og går rett til barnets side.
+  (`kidAccessDenied` i `lib/kid-access.ts`, brukt i hvert kiosk-API) og går rett til barnets side.
+  Per barn: `children.shared_visible` (false = ikke på felles enheter) og valgfri
+  4-sifret kode `children.pin_hash` (satt av forelderen, scrypt via
+  `/api/admin/children/pin`, gjelder på alle enheter). Riktig kode på `/api/kids/pin`
+  gir en kort signert billett (barn + enhet, 2 t) som barnesiden sender i headeren
+  `x-kid-pin` fra sessionStorage; slettes når «Hvem er du?» vises. Sperre etter 5 feil.
 - **Besteforeldre** får en lenke (Familie-siden) → httpOnly-cookie `uk_guest`
   → `/besteforeldre` («Se og gi»). Første gang velger de «Lag profil» eller
   «Fortsett uten». Profil = vanlig Supabase-konto uten `profiles`-rad, koblet

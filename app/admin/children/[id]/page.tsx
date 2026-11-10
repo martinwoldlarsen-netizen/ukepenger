@@ -14,6 +14,7 @@ import { formatKr, parseKrToOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { type Lang } from "@/lib/i18n";
 import { useLang, useText } from "@/lib/use-lang";
+import { AccessCard } from "./AccessCard";
 
 const WEEKDAY_NAMES: Record<Lang, string[]> = {
   nb: ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"],
@@ -234,6 +235,8 @@ function ChildDetail({ childId }: { childId: string }) {
       </div>
 
       <AllowanceCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />
+
+      <AccessCard child={child} onSaved={() => void children.mutate()} />
 
       {atLeast("normal") && <LanguageCard child={child} familyId={familyId} onSaved={() => void children.mutate()} />}
 

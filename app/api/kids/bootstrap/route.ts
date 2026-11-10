@@ -21,15 +21,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Server mangler service role key." }, { status: 500 });
   }
 
-  // Barnets egen enhet: bare det barnet.
-  let query = supabase.from("children").select("id, name, avatar_key, language").eq("family_id", auth.familyId).eq("active", true);
+  // Barnets egen enhet: bare det barnet. Felles enheter: barn som vises der.
+  let query = supabase.from("children").select("id, name, avatar_key, language, pin_hash").eq("family_id", auth.familyId).eq("active", true);
   if (auth.childId) query = query.eq("id", auth.childId);
+  else query = query.eq("shared_visible", true);
   const childrenRes = await query.order("name", { ascending: true });
 
   if (childrenRes.error) {
     return NextResponse.json({ error: childrenRes.error.message }, { status: 400 });
   }
 
-  const children = ((childrenRes.data ?? []) as ChildRow[]).map((child) => ({ ...child, color: null, personal: Boolean(auth.childId) }));
+  // Bare om barnet har kode, aldri selve koden.
+  const children = ((childrenRes.data ?? []) as Array<ChildRow & { pin_hash?: string | null }>).map(({ pin_hash, ...child }) => ({
+    ...child,
+    color: null,
+    personal: Boolean(auth.childId),
+    has_pin: Boolean(pin_hash),
+  }));
   return NextResponse.json({ children });
 }
