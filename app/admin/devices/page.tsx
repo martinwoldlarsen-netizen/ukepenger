@@ -178,7 +178,8 @@ export default function AdminDevicesPage() {
         {!claimUrl && activeKids.length > 0 && (
           <div>
             <p className="mb-2 text-sm font-semibold text-foreground/85">{t.whoUses}</p>
-            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t.whoUses}>
+            {/* «Hele familien» over hele bredden, barna under (3 i bredden når det går opp). */}
+            <div className={cx("grid gap-2", activeKids.length % 3 === 0 ? "sm:grid-cols-3" : "sm:grid-cols-2")} role="radiogroup" aria-label={t.whoUses}>
               {[null, ...activeKids.map((c) => c.id)].map((id) => {
                 const kid = activeKids.find((c) => c.id === id);
                 const selected = forChild === id;
@@ -191,6 +192,7 @@ export default function AdminDevicesPage() {
                     onClick={() => setForChild(id)}
                     className={cx(
                       "flex min-h-16 items-center gap-3 rounded-2xl border p-3 text-left transition",
+                      !id && "sm:col-span-full",
                       selected ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border bg-card hover:bg-secondary",
                       focusRing
                     )}
