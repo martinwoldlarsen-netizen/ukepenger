@@ -6,7 +6,7 @@ import { Card, CardHeader, ListSkeleton, Switch, cx, focusRing } from "@/compone
 import { useToast } from "@/components/ui/feedback";
 import { friendlyError, swrDefaults, useAdminIdentity } from "@/lib/admin-data";
 import type { ApprovalMode } from "@/lib/family-client";
-import { formatKr } from "@/lib/money";
+import { formatKr, savedPartOre } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { DeleteAccountCard } from "./DeleteAccountCard";
@@ -21,7 +21,7 @@ const TEXT = {
     saved: "Lagret", saveFailed: "Klarte ikke å lagre.", approval: "Godkjenning", approvalDesc: "Skal en voksen godkjenne hver oppgave før pengene havner hos barnet?",
     iApprove: "Jeg godkjenner", auto: "Automatisk", saving: "Sparing",
     savingDesc: "En fast del av alt barnet tjener settes av automatisk når en oppgave blir godkjent. Gjelder oppgaver som godkjennes fra nå av.", off: "Av",
-    example: (owed: string, saved: string) => <>En oppgave til 20 kr gir <strong className="text-foreground">{owed}</strong> til gode og <strong className="text-foreground">{saved}</strong> i sparegrisen.</>,
+    example: (owed: string, saved: string) => <>En oppgave til 20 kr gir <strong className="text-foreground">{owed}</strong> til gode og <strong className="text-foreground">{saved}</strong> i sparegrisen. Sparingen rundes til hele kroner.</>,
     showPiggy: "Vis sparegrisen for barna", showPiggyDesc: "Barnet ser hvor mye det har spart.", trophies: "Trofeer og bonus", trophiesDesc: "Nivåer per oppgave og bonus som går automatisk til barna",
     language: "Språk", languageDesc: "Språket du ser appen på. Barnas språk velger du på hvert barn under Barn.",
   },
@@ -29,7 +29,7 @@ const TEXT = {
     saved: "Saved", saveFailed: "Couldn't save.", approval: "Approval", approvalDesc: "Should an adult approve each task before the money goes to the child?",
     iApprove: "I approve", auto: "Automatic", saving: "Savings",
     savingDesc: "A fixed share of everything the child earns is set aside automatically when a task is approved. Applies to tasks approved from now on.", off: "Off",
-    example: (owed: string, saved: string) => <>A task worth 20 kr gives <strong className="text-foreground">{owed}</strong> owed and <strong className="text-foreground">{saved}</strong> in the piggy bank.</>,
+    example: (owed: string, saved: string) => <>A task worth 20 kr gives <strong className="text-foreground">{owed}</strong> owed and <strong className="text-foreground">{saved}</strong> in the piggy bank. Savings are rounded to whole kroner.</>,
     showPiggy: "Show the piggy bank to the children", showPiggyDesc: "The child sees how much they have saved.", trophies: "Trophies and bonuses", trophiesDesc: "Levels per task and bonuses that go to the children automatically",
     language: "Language", languageDesc: "The language you see the app in. You choose each child's language under Children.",
   },
@@ -37,7 +37,7 @@ const TEXT = {
     saved: "Збережено", saveFailed: "Не вдалося зберегти.", approval: "Схвалення", approvalDesc: "Чи має дорослий схвалювати кожне завдання, перш ніж гроші отримає дитина?",
     iApprove: "Я схвалюю", auto: "Автоматично", saving: "Заощадження",
     savingDesc: "Фіксована частка всього, що заробляє дитина, автоматично відкладається, коли завдання схвалено. Діє для завдань, схвалених відтепер.", off: "Вимк.",
-    example: (owed: string, saved: string) => <>Завдання за 20 kr дає <strong className="text-foreground">{owed}</strong> до виплати й <strong className="text-foreground">{saved}</strong> у скарбничку.</>,
+    example: (owed: string, saved: string) => <>Завдання за 20 kr дає <strong className="text-foreground">{owed}</strong> до виплати й <strong className="text-foreground">{saved}</strong> у скарбничку. Заощадження округлюються до цілих крон.</>,
     showPiggy: "Показувати дітям скарбничку", showPiggyDesc: "Дитина бачить, скільки відклала.", trophies: "Трофеї та бонуси", trophiesDesc: "Рівні для кожного завдання й бонуси, які діти отримують автоматично",
     language: "Мова", languageDesc: "Мова, якою ви бачите застосунок. Мову для кожної дитини обирають у розділі «Діти».",
   },
@@ -86,7 +86,7 @@ export default function AdminSettingsPage() {
 
   if (!settings.data) return <ListSkeleton rows={2} />;
   const s = settings.data;
-  const exampleSaved = Math.floor((2000 * s.savings_percent) / 100);
+  const exampleSaved = savedPartOre(2000, s.savings_percent);
 
   return (
     <section className="space-y-5">

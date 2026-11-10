@@ -18,3 +18,10 @@ export function parseKrToOre(input: string): number | null | "invalid" {
   if (!Number.isFinite(value) || value < 0) return "invalid";
   return Math.round(value * 100);
 }
+
+// Delen av et krav som går til sparing: nærmeste hele krone, så barnet får
+// hele kroner til gode. Samme regel som apply_claim_savings() i databasen.
+export function savedPartOre(amountOre: number, percent: number) {
+  if (!percent || percent <= 0) return 0;
+  return Math.min(Math.round((amountOre * percent) / 100 / 100) * 100, amountOre);
+}

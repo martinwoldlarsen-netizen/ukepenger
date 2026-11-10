@@ -113,7 +113,7 @@ VAPID-nøkler for varsler lages av serveren selv og lagres i tabellen
 
 ```
 app/
-  page.tsx, _components/LandingClient.tsx   forsiden
+  page.tsx, _components/Forside.tsx        forsiden (nb/en/uk), om-oss/
   login/, auth/callback/, onboarding/        innlogging og oppstart
   admin/                                     foreldrenes app (layout.tsx = meny)
     inbox (Krav), payments, tasks, children/[id], trophies, history,

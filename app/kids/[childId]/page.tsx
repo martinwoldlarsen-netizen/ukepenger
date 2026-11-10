@@ -14,7 +14,7 @@ import { SoundToggle } from "../_components/SoundToggle";
 import { FigurePicker } from "@/components/avatars/FigurePicker";
 import { KidAvatar } from "@/components/avatars/KidAvatar";
 import { getFigure } from "@/components/avatars/figures";
-import { formatKr } from "@/lib/money";
+import { formatKr, savedPartOre } from "@/lib/money";
 import { kidColor } from "../_lib/palette";
 import { asLang } from "@/lib/i18n";
 import { kidError, kidText } from "../_lib/text";
@@ -204,7 +204,7 @@ function KidTaskView({ childId }: { childId: string }) {
     void mutateGlobal(kidProgressKey(childId));
     if (payload.status === "APPROVED") {
       // Samme regel som databasen: sparedelen rundes ned og trekkes fra beløpet.
-      const savedPart = Math.floor((task.amount_ore * savingsPercent) / 100);
+      const savedPart = savedPartOre(task.amount_ore, savingsPercent);
       setPendingOre((prev) => Math.max(0, prev - task.amount_ore));
       setApprovedOre((prev) => prev + task.amount_ore - savedPart);
       setSavedOre((prev) => (prev === null ? null : prev + savedPart));

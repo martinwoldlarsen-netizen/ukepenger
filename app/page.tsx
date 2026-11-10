@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import LandingClient from "./_components/LandingClient";
+import Forside from "./_components/Forside";
 
-const tittel = "Ukepenger | Mindre mas. Mer mestring.";
+const tittel = "Ukepenger | Oppgavene blir gjort. Uten mas.";
 const beskrivelse =
   "Barnet ser oppgavene sine og sender krav. Du godkjenner og betaler. En enkel familie-app for ukepenger – gratis å bruke.";
 
@@ -25,6 +25,6 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <LandingClient />;
+  return <Forside />;
 }
 
